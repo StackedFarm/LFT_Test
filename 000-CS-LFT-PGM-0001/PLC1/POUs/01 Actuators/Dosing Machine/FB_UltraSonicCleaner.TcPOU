@@ -1,0 +1,162 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_UltraSonicCleaner" Id="{4e15baa4-0eb6-4c20-9846-8da78f4e7067}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_UltraSonicCleaner EXTENDS FB_BaseDevice IMPLEMENTS I_Device
+
+VAR
+	{attribute 'OPC.UA.DA' := '1'} 
+	bInContactor AT %I*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	bOutContactor AT %Q*: BOOL := FALSE;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSMState: (WAIT, TURNING_ON, ON, TURNING_OFF, OFF);
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	tActionTimeout: TIME := T#5S;
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbTON_timeout: TON := (PT := tActionTimeout, IN := FALSE);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbTONstartTime();
+fbTONstopTime();
+
+IF GVL.bAutoUpdateDeviceState THEN
+	eState := eStateTarget;	
+END_IF
+
+
+IF bEnable THEN
+	IF eStateTarget = E_DeviceState.ON AND eState <> E_DeviceState.ON THEN
+		eSMState := TURNING_ON;
+	END_IF
+END_IF
+
+IF eStateTarget = E_DeviceState.OFF AND eState <> E_DeviceState.OFF THEN
+		eSMState := TURNING_OFF;
+END_IF
+
+
+
+CASE eSMState OF
+	
+	WAIT:
+		//Wait for method call to change ESMState
+		
+	TURNING_ON: 
+		bOutContactor := TRUE;
+		eSMState := ON;
+		eState := E_DeviceState.TURNING_ON;
+		
+		IF fbTONstartTime.Q THEN
+			eSMState := WAIT;
+			raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Drum Filter Failed to Start', Enabled := TRUE, DeviceAlarmID := 1);
+		END_IF
+		
+		
+	ON:
+		IF bInContactor = TRUE THEN
+			eState := E_DeviceState.ON;
+			eSMState := WAIT;
+			bBusy := FALSE;
+		END_IF	
+	
+		
+	TURNING_OFF:
+		bOutContactor := FALSE;
+		eSMState := OFF;
+		eState := E_DeviceState.TURNING_OFF;
+		
+		IF fbTONstopTime.Q THEN
+			eSMState := WAIT;
+			raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Drum Filter Failed to Stop', Enabled := TRUE, DeviceAlarmID := 2);
+		END_IF 
+		
+
+	OFF:
+		IF bInContactor = FALSE THEN
+			eState := E_DeviceState.OFF;
+			eSMState := WAIT;
+			bBusy := FALSE;
+		END_IF
+END_CASE]]></ST>
+    </Implementation>
+    <Method Name="disable" Id="{08efec4a-2e91-493c-98b6-81996ea2e0d9}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{89d18165-1b10-4b99-8720-7f7a7658f9af}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{8a224674-0809-4f74-87bc-6741b4f97004}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	UnitID: STRING(80);
+	UnitDescr: STRING(255); 
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := UnitID;
+sDescr := UnitDescr;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOff" Id="{e202a6ea-d217-442b-b028-6fae790708db}">
+      <Declaration><![CDATA[METHOD setOff : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eSMState := TURNING_OFF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOn" Id="{97f59ada-9b00-4847-923d-ee49fd9288d8}">
+      <Declaration><![CDATA[METHOD setOn : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eSMState := TURNING_ON;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_UltraSonicCleaner">
+      <LineId Id="81" Count="1" />
+      <LineId Id="156" Count="0" />
+      <LineId Id="158" Count="2" />
+      <LineId Id="157" Count="0" />
+      <LineId Id="83" Count="10" />
+      <LineId Id="138" Count="0" />
+      <LineId Id="96" Count="41" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UltraSonicCleaner.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UltraSonicCleaner.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UltraSonicCleaner.FB_init">
+      <LineId Id="7" Count="0" />
+      <LineId Id="16" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UltraSonicCleaner.setOff">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UltraSonicCleaner.setOn">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

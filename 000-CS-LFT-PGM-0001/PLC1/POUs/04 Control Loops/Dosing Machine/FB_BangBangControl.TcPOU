@@ -1,0 +1,160 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_BangBangControl" Id="{79b5f462-2c89-4668-89cd-42f324f771d3}" SpecialFunc="None">
+    <Declaration><![CDATA[
+(*
+	Function Block which performs a bang-bang control loop.
+*)
+{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_BangBangControl EXTENDS FB_BaseDevice
+VAR_INPUT
+	{attribute 'OPC.UA.DA' := '1'}
+	rAlarmHigh : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	rAlarmLow : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	rLimitHigh : REAL; // the upper limit of the desirable range (when the downward adjustment is activated)
+	{attribute 'OPC.UA.DA' := '1'}
+	rLimitLow : REAL; // lower limit of the desirable range (when the upward adjustment is activated)
+	{attribute 'OPC.UA.DA' := '1'}
+	nAdjustDelay : REAL; // min time in seconds between adjustments
+	{attribute 'OPC.UA.DA' := '1'}
+	nAdjustDownDuration : REAL; // time in seconds that the downward adjustment output is turned on when performing a downward adjustment
+	{attribute 'OPC.UA.DA' := '1'}
+	nAdjustUpDuration : REAL; // time in seconds that the upward adjustment output is turned on when performing a upward adjustment
+	{attribute 'OPC.UA.DA' := '1'}
+	rCurrentValue : REAL; 
+	{attribute 'OPC.UA.DA' := '1'}
+	bEnabled : BOOL; 
+	{attribute 'OPC.UA.DA' := '1'}
+	sParameterName : STRING;
+	{attribute 'OPC.UA.DA' := '1'}
+	rSetpoint: REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	Mode:    E_CTRL_MODE;
+END_VAR
+VAR_OUTPUT
+	{attribute 'OPC.UA.DA' := '1'}
+	bAdjustDownOutput AT %Q*: BOOL;
+	{attribute 'OPC.UA.DA' := '1'}
+	bAdjustUpOutput AT %Q*: BOOL;
+	{attribute 'OPC.UA.DA' := '1'}
+	bAlarmHigh : BOOL;
+	{attribute 'OPC.UA.DA' := '1'}
+	bAlarmLow : BOOL;
+END_VAR
+VAR
+	tAdjustDownTimer : TON;
+	tAdjustUpTimer : TON;
+	tAdjustDelayTimer : TON;
+	bAdjustDownActive : BOOL;
+	bAdjustUpActive : BOOL;
+	bDelayActive : BOOL;
+	
+	//rProportionalGainUp: REAL := 0.0001;
+	//rProportionalGainDown: REAL := 0.0001;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+
+IF eState = E_DeviceState.RUNNING THEN
+	timers();
+	// output signals
+	bAdjustDownOutput := bAdjustDownActive;
+	bAdjustUpOutput := bAdjustUpActive;
+	// alarms
+	bAlarmHigh := (rCurrentValue >= rAlarmHigh);
+	bAlarmLow := (rCurrentValue <= rAlarmLow);
+ELSE
+	bAdjustDownOutput := FALSE;
+	bAdjustUpOutput := FALSE;
+	bAlarmHigh := FALSE;
+	bAlarmLow := FALSE;
+	// clear the delay timer 
+	tAdjustDelayTimer.PT := INT_TO_TIME(0);
+END_IF
+
+// update setpoint (just for historizing purposes)
+rSetpoint := (rLimitHigh + rLimitLow) / 2.0;
+
+]]></ST>
+    </Implementation>
+    <Method Name="setState" Id="{abe22de6-2562-4e76-8f87-0f0b28918b9f}">
+      <Declaration><![CDATA[METHOD setState : BOOL
+VAR_INPUT
+	state : E_DeviceState;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+eState := state;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="timers" Id="{d01043e5-4627-4a1d-9221-472286ded3c3}">
+      <Declaration><![CDATA[(*
+	Run the timers for delay, adjust up and adjust down
+*)
+METHOD timers : BOOL
+VAR_INPUT
+END_VAR
+
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+tAdjustDelayTimer(IN := bDelayActive, PT := REAL_TO_TIME(nAdjustDelay) * 1000);
+tAdjustDownTimer(IN := bAdjustDownActive, PT := REAL_TO_TIME(nAdjustDownDuration) * 1000);
+tAdjustUpTimer(IN := bAdjustUpActive, PT := REAL_TO_TIME(nAdjustUpDuration) * 1000);
+
+IF tAdjustDelayTimer.Q THEN
+	// the delay timer is finished so check if we need to activate an adjustment
+	
+	//bAdjustDownActive := rCurrentValue > ((rLimitHigh + rLimitLow) / 2.0)*1.025;
+	bAdjustDownActive := rCurrentValue > (1.1 * rLimitHigh); // only exhaust if we are way over 
+	bAdjustUpActive := rCurrentValue < ((rLimitHigh + rLimitLow) / 2.0)*0.985;
+	
+	//nAdjustUpDuration := (ABS(rCurrentValue - ((rLimitHigh + rLimitLow) / 2.0)) * rProportionalGainDown);
+	//nAdjustDownDuration  := (ABS(rCurrentValue - ((rLimitHigh + rLimitLow) / 2.0)) * rProportionalGainUp);
+END_IF
+
+// run the delay timer whenever we are not activating an output
+bDelayActive := NOT bAdjustDownActive AND NOT bAdjustUpActive;
+
+// unlatch adjustDownActive when timer finishes
+IF tAdjustDownTimer.Q THEN
+	bAdjustDownActive := FALSE;
+END_IF
+
+// unlatch adjustUpActive when timer finishes
+IF tAdjustUpTimer.Q THEN
+	bAdjustUpActive := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_BangBangControl">
+      <LineId Id="3" Count="0" />
+      <LineId Id="5" Count="13" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="123" Count="0" />
+      <LineId Id="122" Count="0" />
+      <LineId Id="124" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BangBangControl.setState">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BangBangControl.timers">
+      <LineId Id="3" Count="8" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="35" Count="2" />
+      <LineId Id="13" Count="12" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

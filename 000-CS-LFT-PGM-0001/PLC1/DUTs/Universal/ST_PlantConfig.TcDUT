@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_PlantConfig" Id="{88b3019f-89e4-4ed3-806d-1b74b29f83ae}">
+    <Declaration><![CDATA[TYPE ST_PlantConfig :
+STRUCT
+	average_yield : REAL;
+	dark_time : INT;
+	seedling_time : INT;
+	grow_time : INT;
+	plant_id : INT;
+	plant_type : STRING;
+	seed_spacing : INT;	
+	trayConfig : ARRAY[0..3] OF ARRAY[0..3] OF INT;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

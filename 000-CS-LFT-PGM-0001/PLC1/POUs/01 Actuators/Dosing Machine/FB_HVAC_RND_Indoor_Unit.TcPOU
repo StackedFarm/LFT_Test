@@ -1,0 +1,83 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_HVAC_RND_Indoor_Unit" Id="{f99126f8-50de-4600-abb0-320d2bbdc0ad}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_HVAC_RND_Indoor_Unit EXTENDS FB_BaseDevice
+
+
+VAR_INPUT
+	nSetpoint: REAL; // This register stores indoor unit setpoint (0.1 degC step). This value multiplied by 10 to store as an integer value. 16bit signed integer
+	nUnitID: STRING; //This will be set by the HVAC vendor - this is a DIINetID, and not a Modbus ID - do not confuse these?
+					// The unit ID will be used to determine which bits to unpack from the modbus packets
+					// The PLC will only receive Modbus messages from the centralised HVAC controller which has an individual Modbus ID
+	
+	// ----------------- Modbus Variables -----------//
+	// Written in accordance with the modbus manuial supplied by vendor
+	// https://drive.google.com/file/d/1Gl1Z8UXsnYqQFCh63b19Rq_Jpmyq9qef/view?usp=sharing
+	
+	// -------------------READ ONLY ---------------//
+
+	// Status
+	bConnectionStatus: BOOL;
+	bCommsStatus: BOOL;
+
+	// Status
+	bOnOff_1_0: BOOL;
+	
+	nSetpoint_RO: REAL; // This register stores indoor unit setpoint (0.1 degC step). This value multiplied by 10 to store as an integer value. 16bit signed integer
+	
+	(*bForced: BOOL;
+	nFanDirection_RO: UINT;
+	nFanVolume_RO: UINT;
+	nOperationMode_RO: UINT; // ENUM HERE?
+	bFilterSignStatus: BOOL; // This comes through as a BYTE for all units, will need to access bit depending on the UNitID
+	nOperationStatus_RO: UINT;
+	nCoolHeatMaster: UINT;
+	
+	
+	nErrorCode_Val1: UINT;
+	nErrorCode_Val2: UINT;
+	bMalfunction: BOOL;
+	bWarning: BOOL;
+	nRoomTemp: REAL; // This register stores indoor unit setpoint (0.1 degC step). This value multiplied by 10 to store as an integer value. 16bit signed integer
+	bTempSensor_Error: BOOL;
+	bTempSensor_DataReceived: BOOL;
+	
+	// -------------------READ / WRITE ---------------//
+	(*
+	
+	nFanControlFlag: UINT;
+	nFanDirection: UINT;
+	nFanVolume: UINT;
+	nOperationMode: UINT;
+	nFilterSignReset: UINT;
+	nOperationStatus: UINT; // Needs to be set before the cooling or heating setpoints are set
+	*)
+	*)
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF GVL.bAutoUpdateDeviceState THEN
+	eState := eStateTarget;	
+END_IF
+
+IF NOT bConnectionStatus THEN
+	raiseAlarm(Priority := E_AlarmPriority.High, Label := 'HVAC Indoor Unit Not Connected', Enabled := TRUE, DeviceAlarmID := 1);
+ELSE
+	raiseAlarm(Priority := E_AlarmPriority.High, Label := 'HVAC Indoor Unit Not Connected', Enabled := FALSE, DeviceAlarmID := 1);
+END_IF
+
+IF NOT bConnectionStatus THEN
+	raiseAlarm(Priority := E_AlarmPriority.High, Label := 'HVAC Indoor Unit Comms Issue', Enabled := TRUE, DeviceAlarmID := 2);
+ELSE
+	raiseAlarm(Priority := E_AlarmPriority.High, Label := 'HVAC Indoor Unit Comms Issue', Enabled := FALSE, DeviceAlarmID := 2);
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FB_HVAC_RND_Indoor_Unit">
+      <LineId Id="81" Count="3" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="204" Count="3" />
+      <LineId Id="209" Count="4" />
+      <LineId Id="208" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

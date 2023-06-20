@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_ControlLoop_BangBang" Id="{0198148f-352c-4932-aa3f-2fe5bab15a67}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_ControlLoop_BangBang :
+STRUCT
+	
+	rAlarmHigh : 			REAL;
+	rAlarmLow : 			REAL;
+	rLimitHigh : 			REAL; // the upper limit of the desirable range (when the downward adjustment is activated)
+	rLimitLow : 			REAL; // lower limit of the desirable range (when the upward adjustment is activated)
+	nAdjustDelay : 			REAL; // min time in seconds between adjustments
+	nAdjustDownDuration : 	REAL; // time in seconds that the downward adjustment output is turned on when performing a downward adjustment
+	nAdjustUpDuration : 	REAL; // time in seconds that the upward adjustment output is turned on when performing a upward adjustment
+	bEnabled : 				BOOL; 
+	Mode:     				E_CTRL_MODE;
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

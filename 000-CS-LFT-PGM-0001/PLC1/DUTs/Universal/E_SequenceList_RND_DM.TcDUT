@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_SequenceList_RND_DM" Id="{4081249b-7bb7-40ea-b11a-d02aad36f286}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_SequenceList_RND_DM :
+(
+	SEQ_MAIN := 1,
+	SEQ_CALIBRATE := 2,
+	SEQ_FILL := 3,
+	SEQ_DRAIN := 4,
+	SEQ_FLUSH := 5
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

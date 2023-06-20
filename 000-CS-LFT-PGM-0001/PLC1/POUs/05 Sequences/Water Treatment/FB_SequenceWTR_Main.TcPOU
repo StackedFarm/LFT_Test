@@ -1,0 +1,245 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SequenceWTR_Main" Id="{965db6e2-19d5-4a88-aba6-a390e9cab7ee}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_SequenceWTR_Main EXTENDS FB_SequenceBase
+
+VAR
+	bUseMainPump_A: BOOL := TRUE;  // this boolean is used to keep track of which of the two redudant pumps we should use
+END_VAR
+
+VAR_IN_OUT
+	devices: ST_WTRComponents;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="FB_init" Id="{4966600d-a7b8-4198-b738-1455e746b9a6}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+		Here we set the order of things to command, what the commands should be, and also how much time to allow during and between steps
+		Every component listed below becomes 'Enabled' at each step
+*)
+sSequenceName:= 'WTR Main Sequence';
+sSequenceDescription := 'Main sequence for water treatment system with pH dosing active';
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="populateSteps" Id="{cdbb80b0-17e2-49be-a406-97db2ddbe6d5}">
+      <Declaration><![CDATA[METHOD populateSteps : ST_SequenceStep
+VAR_INPUT
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+		Here we set the order of things to command, what the commands should be, and also how much time to allow during and between steps
+		Every component listed below becomes 'Enabled' at each step
+*)
+Step1.Device := devices.fbDrumFilter_WasteWaterSump;
+Step1.Command := E_DeviceState.RUNNING;
+Step1.StepMinDuration := T#0S; 
+Step1.DelayUntilNextStep := T#0S;
+Step1.WaitForAction := FALSE;
+aSequenceSteps[1] :=   Step1;
+
+Step2.Device := devices.fbPump_WasteWaterSumpPumpA;
+Step2.Command := E_DeviceState.RUNNING;
+Step2.StepMinDuration := T#0S; 
+Step2.DelayUntilNextStep := T#0S;
+Step2.WaitForAction := FALSE;
+aSequenceSteps[2] :=   Step2;
+
+
+Step3.Device := devices.fbUnit_RO_EDI;
+Step3.Command := E_DeviceState.RUNNING;
+Step3.StepMinDuration := T#0S; 
+Step3.DelayUntilNextStep := T#0S;
+Step3.WaitForAction := FALSE;
+aSequenceSteps[3] :=   Step3;
+
+
+Step4.Device := devices.fbValve_DosingSupply;
+Step4.Command := E_DeviceState.OPEN;
+Step4.StepMinDuration := T#5S; 
+Step4.DelayUntilNextStep := T#5S;
+Step4.WaitForAction := TRUE;
+aSequenceSteps[4] :=   Step4;
+
+
+Step5.Device := devices.fbPump_CleanWaterPumpA;
+Step5.Command := E_DeviceState.RUNNING;
+Step5.StepMinDuration := T#5S; 
+Step5.DelayUntilNextStep := T#5S;
+Step5.WaitForAction := TRUE;
+aSequenceSteps[5] :=   Step5;
+
+//Step6.Component := devices.fbControlLoop;
+Step6.Device := devices.fbPump_WasteWaterSumpPumpB;
+Step6.Command := E_DeviceState.RUNNING;
+Step6.StepMinDuration := T#0S; 
+Step6.DelayUntilNextStep := T#0S;
+Step6.WaitForAction := FALSE;
+aSequenceSteps[6] :=   Step6;
+
+
+Step7.Device := devices.fbUnit_OzoneGenerator;
+Step7.Command := E_DeviceState.RUNNING;
+Step7.StepMinDuration := T#5S; 
+Step7.DelayUntilNextStep := T#5S;
+Step7.WaitForAction := TRUE;
+aSequenceSteps[7] :=   Step7;
+
+nNumberSequenceSteps := 7;  // use this number to limit the number of operations
+updateVarIDs();
+
+(*
+
+				Step8.Component := devices.
+				Step8.Command := E_DeviceState.
+				Step8.StepMinDuration := T#5S; 
+				Step8.DelayUntilNextStep := T#5S;
+				Step8.WaitForAction := TRUE;
+				aSequenceSteps[8] :=   Step8;
+				
+				
+				Step9.Component := devices.
+				Step9.Command := E_DeviceState.
+				Step9.StepMinDuration := T#5S; 
+				Step9.DelayUntilNextStep := T#5S;
+				Step9.WaitForAction := TRUE;
+				aSequenceSteps[9] :=   Step9;
+				
+				
+				Step10.Component := devices.
+				Step10.Command := E_DeviceState.
+				Step10.StepMinDuration := T#5S; 
+				Step10.DelayUntilNextStep := T#5S;
+				Step10.WaitForAction := TRUE;
+				aSequenceSteps[10] :=   Step10;
+				
+				
+				Step11.Component := devices.
+				Step11.Command := E_DeviceState.
+				Step11.StepMinDuration := T#5S; 
+				Step11.DelayUntilNextStep := T#5S;
+				Step11.WaitForAction := TRUE;
+				aSequenceSteps[11] :=   Step11;
+				
+				
+				Step12.Component := devices.
+				Step12.Command := E_DeviceState.
+				Step12.StepMinDuration := T#5S; 
+				Step12.DelayUntilNextStep := T#5S;
+				Step12.WaitForAction := TRUE;
+				aSequenceSteps[12] :=   Step12;
+				
+				
+				Step13.Component := devices.
+				Step13.Command := E_DeviceState.
+				Step13.StepMinDuration := T#5S; 
+				Step13.DelayUntilNextStep := T#5S;
+				Step13.WaitForAction := TRUE;
+				aSequenceSteps[13] :=   Step13;
+				
+				
+				Step14.Component := devices.
+				Step14.Command := E_DeviceState.
+				Step14.StepMinDuration := T#5S; 
+				Step14.DelayUntilNextStep := T#5S;
+				Step14.WaitForAction := TRUE;
+				aSequenceSteps[14] :=   Step14;
+				
+				
+				Step15.Component := devices.
+				Step15.Command := E_DeviceState.
+				Step15.StepMinDuration := T#5S; 
+				Step15.DelayUntilNextStep := T#5S;
+				Step15.WaitForAction := TRUE;
+				aSequenceSteps[15] :=   Step15;
+				
+				
+				Step16.Component := devices.
+				Step16.Command := E_DeviceState.
+				Step16.StepMinDuration := T#5S; 
+				Step16.DelayUntilNextStep := T#5S;
+				Step16.WaitForAction := TRUE;
+				aSequenceSteps[16] :=   Step16;
+				
+				
+				Step17.Component := devices.
+				Step17.Command := E_DeviceState.
+				Step17.StepMinDuration := T#5S; 
+				Step17.DelayUntilNextStep := T#5S;
+				Step17.WaitForAction := TRUE;
+				aSequenceSteps[17] :=   Step17;
+				
+				
+				Step18.Component := devices.
+				Step18.Command := E_DeviceState.
+				Step18.StepMinDuration := T#5S; 
+				Step18.DelayUntilNextStep := T#5S;
+				Step18.WaitForAction := TRUE;
+				aSequenceSteps[18] :=   Step18;
+				
+				
+				Step19.Component := devices.
+				Step19.Command := E_DeviceState.
+				Step19.StepMinDuration := T#5S; 
+				Step19.DelayUntilNextStep := T#5S;
+				Step19.WaitForAction := TRUE;
+				aSequenceSteps[19] :=   Step19;
+				
+				
+				Step20.Component := devices.
+				Step20.Command := E_DeviceState.
+				Step20.StepMinDuration := T#5S; 
+				Step20.DelayUntilNextStep := T#5S;
+				Step20.WaitForAction := TRUE;
+				aSequenceSteps[20] :=   Step20;
+*)
+				
+ 
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_SequenceWTR_Main">
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceWTR_Main.FB_init">
+      <LineId Id="10" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="111" Count="0" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="97" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceWTR_Main.populateSteps">
+      <LineId Id="9" Count="3" />
+      <LineId Id="192" Count="5" />
+      <LineId Id="199" Count="46" />
+      <LineId Id="353" Count="1" />
+      <LineId Id="359" Count="0" />
+      <LineId Id="351" Count="0" />
+      <LineId Id="246" Count="103" />
+      <LineId Id="352" Count="0" />
+      <LineId Id="350" Count="0" />
+      <LineId Id="138" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

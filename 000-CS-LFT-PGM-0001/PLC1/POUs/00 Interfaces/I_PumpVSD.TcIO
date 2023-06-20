@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_PumpVSD" Id="{d8a792d9-2847-44c6-a5da-d10c750828c4}">
+    <Declaration><![CDATA[INTERFACE I_PumpVSD
+]]></Declaration>
+    <Method Name="FB_init" Id="{06b34a4e-7fd6-4c42-b0c6-780d8a3471cb}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	PumpID: STRING(80);
+	PumpDescr: STRING(255);
+	
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="getFrequency" Id="{0b26af0c-eb2d-4b50-bc21-37d4ea7c70a4}">
+      <Declaration><![CDATA[METHOD getFrequency : REAL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="setOff" Id="{33a33858-a2d4-41de-b243-f0b0c89177cb}">
+      <Declaration><![CDATA[METHOD setOff : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="setOn" Id="{2e3a9f56-ad62-4827-854c-b826abc5d9e1}">
+      <Declaration><![CDATA[METHOD setOn : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="setReference" Id="{59ceeb83-f8b9-4371-bcbd-6e350e998314}">
+      <Declaration><![CDATA[METHOD setReference : BOOL
+VAR_INPUT
+	RefSetPoint: REAL;
+END_VAR
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

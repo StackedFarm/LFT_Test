@@ -1,0 +1,233 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Sensor_AtlasDO" Id="{311373c6-d3a1-46f8-8bbf-36579a150e3d}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA' := '1'}
+FUNCTION_BLOCK FB_Sensor_AtlasDO EXTENDS FB_BaseDevice IMPLEMENTS I_Device, I_Sensor
+
+VAR
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSensorType: E_SensorType;
+	{attribute 'OPC.UA.DA' := '0'}
+	nRawInput AT %I*: INT;
+	nFaultInput AT %I*: BOOL;
+	{attribute 'OPC.UA.DA' := '1'}
+	nCurrentValue: REAL;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	nCalOutputLOW AT %Q*: BOOL;
+	{attribute 'OPC.UA.DA' := '0'} 
+	nCalOutputHIGH AT %Q*: BOOL;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	trigCalibrate: R_TRIG;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	timerBtnPress: TON := (PT:=T#250MS,IN := FALSE);
+	{attribute 'OPC.UA.DA' := '0'} 
+	timerDoCalibration: TON := (PT:=T#120S,IN := FALSE); // Check this time during testing! The instructions are not clear about what happens after initiating a calibration request 
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSMState: (WAIT, LOW_START, LOW_END, HIGH_START, HIGH_END) := WAIT;
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[calculate();
+trigCalibrate();
+timerBtnPress();
+
+
+CASE eSMState OF 
+	WAIT:
+		// wait for the calibrate method call to change the ESMState variable
+		
+
+	LOW_START:
+		nCalOutputLOW := TRUE;
+		timerBtnPress.IN := TRUE;
+		IF timerBtnPress.Q THEN
+			nCalOutputLOW := FALSE;
+			eSMState := LOW_END;
+			timerBtnPress.IN := FALSE; 
+			timerDoCalibration.IN := TRUE;
+		END_IF
+		
+		eSMState := LOW_END;
+		
+	LOW_END:
+		IF timerDoCalibration.Q THEN
+			timerDoCalibration.IN := FALSE;
+			bBusy := FALSE;
+			eSMState := WAIT;
+		END_IF
+	
+	
+	HIGH_START:
+		nCalOutputHIGH := TRUE;
+		timerBtnPress.IN := TRUE;
+		IF timerBtnPress.Q THEN
+			nCalOutputHIGH := FALSE;
+			eSMState := HIGH_END;
+			timerBtnPress.IN := FALSE; 
+			timerDoCalibration.IN := TRUE;
+		END_IF
+		
+		eSMState := HIGH_END;
+		
+	HIGH_END:
+		IF timerDoCalibration.Q THEN
+			timerDoCalibration.IN := FALSE;
+			bBusy := FALSE;
+			eSMState := WAIT;
+		END_IF
+		
+
+END_CASE]]></ST>
+    </Implementation>
+    <Method Name="calculate" Id="{aa77c180-02ca-4169-8e47-9f714ed550a6}">
+      <Declaration><![CDATA[METHOD PRIVATE calculate : BOOL
+VAR_INPUT
+	
+	// Var
+END_VAR
+VAR
+	nMeasuredCurrent: REAL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nMeasuredCurrent := (INT_TO_REAL(nRawInput)/GVL.nMaxADCOutput)*16.0 + 4.0; // in mA
+
+
+// nCurrentValue := (nMeasuredCurrent - 4.0) * 2.0;  // equation is DO = (mA reading - 4.0) / 0.5
+
+nCurrentValue := (nMeasuredCurrent - 4.0) * 2.0;  // equation is DO = (mA reading - 4.0) / 0.5
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="calibrate" Id="{3bbf9354-c59b-42d4-9aa6-4f5a4fe072f9}">
+      <Declaration><![CDATA[METHOD calibrate : BOOL
+VAR_INPUT
+	TestType: INT; // LOW = 1, HIGH = 2
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE TestType OF
+	1:
+		eSMState := LOW_START;
+	2:
+		eSMState := HIGH_START;
+		
+END_CASE
+
+bBusy := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="disable" Id="{b56074bd-5d3d-4815-b679-163f0a6343f7}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{75fbd39c-834d-401b-85ca-55cdda0e7f23}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{ac500d8b-f0e9-4c01-b5cd-3b9100ee7394}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD FB_init : BOOL
+VAR_INPUT
+	(* if TRUE, the retain variables are initialized (warm start / cold start)*)
+	bInitRetains	: BOOL;
+	(* if TRUE, the instance afterwards gets moved into the copy code (online change)*)
+	bInCopyCode	: BOOL;
+	
+	SensorID	: STRING(80);
+	SensorDescr	: STRING(255);
+	SensorType	: E_SensorType;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := SensorID;
+sDescr := SensorDescr;
+eSensorType := SensorType;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getType" Id="{cb0bdbee-0271-4d1b-bd59-9fea4b1f33db}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getType : E_SensorType
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getType := eSensorType;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getValue" Id="{f1da22c0-9dd5-4237-85d8-d4d3b383fc16}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getValue : REAL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getValue := nCurrentValue;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="write" Id="{46b1587a-c6ed-4aff-adc8-c4ceeb3ef79a}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD write : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// use this method to initiated a hardware read from assigned IO if required
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Sensor_AtlasDO">
+      <LineId Id="46" Count="2" />
+      <LineId Id="171" Count="0" />
+      <LineId Id="49" Count="4" />
+      <LineId Id="70" Count="9" />
+      <LineId Id="135" Count="1" />
+      <LineId Id="80" Count="17" />
+      <LineId Id="139" Count="1" />
+      <LineId Id="98" Count="6" />
+      <LineId Id="137" Count="0" />
+      <LineId Id="105" Count="0" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasDO.calculate">
+      <LineId Id="40" Count="0" />
+      <LineId Id="47" Count="1" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="41" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasDO.calibrate">
+      <LineId Id="6" Count="4" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="13" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasDO.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasDO.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasDO.FB_init">
+      <LineId Id="13" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasDO.getType">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasDO.getValue">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasDO.write">
+      <LineId Id="4" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

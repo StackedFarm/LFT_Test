@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_RND_HVAC_Indoor_Unit" Id="{5c1518b5-b69f-4e96-9985-427cb1720d07}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_RND_HVAC_Indoor_Unit :
+STRUCT
+	
+	On_Off_1_0:		BOOL;
+	TempSetPoint:	REAL;
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

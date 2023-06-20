@@ -1,0 +1,754 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_DosingPumpPRISMA" Id="{9a5179eb-3621-4410-84df-0c06682f78c3}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_DosingPumpPRISMA EXTENDS FB_BaseDevice IMPLEMENTS I_PumpDosing, I_Device
+
+VAR_IN_OUT
+	{attribute 'OPC.UA.DA' := '0'}
+	fbModbusMaster: FB_ModbusMaster;
+END_VAR
+
+VAR
+	// Modbus Variables\
+	{attribute 'OPC.UA.DA' := '1'}
+	{attribute 'OPC.UA.DA.Access' := '1'}
+	nPumpID: UINT;	
+	{attribute 'OPC.UA.DA' := '1'}
+	{attribute 'OPC.UA.DA.Access' := '1'}
+	nModbusUnitID: UINT; 
+	
+	//Pump Calibration / Capacity
+	{attribute 'OPC.UA.DA' := '1'}
+	{attribute 'OPC.UA.DA.Access' := '1'}
+	nPumpCapacity: UINT;
+	
+	// 
+	{attribute 'OPC.UA.DA' := '1'}
+	nMaxRetries: UINT := 5;
+	{attribute 'OPC.UA.DA' := '1'}
+	nNumRetries: UINT := 0;
+	
+	{attribute 'OPC.UA.DA' := '0'}
+	nReadRegsVals: ARRAY[1..10] OF WORD;
+	{attribute 'OPC.UA.DA' := '0'}
+	nWriteRegsVals: ARRAY[1..10] OF WORD;
+	{attribute 'OPC.UA.DA' := '0'}
+	nQtyWordsWrite: UINT;
+	{attribute 'OPC.UA.DA' := '0'}
+	nAddrWrite: UINT := 1;
+	{attribute 'OPC.UA.DA' := '0'}
+	nRegisterWordstoRead: UINT;
+	{attribute 'OPC.UA.DA' := '0'}
+	nAddrRead: UINT;
+	
+	// Async Statemachine Variables
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSMState: (WAIT, READ_TRIG, READ, WRITE_TRIG, WRITE, SET_DOSE_TRIG, SET_DOSE, DOSE_ON_TRIG, DOSE_ON, DOSE_OFF_TRIG, DOSE_OFF, SET_BATCH_QTY_TRIG, SET_BATCH_QTY, SET_BATCH_TRIG, SET_BATCH, ERROR) := WAIT;
+	{attribute 'OPC.UA.DA' := '0'} 
+	bRequestFinished: POINTER TO BOOL;
+	{attribute 'OPC.UA.DA' := '0'} 
+	bRequestSentToMaster: BOOL 	:= FALSE;
+	{attribute 'OPC.UA.DA' := '0'} 
+	bRequestCompleted: BOOL 	:= FALSE;
+	
+	// Dosing Variables
+	fbTONdoseTime: TON; // time the pump shall remain on at the nominated dosing rate
+	{attribute 'OPC.UA.DA' := '0'}   
+	fbTONdoseMsgDelay: TON := (PT := T#1000MS); // ensures pump has sufficient time to respond to request
+	
+	nDoseRateMLph: UINT;
+	nDoseQtyMls: UINT;
+	tTimeToDose: TIME;
+	
+	// Batch Dosing Variables
+	bBatchPulse AT %Q*: BOOL := FALSE;
+	nBatchQtyMl: UINT := 0;
+	{attribute 'OPC.UA.DA' := '0'}   
+	fbTONBatchMsgDelay: TON := (PT := T#100MS); // this gives time for the pump to be ready to receive a message
+	
+	
+	(*
+	  					SIMULATTION VARIABLES               
+	*)	
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbTONdoseTime();
+fbTONdoseMsgDelay();
+fbTONBatchMsgDelay();
+
+IF GVL.bAutoUpdateDeviceState THEN
+	eState := eStateTarget;	
+END_IF
+
+
+IF eMode <> E_DeviceMode.SIMULATION THEN
+
+	CASE eSMState OF
+	
+		WAIT :
+		// Wait for eSMState to be changed in a method call
+		nNumRetries := 0;
+	
+		READ_TRIG : 
+			fbModbusMaster.readRegs(
+				ReadRegsVals:= ADR(nReadRegsVals), 
+				SlaveAddress:= nModbusUnitID, 
+				QtyWordsToRead:= nRegisterWordstoRead, 
+				AdrFirstSlaveRegisterRead:= nAddrRead, 
+				bRequestCompleted:= ADR(bRequestCompleted), 
+				bRequestAccepted=> bRequestSentToMaster);
+				
+			IF bRequestSentToMaster THEN
+				eSMState := READ;
+			END_IF
+			
+		
+		READ :
+			IF bRequestCompleted THEN	
+				eSMState := WAIT; 						
+				bRequestSentToMaster := FALSE;
+				bRequestCompleted := TRUE;
+				bBusy := FALSE;
+			END_IF
+		
+			
+		WRITE_TRIG :
+			
+			(*
+			fbModbusMaster^.writeRegs(
+				WriteRegVals:= nWriteRegsVals, 
+				SlaveAddress:= nModbusUnitID, 
+				QtyWordsToWrite:= nQtyWordsWrite, 
+				AdrFirstSlaveRegisterWrite:= nAddrWrite, 
+				bRequestCompleted:= ADR(bRequestCompleted), 
+				bRequestAccepted=> bRequestSentToMaster);
+				
+				*)
+			fbModbusMaster.writeReg(
+				WriteRegVal:= nWriteRegsVals[1], 
+				SlaveAddress:= nModbusUnitID, 
+				AdrFirstSlaveRegisterWrite:= nAddrWrite, 
+				bRequestCompleted:= ADR(bRequestCompleted), 
+				bRequestAccepted=> bRequestSentToMaster);
+				
+			IF bRequestSentToMaster THEN  //Only progress if the ModbusMaster FB accepts the request - otherwise keep trying
+				eSMState := WRITE;
+			END_IF
+			
+		
+		WRITE:
+			IF bRequestCompleted THEN
+				eSMState := WAIT;
+				bRequestCompleted := FALSE;
+				bRequestSentToMaster := FALSE;
+				bBusy := FALSE;
+			END_IF
+			
+		
+		
+		SET_DOSE_TRIG:
+			
+			IF bRequestSentToMaster = FALSE THEN
+				IF fbModbusMaster.isBusy() = FALSE THEN
+					nWriteRegsVals[1] := UINT_TO_WORD(nDoseRateMLph); 
+					
+					fbModbusMaster.writeRegs(
+						WriteRegVals:= nWriteRegsVals, 
+						SlaveAddress:= nModbusUnitID, 
+						QtyWordsToWrite:= 1, 				
+						AdrFirstSlaveRegisterWrite:= 16#94, 
+						bRequestCompleted:= ADR(bRequestCompleted), 
+						bRequestAccepted=> bRequestSentToMaster);
+				END_IF
+				
+			ELSIF bRequestSentToMaster THEN	
+				eSMState := SET_DOSE;
+				bBusy := TRUE;
+			END_IF	
+			
+			
+		
+		SET_DOSE:
+			IF bRequestCompleted  THEN
+				eSMState := DOSE_ON_TRIG;
+				bRequestCompleted := FALSE;
+				bRequestSentToMaster := FALSE;
+				fbTONdoseMsgDelay(IN:= TRUE);		// give the pump 1s to respond	 
+			END_IF	
+		
+		
+		DOSE_ON_TRIG:
+		
+			IF bRequestSentToMaster = FALSE  THEN
+				IF fbModbusMaster.isBusy() = FALSE THEN
+					IF fbTONdoseMsgDelay.Q THEN
+				
+						nWriteRegsVals[1] := 16#01;
+						
+						fbModbusMaster.writeRegs(
+							WriteRegVals:= nWriteRegsVals, 
+							SlaveAddress:= nModbusUnitID, 
+							QtyWordsToWrite:= 1, 				
+							AdrFirstSlaveRegisterWrite:= 16#8C, 
+							bRequestCompleted:= ADR(bRequestCompleted), 
+							bRequestAccepted=> bRequestSentToMaster);
+					END_IF
+				END_IF
+			ELSIF bRequestSentToMaster THEN
+				eSMState := DOSE_ON;
+				fbTONdoseMsgDelay.IN := FALSE;
+				fbTONdoseTime(IN:= TRUE, PT := tTimeToDose); 
+			END_IF
+				
+		DOSE_ON:
+			IF bRequestCompleted THEN
+				eSMState := DOSE_OFF_TRIG;
+				bRequestCompleted := FALSE;
+				bRequestSentToMaster := FALSE;
+			END_IF
+			
+	
+		DOSE_OFF_TRIG:
+			
+			IF bRequestSentToMaster = FALSE THEN
+				IF fbModbusMaster.isBusy() = FALSE THEN
+					IF fbTONdoseTime.Q THEN
+						nWriteRegsVals[1] := 16#0;
+						fbModbusMaster.writeRegs(
+							WriteRegVals:= nWriteRegsVals, 
+							SlaveAddress:= nModbusUnitID, 
+							QtyWordsToWrite:= 1,  // 8 bytes from 40141 to 40149
+							AdrFirstSlaveRegisterWrite:= 16#8C, 
+							bRequestCompleted:= ADR(bRequestCompleted), 
+							bRequestAccepted=> bRequestSentToMaster);
+					END_IF
+				END_IF
+			ELSIF bRequestSentToMaster THEN
+				eSMState := DOSE_OFF;
+			END_IF
+				
+		DOSE_OFF:
+			IF bRequestCompleted  AND fbModbusMaster.Error() = FALSE THEN
+				eSMState := WAIT;
+				bRequestCompleted := FALSE;
+				bRequestSentToMaster := FALSE;
+				bBusy := FALSE;
+				fbTONdoseTime.IN := FALSE;
+				bRequestFinished^ := TRUE;
+				nDoseQtyMls := 0;  // Set this to zero so that the historised tag can capture duplicate successive doses
+			END_IF
+			
+			IF fbModbusMaster.Error() = TRUE THEN
+				eSMState := SET_DOSE_TRIG;
+				nNumRetries := nNumRetries + 1;
+			END_IF
+			
+			IF nNumRetries > nMaxRetries THEN
+				//Raise an error event for modbus communications
+			END_IF
+			
+			
+		SET_BATCH_QTY_TRIG:
+			IF bRequestSentToMaster = FALSE THEN
+				IF fbModbusMaster.isBusy() = FALSE THEN
+					
+					nWriteRegsVals[1] := UINT_TO_WORD(nDoseQtyMls); 
+					fbModbusMaster.writeRegs(
+						WriteRegVals:= nWriteRegsVals, 
+						SlaveAddress:= nModbusUnitID, 
+						QtyWordsToWrite:= 1, 				
+						AdrFirstSlaveRegisterWrite:= 16#DA, 
+						bRequestCompleted:= ADR(bRequestCompleted), 
+						bRequestAccepted=> bRequestSentToMaster);
+				END_IF
+			ELSIF bRequestSentToMaster THEN	
+				eSMState := SET_BATCH_QTY;
+			END_IF
+	
+		SET_BATCH_QTY:
+			IF bRequestCompleted  THEN
+				bRequestCompleted := FALSE;
+				bRequestSentToMaster := FALSE;
+				fbTONBatchMsgDelay(IN := TRUE);
+				eSMState := SET_BATCH_TRIG;
+			END_IF	
+				
+		SET_BATCH_TRIG:
+			IF fbTONBatchMsgDelay.Q = TRUE THEN
+				bBatchPulse := TRUE;
+				fbTONBatchMsgDelay(IN := FALSE);
+				fbTONBatchMsgDelay(IN := TRUE);
+				eSMState := SET_BATCH;
+			END_IF
+			
+		SET_BATCH:
+			IF fbTONBatchMsgDelay.Q = TRUE AND fbModbusMaster.Error() = FALSE THEN
+				bBatchPulse := FALSE;			
+				fbTONBatchMsgDelay.IN := FALSE;
+				bBusy := FALSE;
+				bRequestCompleted := FALSE;
+				bRequestSentToMaster := FALSE;
+				eSMState := WAIT;
+			END_IF
+			
+			IF fbModbusMaster.Error() = TRUE THEN
+				eSMState := SET_DOSE_TRIG;
+				nNumRetries := nNumRetries + 1;
+			END_IF
+			
+			IF nNumRetries > nMaxRetries THEN
+				//Raise an error event for modbus communications
+			END_IF
+		END_CASE
+	
+	(*
+					SIMULATION CODE
+	*)
+	
+	ELSIF eMode = E_DeviceMode.SIMULATION THEN
+		
+		IF eSMState = SET_DOSE_TRIG THEN  					// we are not at our desired state
+			
+			tTimeToDose := REAL_TO_TIME( (UINT_TO_REAL(nDoseQtyMls) * 1000.0) / (UINT_TO_REAL(nDoseRateMLph) / 60.0 / 60.0 ));
+			fbTONdoseTime.IN := FALSE;
+			fbTONdoseTime.PT := tTimeToDose;
+			fbTONdoseTime.IN := TRUE;
+			eState := E_DeviceState.RUNNING;
+			bBusy := TRUE;
+			eSMState := WAIT;
+		END_IF
+		
+		IF fbTONdoseTime.Q THEN
+			eStateTarget := E_DeviceState.IDLE;
+			eState := E_DeviceState.IDLE;
+			bBusy := FALSE;
+		END_IF
+			
+	END_IF
+			
+		
+
+]]></ST>
+    </Implementation>
+    <Method Name="disable" Id="{4f73b021-187c-433a-8160-b97db7b0609e}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := False;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{d3eeafd2-5398-4510-95b6-ba173f8a1044}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := True;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="executeDose" Id="{d7542a40-287c-4026-8107-028f56ee6fc7}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD executeDose : BOOL
+VAR_INPUT
+	DoseQtyMls	: UINT;
+	DoseRateMlph	: UINT;
+	RequestComplete	: POINTER TO BOOL;
+END_VAR
+VAR_OUTPUT
+	RequestAccepted	: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bBusy = FALSE THEN
+	IF bEnable THEN
+		nDoseQtyMls := DoseQtyMls;
+		nDoseRateMLph := DoseRateMLph;
+		tTimeToDose := REAL_TO_TIME( (UINT_TO_REAL(nDoseQtyMls) * 1000.0) / (UINT_TO_REAL(DoseRateMLph) / 60.0 / 60.0 ));
+		RequestAccepted := TRUE;
+		bRequestSentToMaster := FALSE;
+		bRequestFinished := RequestComplete;
+		eSMState := SET_DOSE_TRIG;
+		executeDose := TRUE;
+	END_IF
+ELSE
+	executeDose := FALSE;
+END_IF
+	]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{99aad83d-f99d-445a-b798-470a24c9365c}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	MotorID: STRING;
+	MotorDescr: STRING;
+	
+	ModbusUnitID: UINT; 
+	//ModbusMaster: FB_ModbusMaster;
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := MotorID;
+sDescr := MotorDescr;
+nModbusUnitID := ModbusUnitID;
+//fbModbusMaster := ModbusMaster;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="readReg" Id="{b667fcd0-879e-418b-84db-c7cea8534639}">
+      <Declaration><![CDATA[METHOD readReg : BOOL
+VAR_INPUT
+	RequestComplete	: POINTER TO BOOL;
+	AddressToRead: UINT;
+	NumberWords: UINT;
+END_VAR
+VAR_OUTPUT
+	RequestAccepted	: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bBusy = FALSE THEN
+	IF bEnable THEN
+		nReadRegsVals[1] := 16#00;
+		nReadRegsVals[2] := 16#00;
+		nReadRegsVals[3] := 16#00;
+		nReadRegsVals[4] := 16#00;
+		nRegisterWordstoRead := NumberWords;
+		nAddrRead:= AddressToRead;
+		eSMState := READ_TRIG;
+		bBusy := TRUE;		
+		readReg := TRUE;		
+	END_IF
+ELSE
+	readReg := FALSE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="resetStatistics" Id="{b0e54578-76bb-4005-80a7-ad2a537aeb5e}">
+      <Declaration><![CDATA[METHOD resetStatistics : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setBatch" Id="{a5d4114d-ec66-4ca8-be2f-adbece5dc2c1}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD setBatch : BOOL
+VAR_INPUT
+	BatchQtyMl	: UINT;
+	RequestComplete	: POINTER TO BOOL;
+END_VAR
+VAR_OUTPUT
+	RequestAccepted	: BOOL;
+END_VAR
+
+VAR
+	SET_BATCH_QTY_TRIG: E_DeviceState;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bBusy = FALSE THEN
+	IF bEnable THEN
+		nBatchQtyMl := BatchQtyMl;
+		RequestAccepted := TRUE;
+		bRequestSentToMaster := FALSE;
+		bRequestFinished := RequestComplete;
+		eSMState := SET_BATCH_QTY_TRIG;
+		setBatch := TRUE;
+	END_IF
+ELSE 
+	setBatch := FALSE;
+END_IF
+	
+	]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setCapacity" Id="{33d94caa-1361-44ae-bf84-51cba8744b50}">
+      <Declaration><![CDATA[METHOD setCapacity : BOOL
+VAR_INPUT
+	Capacity: DINT;
+END_VAR
+VAR_INPUT
+	RequestComplete	: POINTER TO BOOL;
+END_VAR
+VAR_OUTPUT
+	RequestAccepted	: BOOL;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bBusy = FALSE THEN
+	IF bEnable THEN
+		nWriteRegsVals[1] := DINT_TO_WORD(Capacity);
+		nQtyWordsWrite := 1;
+		nAddrWrite := 16#C1;
+		eSMState := WRITE_TRIG;
+		bBusy := TRUE;		
+		setCapacity := TRUE;		
+	END_IF
+ELSE
+	setCapacity := FALSE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setDoseParams" Id="{fc7ac7be-a193-46ce-887d-572b983541eb}">
+      <Declaration><![CDATA[METHOD setDoseParams : BOOL
+VAR_INPUT
+	DoseQtyMls	: UINT;
+	DoseRateMlph	: UINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+nDoseQtyMls := DoseQtyMls;
+nDoseRateMLph := DoseRateMlph;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setModbusMaster" Id="{4ca4da6d-9ecb-44fb-be0c-5c812cc08594}">
+      <Declaration><![CDATA[METHOD setModbusMaster : BOOL
+VAR_INPUT
+	ModbusMaster: FB_ModbusMaster;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+fbModbusMaster REF= ModbusMaster;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOFF" Id="{444823d2-923a-402f-8af6-7710d21bbf30}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD setOFF : BOOL
+VAR_INPUT
+	RequestComplete	: POINTER TO BOOL;
+END_VAR
+VAR_OUTPUT
+	RequestAccepted	: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bBusy = FALSE THEN
+	IF bEnable THEN
+		nWriteRegsVals[1] := 16#0;
+		nQtyWordsWrite := 1;
+		nAddrWrite := 16#8C;
+		eSMState := WRITE_TRIG;
+		bBusy := TRUE;		
+		setOFF := TRUE;		
+	END_IF
+ELSE
+	setOFF := FALSE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setON" Id="{cf385f41-0c8c-43a5-9505-0f5644af25b7}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD setON : BOOL
+VAR_INPUT
+	RateMlph	: UINT;
+	RequestComplete	: POINTER TO BOOL;
+END_VAR
+VAR_OUTPUT
+	RequestAccepted	: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bBusy = FALSE AND bEnable THEN
+	nWriteRegsVals[1] := 16#1;
+	nQtyWordsWrite := 1;
+	nAddrWrite := 16#8C;		// Emec have 2 different Modbus register schemes (check which version the pumps are and amend if necessary)
+	eSMState := WRITE_TRIG;
+	bBusy := TRUE;
+	setON := TRUE;
+ELSE
+	setON := FALSE;
+END_IF 
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="writeReg" Id="{8d7dc8d4-deb5-4228-94e0-cc328811ed72}">
+      <Declaration><![CDATA[METHOD writeReg : BOOL
+VAR_INPUT
+	RequestComplete	: POINTER TO BOOL;
+	Register: WORD;
+	Value: WORD;
+END_VAR
+VAR_OUTPUT
+	RequestAccepted	: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bBusy = FALSE THEN
+	IF bEnable THEN
+		nWriteRegsVals[1] := Value;
+		nQtyWordsWrite := 1;
+		nAddrWrite := Register;
+		eSMState := WRITE_TRIG;
+		bBusy := TRUE;				
+	END_IF
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_DosingPumpPRISMA">
+      <LineId Id="46" Count="1" />
+      <LineId Id="343" Count="0" />
+      <LineId Id="611" Count="3" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="695" Count="0" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="698" Count="0" />
+      <LineId Id="51" Count="3" />
+      <LineId Id="461" Count="0" />
+      <LineId Id="543" Count="0" />
+      <LineId Id="65" Count="8" />
+      <LineId Id="75" Count="9" />
+      <LineId Id="87" Count="0" />
+      <LineId Id="91" Count="1" />
+      <LineId Id="118" Count="3" />
+      <LineId Id="389" Count="0" />
+      <LineId Id="122" Count="5" />
+      <LineId Id="390" Count="1" />
+      <LineId Id="393" Count="2" />
+      <LineId Id="397" Count="1" />
+      <LineId Id="392" Count="0" />
+      <LineId Id="128" Count="2" />
+      <LineId Id="132" Count="8" />
+      <LineId Id="143" Count="2" />
+      <LineId Id="147" Count="14" />
+      <LineId Id="706" Count="0" />
+      <LineId Id="162" Count="11" />
+      <LineId Id="175" Count="26" />
+      <LineId Id="203" Count="13" />
+      <LineId Id="218" Count="18" />
+      <LineId Id="239" Count="1" />
+      <LineId Id="803" Count="0" />
+      <LineId Id="241" Count="0" />
+      <LineId Id="456" Count="2" />
+      <LineId Id="462" Count="0" />
+      <LineId Id="459" Count="0" />
+      <LineId Id="464" Count="3" />
+      <LineId Id="242" Count="6" />
+      <LineId Id="250" Count="9" />
+      <LineId Id="261" Count="3" />
+      <LineId Id="266" Count="1" />
+      <LineId Id="270" Count="0" />
+      <LineId Id="300" Count="0" />
+      <LineId Id="271" Count="13" />
+      <LineId Id="286" Count="2" />
+      <LineId Id="299" Count="0" />
+      <LineId Id="291" Count="0" />
+      <LineId Id="468" Count="0" />
+      <LineId Id="470" Count="6" />
+      <LineId Id="469" Count="0" />
+      <LineId Id="699" Count="0" />
+      <LineId Id="683" Count="0" />
+      <LineId Id="728" Count="2" />
+      <LineId Id="727" Count="0" />
+      <LineId Id="684" Count="0" />
+      <LineId Id="700" Count="1" />
+      <LineId Id="722" Count="0" />
+      <LineId Id="704" Count="0" />
+      <LineId Id="708" Count="0" />
+      <LineId Id="710" Count="0" />
+      <LineId Id="709" Count="0" />
+      <LineId Id="711" Count="0" />
+      <LineId Id="725" Count="0" />
+      <LineId Id="724" Count="0" />
+      <LineId Id="703" Count="0" />
+      <LineId Id="716" Count="2" />
+      <LineId Id="720" Count="0" />
+      <LineId Id="726" Count="0" />
+      <LineId Id="719" Count="0" />
+      <LineId Id="686" Count="1" />
+      <LineId Id="685" Count="0" />
+      <LineId Id="292" Count="1" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpPRISMA.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpPRISMA.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpPRISMA.executeDose">
+      <LineId Id="13" Count="1" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="21" Count="2" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="31" Count="1" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpPRISMA.FB_init">
+      <LineId Id="21" Count="2" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpPRISMA.readReg">
+      <LineId Id="42" Count="14" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpPRISMA.resetStatistics">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpPRISMA.setBatch">
+      <LineId Id="28" Count="1" />
+      <LineId Id="31" Count="3" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="42" Count="1" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpPRISMA.setCapacity">
+      <LineId Id="7" Count="11" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpPRISMA.setDoseParams">
+      <LineId Id="12" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpPRISMA.setModbusMaster">
+      <LineId Id="7" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpPRISMA.setOFF">
+      <LineId Id="11" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="30" Count="4" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="21" Count="2" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpPRISMA.setON">
+      <LineId Id="12" Count="0" />
+      <LineId Id="14" Count="4" />
+      <LineId Id="20" Count="4" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpPRISMA.writeReg">
+      <LineId Id="6" Count="6" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

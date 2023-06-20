@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_DosingMachine" Id="{0a45424c-b4e7-4068-91f8-c9968ddc95fb}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_DosingMachine:
+STRUCT
+
+	Pump_MainPumpSelection_A_1_B_0: UINT;
+	
+
+	stWaterQuality: ST_INPUTS_DosingMachine_Water;
+	stSumpDosing: ST_INPUTS_DosingMachine_Sump;
+	
+	stSequenceManager: 			ST_INPUTS_SequenceManager_DM;
+	stValve_DosingSupply: ST_INPUTS_ValveOnOFF;
+	stValve_IrrigatorSupply: ST_INPUTS_ValveOnOFF;
+	stValve_WasteWaterReturn: ST_INPUTS_ValveOnOFF;
+	stUnit_OxyInjector: ST_INPUTS_Unit_OxyInjector;
+	stUnit_UltraSonCleaner: ST_INPUTS_Unit_UltraSonCleaner;
+	stStrainer: ST_INPUTS_Strainer;
+	stUVFilter: ST_INPUTS_Unit_UVFilter;
+	stDosingPump_phUp: ST_INPUTS_DosingPump;
+	stDosingPump_phDown: ST_INPUTS_DosingPump;	
+	stDosingPump_NutrientA: ST_INPUTS_DosingPump;	
+	stDosingPump_NutrientB: ST_INPUTS_DosingPump;	
+	stDosingPump_NutrientC: ST_INPUTS_DosingPump;	
+	stPump_MainPumpA: ST_INPUTS_PumpVSD;
+	stPump_MainPumpB: ST_INPUTS_PumpVSD;
+	stControlLoopDosing_Nutrient: ST_INPUTS_Dosing_ControlLoop;
+	stControlLoopDosing_PH: ST_INPUTS_Dosing_ControlLoop;
+	
+
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

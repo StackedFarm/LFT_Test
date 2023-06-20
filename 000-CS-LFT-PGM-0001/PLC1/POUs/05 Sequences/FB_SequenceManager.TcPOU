@@ -1,0 +1,510 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SequenceManager" Id="{c6a4d8fe-2799-420c-a0a0-4822997fa76b}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+		The sequence manager co-ordinates the selection and execution of 
+		machine sequences. Machine sequences are created by extending the 
+		FB_SequenceBase FB.
+*)
+
+FUNCTION_BLOCK FB_SequenceManager
+VAR	
+	//aSequences: ARRAY[1..5] OF POINTER TO FB_SequenceBase;
+	 
+	nNumberSequences: INT := 0;
+	
+	{attribute 'OPC.UA.DA' := '1'} 
+	eState:  E_SequenceState := E_SequenceState.STOP; //always stop sequences after PLC restart
+	{attribute 'OPC.UA.DA' := '1'} 
+	eStateTarget:  E_SequenceState := E_SequenceState.STOP;
+	
+	eSMState: (STOPPED, STARTING, RUNNING, HOLD, COMPLETE) := STOPPED;
+	nCurrentStep: INT := 1;
+	nCurrentStepPreviousCycle: INT := 1;
+	nCurrentSequence: INT := 1;
+	nCurrentStepCheck: INT := 1; // use this to iterate over the sequence steps to check if an interlock has rolled back the sequence
+	bPauseAcknowledged: BOOL := FALSE;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbTONstep: TON;			// these timers are set using the time values stored in each ST_SequenceStep
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbTONdelay: TON;
+	{attribute 'OPC.UA.DA' := '0'} 
+	bIsFirstRun: BOOL := TRUE;
+	
+	i: INT;
+	Steps : ARRAY[1..20] OF ST_SequenceStep;
+	
+	fbCurrentSequence: FB_SequenceBase;
+END_VAR
+
+VAR_IN_OUT
+	aSequences: ARRAY[1..10] OF FB_SequenceBase;
+	//fbCurrentSequence: FB_SequenceBase;
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF bIsFirstRun THEN
+	fbTONdelay.PT := T#0S;
+	fbTONdelay.IN := TRUE;
+	fbTONdelay.PT := T#0S;
+	fbTONstep.IN := FALSE;
+	bIsFirstRun := FALSE;
+	fbCurrentSequence := aSequences[1];
+	eSMState := STOPPED;
+END_IF
+
+fbTONstep();
+fbTONdelay();
+
+CASE eSMState OF
+	
+	STOPPED:
+		// Wait here until a start sequence command is received
+		eState := E_SequenceState.STOP;
+		
+	STARTING:
+		FOR i := 1 TO fbCurrentSequence.stepsTotal() BY 1 DO
+			Steps := fbCurrentSequence.steps();
+			Steps[i].Device^.enable();
+		END_FOR
+		
+	
+		nCurrentStepPreviousCycle := nCurrentStep;
+		
+		// Attempt next step execution for a wait for action step
+		IF Steps[nCurrentStep].WaitForAction THEN
+			IF(executeStep(fbCurrentSequence.step(nCurrentStep)) AND nCurrentStep <> fbCurrentSequence.stepsTotal()) THEN
+				nCurrentStep := nCurrentStep + 1;	
+			END_IF
+		END_IF
+		
+		// Attempt next step execution for a non wait for action step
+		IF NOT Steps[nCurrentStep].WaitForAction THEN
+			fbCurrentSequence.step(nCurrentStep)^.Device^.setCommand(StateTarget := fbCurrentSequence.step(nCurrentStep)^.Command);
+			nCurrentStep := nCurrentStep + 1;	
+		END_IF
+		
+		
+		// Check which sequence step we are up to, set the currentStep indicator to +1 of where we are
+		// Interlocks / permissives can cause us to go backwards in steps, therefore we must do this check
+		
+		IF NOT fbCurrentSequence.getSeqType() THEN // only do this check if it is a flooding sequence
+			checkCurrentStep();	
+			IF nCurrentStep < nCurrentStepPreviousCycle THEN  // an interlock has caused the program to roll back in sequence (interlock etc.) - stay in PAUSE state and wait for user acknowledgement
+				eSMState := HOLD;
+			END_IF
+		END_IF
+			
+		eState := E_SequenceState.STARTING;
+	
+		
+		
+		
+	RUNNING:
+
+
+// Sequence is running - just need to check that we are still running, if not, we go to paused
+		nCurrentStepPreviousCycle := nCurrentStep;
+		
+		IF NOT fbCurrentSequence.getSeqType() THEN // only do this check if it is a flooding sequence
+			checkCurrentStep();
+			IF nCurrentStep < fbCurrentSequence.stepsTotal() THEN  // something has forced us out of the running state, go to paused and wait for operator to acknowledge
+				eSMState := HOLD;
+			END_IF
+		END_IF
+		
+		IF NOT (fbCurrentSequence.getSeqType()) THEN // the sequence is a floop type sequence
+			eState := E_SequenceState.RUN;
+		ELSIF NOT (fbCurrentSequence.step(StepNum := nCurrentStep)^.Device^.getState() = fbCurrentSequence.stepCommand(StepNumber := nCurrentStep)) THEN
+			eSMState := STARTING;
+		END_IF
+		
+		
+	HOLD:
+		// Do not progress the sequence until the operator has acknowledged that something went wrong
+		IF bPauseAcknowledged THEN
+			eSMState := STARTING;
+			bPauseAcknowledged := FALSE;
+		END_IF
+		
+		eState := E_SequenceState.HOLD;
+		
+	COMPLETE:
+		eState := E_SequenceState.COMPLETE;
+		
+		
+END_CASE
+
+
+	
+]]></ST>
+    </Implementation>
+    <Method Name="acknowledgePause" Id="{e2931938-e98b-4c97-ad3a-08afddef4eb5}">
+      <Declaration><![CDATA[METHOD acknowledgePause : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bPauseAcknowledged := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="addSequence" Id="{26890499-51f7-4b5a-950e-1f2cb2c70713}">
+      <Declaration><![CDATA[METHOD addSequence : BOOL
+VAR_INPUT
+	Sequence: FB_SequenceBase;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[aSequences[nNumberSequences + 1] := Sequence;
+nNumberSequences := nNumberSequences + 1;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkCurrentStep" Id="{50e51cf7-333c-43e4-a23a-e10227b14416}">
+      <Declaration><![CDATA[METHOD checkCurrentStep : BOOL
+VAR_INPUT
+END_VAR
+
+VAR
+	currentState: E_DeviceState;
+	targetState: E_DeviceState;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nCurrentStepCheck := 1;
+
+WHILE nCurrentStepCheck < (fbCurrentSequence.stepsTotal() + 1) DO
+	
+	currentState := fbCurrentSequence.stepState(nCurrentStepCheck);
+	targetState := fbCurrentSequence.stepCommand(nCurrentStepCheck);
+
+	IF currentState = targetState THEN
+		nCurrentStepCheck := nCurrentStepCheck + 1;
+	ELSE
+		nCurrentStep := nCurrentStepCheck; // step check reveals we are here
+		nCurrentStepCheck := fbCurrentSequence.stepsTotal() + 1; // terminate loop as the checking is finished
+	END_IF
+END_WHILE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="executeStep" Id="{c186d669-a4e3-4834-9076-9f41a21348b1}">
+      <Declaration><![CDATA[METHOD executeStep : BOOL
+VAR_INPUT
+	stSequenceStep: POINTER TO ST_SequenceStep;
+END_VAR
+
+VAR
+	(*eCheckState: E_DeviceState;
+	eCheckStateAlternative: E_DeviceState;
+	eCheckStateAlternative2: E_DeviceState;
+	eCheckCommand: E_DeviceState;
+	fbDevice: POINTER TO FB_BaseDevice;
+	*)
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[executeStep := FALSE;
+
+
+IF fbCurrentSequence.step(StepNum := nCurrentStep)^.Device^.getState()  
+	= fbCurrentSequence.stepCommand(StepNumber := nCurrentStep)
+	AND fbTONstep.Q THEN  
+	
+	IF (nCurrentStep = fbCurrentSequence.stepsTotal() AND fbCurrentSequence.getSeqType()) THEN
+		eSMState := COMPLETE;
+	ELSIF (nCurrentStep = fbCurrentSequence.stepsTotal() AND (NOT fbCurrentSequence.getSeqType())) THEN
+		eSMState := RUNNING;
+	END_IF
+	//fbTONdelay.IN := FALSE;
+	fbTONdelay(IN:= TRUE, PT := stSequenceStep^.DelayUntilNextStep); 
+	
+	executeStep := TRUE; // indicate that the step was sucessful
+	
+	
+ELSIF (fbCurrentSequence.step(StepNum := nCurrentStep)^.Device^.isEnabled() ) AND 
+		(NOT (fbCurrentSequence.step(StepNum := nCurrentStep)^.Device^.getMode() = E_DeviceMode.MANUAL)) AND
+		fbTONdelay.Q THEN 
+	//AND fbTONdelay.Q THEN
+		
+		//fbTONdelay.IN := FALSE; 		
+		fbTONdelay.IN := FALSE;
+		fbTONstep(IN:= TRUE, PT := stSequenceStep^.StepMinDuration);		
+		stSequenceStep^.Device^.setCommand(StateTarget := stSequenceStep^.Command); // set the target state 
+
+END_IF
+
+(*
+IF fbCurrentSequence.step(StepNum := nCurrentStep)^.Device^.getState()  
+	= fbCurrentSequence.step(StepNum := nCurrentStep)^.Device^.getCommand() 
+	AND fbTONstep.Q THEN  *)
+
+
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getCurrentSeq_FB" Id="{1de8e752-2d9f-4fe1-a6fd-504dcae110ed}">
+      <Declaration><![CDATA[METHOD getCurrentSeq_FB : POINTER TO FB_SequenceBase
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getCurrentSeq_FB := ADR(fbCurrentSequence);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getCurrentSeq_ID" Id="{38b8fee4-cd67-48fb-a191-135855250317}">
+      <Declaration><![CDATA[METHOD getCurrentSeq_ID : INT
+VAR_INPUT
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getCurrentSeq_ID := nCurrentSequence;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getState" Id="{cbc7d75e-3d18-4656-a096-474e54f8c9fc}">
+      <Declaration><![CDATA[METHOD getState : E_SequenceState
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getState := eState;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="initSequence" Id="{c18e4a5d-c68e-4139-b508-de7d6fe8728e}">
+      <Declaration><![CDATA[METHOD initSequence : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// We want to iterate through all of the components in a sequence and enable them.
+// We also want to disable any other device (provided it is not in manual)]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="pauseSequence" Id="{aa93f818-327e-453c-97ce-44a1b1e988ad}">
+      <Declaration><![CDATA[METHOD pauseSequence : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eSMState := HOLD;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="selectSequence" Id="{942636c4-1df7-49e4-8653-04d0ee899b6c}">
+      <Declaration><![CDATA[METHOD selectSequence : BOOL
+VAR_INPUT
+	Sequence: INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbCurrentSequence := aSequences[Sequence];
+nCurrentSequence := Sequence;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="startSequence" Id="{9dfdff0f-b494-4ad1-8786-15a0d9fedbeb}">
+      <Declaration><![CDATA[METHOD startSequence : BOOL
+VAR_INPUT
+END_VAR
+VAR
+
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eSMState := STARTING;
+
+FOR i := 1 TO fbCurrentSequence.stepsTotal() BY 1 DO
+	Steps := fbCurrentSequence.steps();
+	Steps[i].Device^.enable();
+END_FOR
+
+nCurrentStep := 1;
+nCurrentStepPreviousCycle := 1;
+//nCurrentSequence := 1;
+nCurrentStepCheck := 1; 
+
+fbTONdelay(PT := T#1s, IN := TRUE);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="stopSequence" Id="{48421a01-80b7-416f-9e77-11ef7e62a55f}">
+      <Declaration><![CDATA[METHOD stopSequence : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eSMState := STOPPED;
+
+
+FOR i := 1 TO fbCurrentSequence.stepsTotal() BY 1 DO
+	Steps := fbCurrentSequence.steps();
+	Steps[i].Device^.disable();
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_SequenceManager">
+      <LineId Id="224" Count="0" />
+      <LineId Id="229" Count="0" />
+      <LineId Id="231" Count="0" />
+      <LineId Id="234" Count="1" />
+      <LineId Id="233" Count="0" />
+      <LineId Id="510" Count="0" />
+      <LineId Id="428" Count="0" />
+      <LineId Id="230" Count="0" />
+      <LineId Id="226" Count="0" />
+      <LineId Id="189" Count="0" />
+      <LineId Id="193" Count="0" />
+      <LineId Id="192" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="104" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="296" Count="0" />
+      <LineId Id="468" Count="0" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="387" Count="2" />
+      <LineId Id="385" Count="0" />
+      <LineId Id="709" Count="0" />
+      <LineId Id="554" Count="0" />
+      <LineId Id="252" Count="1" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="757" Count="2" />
+      <LineId Id="100" Count="0" />
+      <LineId Id="760" Count="3" />
+      <LineId Id="765" Count="0" />
+      <LineId Id="764" Count="0" />
+      <LineId Id="237" Count="0" />
+      <LineId Id="242" Count="0" />
+      <LineId Id="239" Count="1" />
+      <LineId Id="557" Count="1" />
+      <LineId Id="249" Count="0" />
+      <LineId Id="126" Count="1" />
+      <LineId Id="125" Count="0" />
+      <LineId Id="559" Count="0" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="298" Count="0" />
+      <LineId Id="73" Count="0" />
+      <LineId Id="303" Count="1" />
+      <LineId Id="310" Count="0" />
+      <LineId Id="61" Count="1" />
+      <LineId Id="714" Count="0" />
+      <LineId Id="713" Count="0" />
+      <LineId Id="223" Count="0" />
+      <LineId Id="561" Count="0" />
+      <LineId Id="102" Count="0" />
+      <LineId Id="560" Count="0" />
+      <LineId Id="109" Count="1" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="562" Count="0" />
+      <LineId Id="299" Count="0" />
+      <LineId Id="566" Count="0" />
+      <LineId Id="300" Count="0" />
+      <LineId Id="570" Count="0" />
+      <LineId Id="621" Count="0" />
+      <LineId Id="619" Count="0" />
+      <LineId Id="614" Count="0" />
+      <LineId Id="254" Count="0" />
+      <LineId Id="63" Count="1" />
+      <LineId Id="120" Count="1" />
+      <LineId Id="123" Count="0" />
+      <LineId Id="122" Count="0" />
+      <LineId Id="301" Count="1" />
+      <LineId Id="664" Count="2" />
+      <LineId Id="555" Count="1" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="54" Count="0" />
+      <LineId Id="49" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_SequenceManager.acknowledgePause">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceManager.addSequence">
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceManager.checkCurrentStep">
+      <LineId Id="6" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="26" Count="1" />
+      <LineId Id="8" Count="2" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceManager.executeStep">
+      <LineId Id="5" Count="0" />
+      <LineId Id="160" Count="1" />
+      <LineId Id="166" Count="3" />
+      <LineId Id="192" Count="0" />
+      <LineId Id="170" Count="0" />
+      <LineId Id="193" Count="0" />
+      <LineId Id="211" Count="1" />
+      <LineId Id="171" Count="4" />
+      <LineId Id="226" Count="0" />
+      <LineId Id="176" Count="0" />
+      <LineId Id="146" Count="0" />
+      <LineId Id="190" Count="0" />
+      <LineId Id="111" Count="0" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="191" Count="0" />
+      <LineId Id="105" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="87" Count="0" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="131" Count="0" />
+      <LineId Id="125" Count="0" />
+      <LineId Id="129" Count="1" />
+      <LineId Id="126" Count="1" />
+      <LineId Id="85" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="41" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceManager.getCurrentSeq_FB">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceManager.getCurrentSeq_ID">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceManager.getState">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceManager.initSequence">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceManager.pauseSequence">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceManager.selectSequence">
+      <LineId Id="21" Count="0" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceManager.startSequence">
+      <LineId Id="5" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="23" Count="3" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="33" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceManager.stopSequence">
+      <LineId Id="5" Count="0" />
+      <LineId Id="11" Count="4" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

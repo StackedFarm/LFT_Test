@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_Job_Status" Id="{5f7f9d4b-ac40-41ba-be85-f9bbadbe206a}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_Job_Status :
+(
+	waiting := 1,
+	placed :=2,
+	in_process := 3,
+	finished := 4,
+	stopped := 5,
+	error := 6,
+	cancelled := 7
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

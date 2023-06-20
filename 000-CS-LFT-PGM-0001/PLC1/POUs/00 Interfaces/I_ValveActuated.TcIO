@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_ValveActuated" Id="{38757778-132b-4a55-b3d1-3485cafd1e0b}">
+    <Declaration><![CDATA[INTERFACE I_ValveActuated
+]]></Declaration>
+    <Method Name="close" Id="{ee7bed74-4415-4731-a470-e8a77040d100}">
+      <Declaration><![CDATA[METHOD close : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="FB_init" Id="{792f89ff-5f8a-473d-b05b-787657615514}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	ValveID: STRING(80);
+	ValveDescr: STRING(255); 
+	
+	Normal_State_NC_1_NO_0: BOOL;
+	
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="open" Id="{416ef2f3-7586-46cc-993b-50f78f6c4e75}">
+      <Declaration><![CDATA[METHOD open : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

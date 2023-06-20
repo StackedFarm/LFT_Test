@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_POP" Id="{b6680f66-8e11-4701-97c6-ac84161299de}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_POP:
+STRUCT
+
+
+	stLinAct_POP1: 					ST_INPUTS_LinAct;
+	stLinAct_POP2: 					ST_INPUTS_LinAct;
+	stLinAct_POP3: 					ST_INPUTS_LinAct;
+	
+	stStaticConv_POP1:				ST_INPUTS_StaticConv;
+	stStaticConv_POP2:				ST_INPUTS_StaticConv;
+	stStaticConv_POP3:				ST_INPUTS_StaticConv;
+	
+	stTrayCentre_POP1:				ST_INPUTS_TrayCentre;
+	stTrayCentre_POP2:				ST_INPUTS_TrayCentre;
+	stTrayCentre_POP3:				ST_INPUTS_TrayCentre;
+	
+	stSequenceManager:				ST_INPUTS_SequenceManager_POP;
+	
+	
+	stHandshakeUpstream:			ST_TrayExchangeHandshake;
+	stHandshakeDownstream:			ST_TrayExchangeHandshake;
+	
+	bParamsInitialised: BOOL := FALSE;
+	
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

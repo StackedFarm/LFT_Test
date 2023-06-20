@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_Tray_2" Id="{1c14fdac-b44d-4760-b12c-989429891ad9}">
+    <Declaration><![CDATA[
+TYPE ST_Tray_2 :
+STRUCT
+	{attribute 'OPC.UA.DA' := '1'}
+	nCropID : UDINT;
+	{attribute 'OPC.UA.DA' := '0'}
+	nLineID : UDINT;
+	{attribute 'OPC.UA.DA' := '0'}
+	nOrderID : UDINT;
+	{attribute 'OPC.UA.DA' := '0'}
+	nPlantID : UDINT; 
+	{attribute 'OPC.UA.DA' := '0'}
+	nStack : INT;
+	{attribute 'OPC.UA.DA' := '0'}
+	nRack : INT;
+	{attribute 'OPC.UA.DA' := '0'}
+	nLevel : INT;
+	{attribute 'OPC.UA.DA' := '0'}
+	nRestack : INT;
+	
+	{attribute 'OPC.UA.DA' := '1'}
+	nTrayQuantity: INT;
+	{attribute 'OPC.UA.DA' := '1'}
+	nTrayNumber: INT;
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

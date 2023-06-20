@@ -1,0 +1,173 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Sensor_VaisalaGMW90_R2" Id="{b8029ab7-3726-4d38-9dca-8e1890bd1378}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Handles communication and control of a Vaisala GMW90 environment sensor (Temp, Humidity, CO2)
+*)
+{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_Sensor_VaisalaGMW90_R2 EXTENDS FB_BaseDevice
+
+VAR_INPUT
+	nModbusUnitID: UINT; // slave ID of the sensor
+END_VAR
+
+VAR_IN_OUT
+	fbModbusManager : FB_ModbusManager;
+	
+END_VAR
+
+VAR_OUTPUT
+	{attribute 'OPC.UA.DA' := '1'}
+	rCO2 : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	rTemperature : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	rHumidity : REAL;
+
+END_VAR
+
+VAR
+	fbTON_DataRefresh: TON := (PT := T#10S, IN := FALSE);
+	bFirstRun: BOOL := TRUE;
+	bResetTtimer: BOOL := FALSE;
+	bEnableComms: BOOL := FALSE;
+	nWordsToRead_values : UINT := 1; // ( CO2;  Temp;  Hum)
+	nWordsToRead_errors : UINT := 2; // The GMW90 has 16 bits for error codes
+	
+	nAdrFirstReg_CO2 : WORD := 256; // THE GMW90 stores its int value for CO2 value in register 256
+	nAdrFirstReg_Hum : WORD := 257; // THE GMW90 stores its int value for CO2 value in register 256
+	nAdrFirstReg_Temp : WORD := 258; // THE GMW90 stores its int value for CO2 value in register 256
+	
+	nAdrFirstReg_Error : WORD := 513; // the GMW90 stores its error codes in 0513 register
+	
+	stModRequest_ReadCO2: ST_Modbus_ReadRequest;
+	stModRequest_ReadHum: ST_Modbus_ReadRequest;
+	stModRequest_ReadTemp: ST_Modbus_ReadRequest;
+	
+	stModRequest_ReadError: ST_Modbus_ReadRequest;
+	
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF bFirstRun THEN
+	fbTON_DataRefresh(IN := TRUE);
+	bFirstRun := FALSE;
+	init_ModbusRequests();
+END_IF
+
+IF bResetTtimer THEN
+	fbTON_DataRefresh(IN := TRUE);
+	bResetTtimer := FALSE;
+END_IF
+
+(*
+IF nModbusUnitID <> 0 THEN
+	bEnableComms := TRUE;
+END_IF
+*)
+
+fbTON_DataRefresh();
+
+IF fbTON_DataRefresh.Q AND bEnableComms THEN
+	fbModbusManager.addRequest_Read_Vaisala(ReadRequest := ADR(stModRequest_ReadCO2));
+	fbModbusManager.addRequest_Read_Vaisala(ReadRequest := ADR(stModRequest_ReadHum));
+	fbModbusManager.addRequest_Read_Vaisala(ReadRequest := ADR(stModRequest_ReadTemp));
+	//fbModbusManager.addRequest_Read(ReadRequest := ADR(stModRequest_ReadError));
+	
+	//fbModbusManager.addRequest_Read_Vaisala(ReadRequest := ADR(stModRequest_ReadCO2));
+	//fbModbusManager.addRequest_Read_Vaisala(ReadRequest := ADR(stModRequest_ReadCO2));
+	rCO2 := 			stModRequest_ReadCO2.ReadRegsVals[1]; 
+	rHumidity :=  		stModRequest_ReadHum.ReadRegsVals[1] / 100.00; 
+	rTemperature := 	stModRequest_ReadTemp.ReadRegsVals[1] / 100.00; 
+	
+	fbTON_DataRefresh(IN := FALSE);
+	bResetTtimer := TRUE;
+END_IF
+
+
+]]></ST>
+    </Implementation>
+    <Method Name="init_ModbusRequests" Id="{102a2751-dd4c-4ee3-993a-670f5a3eb3a4}">
+      <Declaration><![CDATA[METHOD init_ModbusRequests : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[stModRequest_ReadCO2.SlaveAddress := nModbusUnitID;			
+stModRequest_ReadCO2.AdrFirstSlaveRegisterRead := nAdrFirstReg_CO2;
+stModRequest_ReadCO2.QtyWordsToRead := 1;				
+stModRequest_ReadCO2.bRequestAccepted := FALSE;
+stModRequest_ReadCO2.bRequestCompleted := FALSE;
+stModRequest_ReadCO2.ReadRegsVals := GVL.ModbusEmptyBuffer;
+
+stModRequest_ReadHum.SlaveAddress := nModbusUnitID;			
+stModRequest_ReadHum.AdrFirstSlaveRegisterRead := nAdrFirstReg_Hum;
+stModRequest_ReadHum.QtyWordsToRead := 1;				
+stModRequest_ReadHum.bRequestAccepted := FALSE;
+stModRequest_ReadHum.bRequestCompleted := FALSE;
+stModRequest_ReadHum.ReadRegsVals := GVL.ModbusEmptyBuffer;
+
+stModRequest_ReadTemp.SlaveAddress := nModbusUnitID;			
+stModRequest_ReadTemp.AdrFirstSlaveRegisterRead := nAdrFirstReg_Temp;
+stModRequest_ReadTemp.QtyWordsToRead := 1;				
+stModRequest_ReadTemp.bRequestAccepted := FALSE;
+stModRequest_ReadTemp.bRequestCompleted := FALSE;
+stModRequest_ReadTemp.ReadRegsVals := GVL.ModbusEmptyBuffer;
+
+
+stModRequest_ReadError.SlaveAddress := nModbusUnitID;			
+stModRequest_ReadError.AdrFirstSlaveRegisterRead := nAdrFirstReg_Error;
+stModRequest_ReadError.QtyWordsToRead := nWordsToRead_errors;			
+stModRequest_ReadError.bRequestAccepted := FALSE;
+stModRequest_ReadError.bRequestCompleted := FALSE;
+stModRequest_ReadError.ReadRegsVals := GVL.ModbusEmptyBuffer;
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Sensor_VaisalaGMW90_R2">
+      <LineId Id="179" Count="0" />
+      <LineId Id="181" Count="0" />
+      <LineId Id="183" Count="0" />
+      <LineId Id="258" Count="0" />
+      <LineId Id="182" Count="0" />
+      <LineId Id="205" Count="0" />
+      <LineId Id="204" Count="0" />
+      <LineId Id="206" Count="0" />
+      <LineId Id="210" Count="0" />
+      <LineId Id="207" Count="0" />
+      <LineId Id="299" Count="0" />
+      <LineId Id="255" Count="0" />
+      <LineId Id="254" Count="0" />
+      <LineId Id="256" Count="1" />
+      <LineId Id="184" Count="1" />
+      <LineId Id="180" Count="0" />
+      <LineId Id="187" Count="0" />
+      <LineId Id="186" Count="0" />
+      <LineId Id="190" Count="0" />
+      <LineId Id="347" Count="1" />
+      <LineId Id="193" Count="0" />
+      <LineId Id="251" Count="2" />
+      <LineId Id="195" Count="2" />
+      <LineId Id="201" Count="2" />
+      <LineId Id="189" Count="0" />
+      <LineId Id="3" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_VaisalaGMW90_R2.init_ModbusRequests">
+      <LineId Id="6" Count="5" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="28" Count="4" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="36" Count="5" />
+      <LineId Id="34" Count="1" />
+      <LineId Id="12" Count="5" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="18" Count="1" />
+      <LineId Id="21" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

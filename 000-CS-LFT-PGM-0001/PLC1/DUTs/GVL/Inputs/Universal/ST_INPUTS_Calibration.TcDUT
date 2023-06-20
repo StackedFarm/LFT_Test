@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_Calibration" Id="{23f37078-8413-4c5d-9b4e-c13eaefeb561}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_Calibration :
+STRUCT
+	Start_DO: BOOL;
+	Step1_DO: BOOL;
+	Step2_DO: BOOL;
+	Complete_DO: BOOL;
+	
+	Start_EC: BOOL;
+	Step1_EC: BOOL;
+	Step2_EC: BOOL;
+	Complete_EC: BOOL;
+
+	Start_PH: BOOL;
+	Step1_PH: BOOL;
+	Step2_PH: BOOL;
+	Step3_PH: BOOL;
+	Complete_PH: BOOL;
+	
+	Start_ORP: BOOL;
+	Step1_ORP: BOOL;
+	Complete_ORP: BOOL;
+	
+	Start_TMP: BOOL;
+	Step1_TMP: BOOL;
+	Complete_TMP: BOOL;
+	
+	Cal_SoilSensor_EC1: BOOL;
+	Cal_SoilSensor_EC2: BOOL;
+	Cal_SoilSensor_PH1: BOOL;
+	Cal_SoilSensor_PH2: BOOL;
+	Cal_SoilSensor_Moisture1: BOOL;
+	Cal_SoilSensor_Moisture2: BOOL;
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

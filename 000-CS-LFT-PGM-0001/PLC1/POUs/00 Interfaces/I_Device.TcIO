@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_Device" Id="{b2db70a3-0d5d-4dc2-8602-553820115871}">
+    <Declaration><![CDATA[INTERFACE I_Device
+]]></Declaration>
+    <Method Name="disable" Id="{d93d4657-acf9-4ca2-9b81-a0c7b16b0c5e}">
+      <Declaration><![CDATA[METHOD disable : BOOL
+
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="enable" Id="{94337765-ce9b-40f5-ad5e-84e94ce4880c}">
+      <Declaration><![CDATA[METHOD enable : BOOL
+
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="setMode" Id="{9b4e6624-19e7-46db-88f0-d1d325b4217b}">
+      <Declaration><![CDATA[METHOD setMode : BOOL
+
+VAR_INPUT
+	Mode: E_DeviceMode;
+END_VAR
+
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

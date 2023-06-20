@@ -1,0 +1,287 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Sensor_AtlasPH" Id="{7646c6c5-6c6d-4a1e-8a6f-290ac5ec55d8}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_Sensor_AtlasPH EXTENDS FB_BaseDevice IMPLEMENTS I_Device, I_Sensor
+
+VAR
+
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSensorType: E_SensorType;
+	{attribute 'OPC.UA.DA' := '0'} 
+	nRawInput AT %I*: INT;
+	nFaultInput AT %I*: BOOL;
+	{attribute 'OPC.UA.DA' := '1'} 
+	nCurrentValue: REAL;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	nCalOutputPH7 AT %Q*: BOOL;
+	{attribute 'OPC.UA.DA' := '0'} 
+	nCalOutputPH4 AT %Q*: BOOL;
+	{attribute 'OPC.UA.DA' := '0'} 
+	nCalOutputPH10 AT %Q*: BOOL;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	trigCalibrate: R_TRIG;
+	{attribute 'OPC.UA.DA' := '0'} 
+	timerBtnPress: TON := (PT:=T#250MS,IN := FALSE);
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	timerDoCalibration: TON := (PT:=T#120S,IN := FALSE); // Check this time during testing! The instructions are not clear about what happens after initiating a calibration request 
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSMState: (WAIT, pH_7_START, pH_7_END, pH_4_START, pH_4_END, pH_10_START, pH_10_END) := WAIT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[calculate();
+trigCalibrate();
+timerBtnPress();
+
+CASE eSMState OF 
+	WAIT:
+		// wait for the calibrate method call to change the ESMState variable
+		
+	pH_7_START:
+		nCalOutputPH7 := TRUE;
+		timerBtnPress.IN := TRUE;
+		IF timerBtnPress.Q THEN
+			nCalOutputPH7 := FALSE;
+			eSMState := pH_7_END;
+			timerBtnPress.IN := FALSE; 
+			timerDoCalibration.IN := TRUE;
+		END_IF
+		
+		eSMState := pH_7_END;
+		
+	pH_7_END:
+		IF timerDoCalibration.Q THEN
+			timerDoCalibration.IN := FALSE;			// CHeck the functionality of this step - instructions are not clear
+			bBusy := FALSE;
+			eSMState := WAIT;
+		END_IF
+		
+	pH_4_START:
+		nCalOutputPH4 := TRUE;
+		timerBtnPress.IN := TRUE;
+		IF timerBtnPress.Q THEN
+			nCalOutputPH4 := FALSE;
+			eSMState := pH_4_END;
+			timerBtnPress.IN := FALSE; 
+			timerDoCalibration.IN := TRUE;
+		END_IF
+		
+		eSMState := pH_4_END;
+		
+	pH_4_END:
+		IF timerDoCalibration.Q THEN
+			timerDoCalibration.IN := FALSE;
+			bBusy := FALSE;
+			eSMState := WAIT;
+		END_IF
+	
+	
+	pH_10_START:
+		nCalOutputPH10 := TRUE;
+		timerBtnPress.IN := TRUE;
+		IF timerBtnPress.Q THEN
+			nCalOutputPH10 := FALSE;
+			eSMState := pH_10_END;
+			timerBtnPress.IN := FALSE; 
+			timerDoCalibration.IN := TRUE;
+		END_IF
+		
+		eSMState := pH_10_END;
+			
+			
+		
+	pH_10_END:
+		IF timerDoCalibration.Q THEN
+			timerDoCalibration.IN := FALSE;
+			bBusy := FALSE;
+			eSMState := WAIT;
+		END_IF
+
+END_CASE]]></ST>
+    </Implementation>
+    <Method Name="calculate" Id="{65f69e75-c753-415c-8209-5cae20e75dfa}">
+      <Declaration><![CDATA[METHOD PRIVATE calculate : BOOL
+VAR_INPUT
+	
+	// Var
+END_VAR
+VAR
+	nMeasuredCurrent: REAL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nMeasuredCurrent := (INT_TO_REAL(nRawInput)/GVL.nMaxADCOutput)*16.0 + 4.0; // in mA
+
+// nCurrentValue := (nMeasuredCurrent - 4.0) * (14.0 / 16.0);  // equation is PH = (mA reading - 4.0) * (14.0 / 16.0)
+nCurrentValue := (nMeasuredCurrent - 4.0) * (14.0 / 16.0);  // equation is PH = (mA reading - 4.0) * (14.0 / 16.0)
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="calibrate" Id="{a59ce783-5070-4539-9135-fd66d866b96f}">
+      <Declaration><![CDATA[METHOD calibrate : BOOL
+VAR_INPUT
+	PhUnderTest: INT; // Can be 4, 7, or 10 (7 must be done first if doing multiple)
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE PhUnderTest OF
+	4:
+		eSMState := pH_4_START;
+	7:
+		eSMState := pH_7_START;
+	10:
+		eSMState := pH_10_START;
+END_CASE
+
+bBusy := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="disable" Id="{9a358c9e-aac4-4c8d-95da-32780f6e519f}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{15957670-3410-447e-b930-20cfc9b0434a}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{995d21a5-9f23-4f97-b2c6-ebc8a3952956}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD FB_init : BOOL
+VAR_INPUT
+	(* if TRUE, the retain variables are initialized (warm start / cold start)*)
+	bInitRetains	: BOOL;
+	(* if TRUE, the instance afterwards gets moved into the copy code (online change)*)
+	bInCopyCode	: BOOL;
+	
+	SensorID	: STRING(80);
+	SensorDescr	: STRING(255);
+	SensorType	: E_SensorType;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := SensorID;
+sDescr := SensorDescr;
+eSensorType := SensorType;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getType" Id="{3da09a3e-e563-440b-95d8-afce1957e177}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getType : E_SensorType
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getType := eSensorType;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getValue" Id="{d9a65798-af45-4774-8617-b741c98bb3bb}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getValue : REAL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getValue := nCurrentValue;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="write" Id="{4249e400-8589-4a12-8f36-219e973de92a}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD write : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// use this method to initiated a hardware read from assigned IO if required
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Sensor_AtlasPH">
+      <LineId Id="9" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="58" Count="1" />
+      <LineId Id="78" Count="0" />
+      <LineId Id="60" Count="1" />
+      <LineId Id="71" Count="2" />
+      <LineId Id="80" Count="0" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="85" Count="0" />
+      <LineId Id="74" Count="0" />
+      <LineId Id="149" Count="1" />
+      <LineId Id="76" Count="0" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="88" Count="0" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="115" Count="0" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="86" Count="0" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="91" Count="6" />
+      <LineId Id="90" Count="0" />
+      <LineId Id="152" Count="0" />
+      <LineId Id="151" Count="0" />
+      <LineId Id="65" Count="1" />
+      <LineId Id="108" Count="1" />
+      <LineId Id="113" Count="0" />
+      <LineId Id="116" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="106" Count="1" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="99" Count="6" />
+      <LineId Id="98" Count="0" />
+      <LineId Id="155" Count="1" />
+      <LineId Id="153" Count="1" />
+      <LineId Id="69" Count="1" />
+      <LineId Id="110" Count="1" />
+      <LineId Id="114" Count="0" />
+      <LineId Id="117" Count="0" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="56" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasPH.calculate">
+      <LineId Id="47" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="41" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasPH.calibrate">
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="9" Count="4" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="14" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasPH.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasPH.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasPH.FB_init">
+      <LineId Id="13" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasPH.getType">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasPH.getValue">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasPH.write">
+      <LineId Id="4" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_ConveyorMoveType" Id="{e73ac636-7b16-4861-bf8f-958cbff624db}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_ConveyorMoveType :
+(
+	FORWARD,
+	FORWARD_SLOW,
+	REVERSE,
+	REVERSE_SLOW,
+	STOP
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

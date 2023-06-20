@@ -1,0 +1,67 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_RND_DosingMachine_Water" Id="{c6cc58b6-a88f-420e-99cf-c232f582809a}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_RND_DosingMachine_Water :
+STRUCT
+	EC_LOW_Limit:    REAL; // short
+	EC_HIGH_Limit:    REAL; // float
+	EC_LOW_Alarm:    REAL; // short
+	EC_HIGH_Alarm:    REAL; // float
+	EC_SetPoint:    REAL; // double
+	EC_Selection:    REAL;
+	
+	EC_Enforce_Low: BOOL;  // if this is true then irrigation will be inhibited
+	EC_Enforce_High: BOOL;  // if this is true then irrigation will be inhibited
+	
+	PH_LOW_Limit:    REAL;
+	PH_HIGH_Limit:    REAL;
+	PH_LOW_Alarm:    REAL;
+	PH_HIGH_Alarm:    REAL;
+	PH_SetPoint:    REAL;
+	PH_Selection:    REAL;
+	
+	PH_Enforce_Low: BOOL;  // if this is true then irrigation will be inhibited
+	PH_Enforce_High: BOOL;  // if this is true then irrigation will be inhibited
+	
+	DO_LOW_Limit:    REAL;
+	DO_HIGH_Limit:    REAL;
+	DO_LOW_Alarm:    REAL;
+	DO_HIGH_Alarm:    REAL;
+	DO_SetPoint:    REAL;
+	DO_Selection:    REAL;
+	
+	DO_Enforce_Low: BOOL;  // if this is true then irrigation will be inhibited
+	DO_Enforce_High: BOOL;  // if this is true then irrigation will be inhibited
+	
+	ORP_LOW_Limit:    REAL;
+	ORP_HIGH_Limit:    REAL;
+	ORP_LOW_Alarm:    REAL;
+	ORP_HIGH_Alarm:    REAL;
+	ORP_SetPoint:    REAL;
+	ORP_Selection:    REAL;
+	
+	ORP_Enforce_Low: BOOL;  // if this is true then irrigation will be inhibited
+	ORP_Enforce_High: BOOL;  // if this is true then irrigation will be inhibited
+	
+	Temp_LOW_Limit:    REAL;
+	Temp_HIGH_Limit:    REAL;
+	Temp_LOW_Alarm:    REAL;
+	Temp_HIGH_Alarm:    REAL;
+	Temp_SetPoint:    REAL;
+	Temp_Selection:    REAL;
+	
+	Temp_Enforce_Low: BOOL;  // if this is true then irrigation will be inhibited
+	Temp_Enforce_High: BOOL;  // if this is true then irrigation will be inhibited
+	
+	Calibrate_PH: BOOL;
+	Calibrate_EC: BOOL;
+	Calibrate_DO: BOOL;
+	Calibrate_ORP: BOOL;
+	Calibrate_TEMP: BOOL;
+
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

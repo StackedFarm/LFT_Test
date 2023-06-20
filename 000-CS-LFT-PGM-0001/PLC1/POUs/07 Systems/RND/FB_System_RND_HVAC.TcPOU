@@ -1,0 +1,432 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_System_RND_HVAC" Id="{e6b5ad06-e6be-4f9e-9253-204717a172fd}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_System_RND_HVAC
+VAR_IN_OUT
+	// Hold a reference to MBMaster - may need to share this with other dosing machines if only 1 x RS485 card is used for both
+	{attribute 'OPC.UA.DA' := '0'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '0'}
+	fbModbusManager: 	FB_ModbusManager;    // We can read 32 registers using one query
+END_VAR
+
+VAR
+	bFirstRun: BOOL := TRUE;
+	bResetTimer: BOOL := TRUE;
+	tgModReadAdaptorStatus: R_TRIG;
+	
+	
+	nModbusID: INT := 1;
+	nNumberHVACUnits: INT := 13;
+	
+	stModReadAdaptorStatus: 				ST_Modbus_ReadRequest;
+	
+	stModReadIndoorUnitConnStatus: 			ST_Modbus_ReadRequest;
+	stModReadIndoorUnitCommsStatus: 		ST_Modbus_ReadRequest;
+	stModReadIndoorUnitSetpoits: 			ARRAY[1..13] OF ST_Modbus_ReadRequest;
+	stModReadIndoorUnitPower: 				ARRAY[1..13] OF ST_Modbus_ReadRequest;
+	
+	stModWriteaAdaptorStatus:				ST_Modbus_WriteRequest;
+	stModWriteIndoorRoom:					ST_Modbus_WriteRequest;
+	stModWriteIndoorSetpoint_R6:			ST_Modbus_WriteRequest;
+	stModWriteIndoorSetpoint_R7:			ST_Modbus_WriteRequest;
+	stModWriteIndoorSetpoint_R8:			ST_Modbus_WriteRequest;
+	stModWriteIndoorSetpoint_R9:			ST_Modbus_WriteRequest;
+	stModWriteIndoorControlPower:			ARRAY[1..13] OF ST_Modbus_WriteRequest;
+	stModWriteIndoorControlSetpoint:		ARRAY[1..13] OF ST_Modbus_WriteRequest;
+	
+	bRoom7or9: BOOL := FALSE;
+	nRoomNumber: UINT := 6;
+	
+	fbTON_DataRefresh: TON := (PT := T#1m, IN := FALSE);
+	
+	// delete this after commissioning (used for testing)
+	modWrite: R_TRIG;
+	stModWrite: ST_Modbus_WriteRequest;
+	
+		// delete this after commissioning (used for testing)
+	modRead: 	R_TRIG;
+	stModRead: 	ST_Modbus_ReadRequest;
+END_VAR
+
+VAR_OUTPUT
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND_HVAC: ARRAY[1..13] OF FB_HVAC_RND_Indoor_Unit;
+	
+	
+	i: INT := 0;
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF bFirstRun THEN
+	devices_init();
+	bFirstRun := FALSE;
+	initModRequests();
+	
+	fbModbusManager.addRequest_Write(WriteRequest := ADR(stModWriteaAdaptorStatus));
+	fbModbusManager.addRequest_Write(WriteRequest := ADR(stModWriteIndoorRoom));
+END_IF
+
+IF bResetTimer THEN
+	fbTON_DataRefresh(IN := TRUE);
+	bResetTimer := FALSE;
+END_IF
+
+fbTON_DataRefresh();
+scanInputs();
+
+IF fbTON_DataRefresh.Q THEN
+	//fbModbusManager.addRequest_Read(ReadRequest := ADR(stModReadAdaptorStatus));
+	//fbModbusManager.addRequest_Read(ReadRequest := ADR(stModReadIndoorUnitConnStatus));
+	//fbModbusManager.addRequest_Read(ReadRequest := ADR(stModReadIndoorUnitCommsStatus));
+	CASE nRoomNumber OF
+		6:
+			stModWriteIndoorSetpoint_R6.WriteRegVals[1] := INT_TO_WORD(REAL_TO_INT(Inputs.HVAC_RND[6].Setpoint * 10));
+			fbModbusManager.addRequest_Write(WriteRequest := ADR(stModWriteIndoorSetpoint_R6));		
+			nRoomNumber := 7;
+	
+		7:
+			stModWriteIndoorSetpoint_R7.WriteRegVals[1] := INT_TO_WORD(REAL_TO_INT(Inputs.HVAC_RND[7].Setpoint * 10));
+			fbModbusManager.addRequest_Write(WriteRequest := ADR(stModWriteIndoorSetpoint_R7));
+			nRoomNumber := 8;
+			
+		8:
+			stModWriteIndoorSetpoint_R8.WriteRegVals[1] := INT_TO_WORD(REAL_TO_INT(Inputs.HVAC_RND[8].Setpoint * 10));
+			fbModbusManager.addRequest_Write(WriteRequest := ADR(stModWriteIndoorSetpoint_R8));
+			nRoomNumber := 9;	
+		
+		9:
+			stModWriteIndoorSetpoint_R9.WriteRegVals[1] := INT_TO_WORD(REAL_TO_INT(Inputs.HVAC_RND[9].Setpoint * 10));
+			fbModbusManager.addRequest_Write(WriteRequest := ADR(stModWriteIndoorSetpoint_R9));
+			nRoomNumber := 6;		
+			
+	END_CASE
+	
+	(*
+	IF bRoom7or9 THEN
+			stModWriteIndoorSetpoint_R7.WriteRegVals[1] := INT_TO_WORD(REAL_TO_INT(Inputs.HVAC_RND[7].Setpoint * 10));
+			fbModbusManager.addRequest_Write(WriteRequest := ADR(stModWriteIndoorSetpoint_R7));
+			bRoom7or9 := FALSE;
+	ELSE
+			stModWriteIndoorSetpoint_R9.WriteRegVals[1] := INT_TO_WORD(REAL_TO_INT(Inputs.HVAC_RND[9].Setpoint * 10));
+			fbModbusManager.addRequest_Write(WriteRequest := ADR(stModWriteIndoorSetpoint_R9));
+			bRoom7or9 := TRUE;
+	END_IF
+	*)
+
+	
+
+	
+	//FOR i := 1 TO 13 DO
+		//fbModbusManager.addRequest_Read(ReadRequest := ADR(stModReadIndoorUnitSetpoits[i]));
+		//fbModbusManager.addRequest_Read(ReadRequest := ADR(stModReadIndoorUnitPower[i]));
+		//fbModbusManager.addRequest_Write(WriteRequest := ADR(stModWriteIndoorControlPower));
+		//fbModbusManager.addRequest_Write(WriteRequest := ADR(stModWriteIndoorControlSetpoint));
+	//END_FOR
+	
+	fbTON_DataRefresh(IN := FALSE);
+	bResetTimer := TRUE;
+END_IF
+
+
+modRead();
+IF modRead.Q THEN
+	fbModbusManager.addRequest_Read_Priority(ReadRequest := ADR(stModRead));
+END_IF
+
+
+modWrite();
+IF modWrite.Q THEN
+	fbModbusManager.addRequest_Write(WriteRequest := ADR(stModWrite));
+END_IF
+
+devices_update();
+
+
+
+
+
+
+	
+
+
+
+
+
+]]></ST>
+    </Implementation>
+    <Method Name="devices_init" Id="{914d674e-04ee-4858-a190-a7364df2abb6}">
+      <Declaration><![CDATA[METHOD devices_init : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+aHVAC_IndoorUnits[1] := ADR(fbRND1_HVAC);
+aHVAC_IndoorUnits[2] := ADR(fbRND2_HVAC);
+aHVAC_IndoorUnits[3] := ADR(fbRND3_HVAC);
+aHVAC_IndoorUnits[4] := ADR(fbRND4_HVAC);
+aHVAC_IndoorUnits[5] := ADR(fbRND5_HVAC);
+aHVAC_IndoorUnits[6] := ADR(fbRND6_HVAC);
+aHVAC_IndoorUnits[7] := ADR(fbRND7_HVAC);
+aHVAC_IndoorUnits[8] := ADR(fbRND8_HVAC);
+aHVAC_IndoorUnits[9] := ADR(fbRND9_HVAC);
+aHVAC_IndoorUnits[10] := ADR(fbRND10_HVAC);
+aHVAC_IndoorUnits[11] := ADR(fbRND11_HVAC);
+aHVAC_IndoorUnits[12] := ADR(fbRND12_HVAC);
+
+*)]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="devices_update" Id="{fa73bb39-fd2c-4089-af24-99eb6cd5db8c}">
+      <Declaration><![CDATA[METHOD devices_update : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+FOR i := 1 TO 13 DO
+	fbRND_HVAC[i].bOnOff_1_0 := 	stModReadIndoorUnitPower[i].ReadRegsVals[1].0;
+	fbRND_HVAC[1].nSetpoint_RO := 	WORD_TO_REAL(stModReadIndoorUnitSetpoits[i].ReadRegsVals[1])/10;
+	
+END_FOR
+
+fbRND_HVAC[1].bConnectionStatus := stModReadIndoorUnitConnStatus.ReadRegsVals[1].0;
+fbRND_HVAC[2].bConnectionStatus := stModReadIndoorUnitConnStatus.ReadRegsVals[1].1;
+fbRND_HVAC[3].bConnectionStatus := stModReadIndoorUnitConnStatus.ReadRegsVals[1].2;
+fbRND_HVAC[4].bConnectionStatus := stModReadIndoorUnitConnStatus.ReadRegsVals[1].3;
+fbRND_HVAC[5].bConnectionStatus := stModReadIndoorUnitConnStatus.ReadRegsVals[1].4;
+fbRND_HVAC[6].bConnectionStatus := stModReadIndoorUnitConnStatus.ReadRegsVals[1].5;
+fbRND_HVAC[7].bConnectionStatus := stModReadIndoorUnitConnStatus.ReadRegsVals[1].6;
+fbRND_HVAC[8].bConnectionStatus := stModReadIndoorUnitConnStatus.ReadRegsVals[1].7;
+fbRND_HVAC[9].bConnectionStatus := stModReadIndoorUnitConnStatus.ReadRegsVals[1].8;
+fbRND_HVAC[10].bConnectionStatus := stModReadIndoorUnitConnStatus.ReadRegsVals[1].9;
+fbRND_HVAC[11].bConnectionStatus := stModReadIndoorUnitConnStatus.ReadRegsVals[1].10;
+fbRND_HVAC[12].bConnectionStatus := stModReadIndoorUnitConnStatus.ReadRegsVals[1].11;
+fbRND_HVAC[13].bConnectionStatus := stModReadIndoorUnitConnStatus.ReadRegsVals[1].12;
+
+fbRND_HVAC[1].bCommsStatus := stModReadIndoorUnitCommsStatus.ReadRegsVals[1].0;
+fbRND_HVAC[2].bCommsStatus := stModReadIndoorUnitCommsStatus.ReadRegsVals[1].1;
+fbRND_HVAC[3].bCommsStatus := stModReadIndoorUnitCommsStatus.ReadRegsVals[1].2;
+fbRND_HVAC[4].bCommsStatus := stModReadIndoorUnitCommsStatus.ReadRegsVals[1].3;
+fbRND_HVAC[5].bCommsStatus := stModReadIndoorUnitCommsStatus.ReadRegsVals[1].4;
+fbRND_HVAC[6].bCommsStatus := stModReadIndoorUnitCommsStatus.ReadRegsVals[1].5;
+fbRND_HVAC[7].bCommsStatus := stModReadIndoorUnitCommsStatus.ReadRegsVals[1].6;
+fbRND_HVAC[8].bCommsStatus := stModReadIndoorUnitCommsStatus.ReadRegsVals[1].7;
+fbRND_HVAC[9].bCommsStatus := stModReadIndoorUnitCommsStatus.ReadRegsVals[1].8;
+fbRND_HVAC[10].bCommsStatus := stModReadIndoorUnitCommsStatus.ReadRegsVals[1].9;
+fbRND_HVAC[11].bCommsStatus := stModReadIndoorUnitCommsStatus.ReadRegsVals[1].10;
+fbRND_HVAC[12].bCommsStatus := stModReadIndoorUnitCommsStatus.ReadRegsVals[1].11;
+fbRND_HVAC[13].bCommsStatus := stModReadIndoorUnitCommsStatus.ReadRegsVals[1].12;
+*)]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{b333f4fd-8476-47a1-919d-1ed81e3b95ef}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	ModbusID: UINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nModbusID := ModbusID;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="initModRequests" Id="{7ac3b5a0-789d-420f-9fa8-08313aae926a}">
+      <Declaration><![CDATA[METHOD initModRequests : BOOL
+VAR_INPUT
+END_VAR
+
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+stModReadAdaptorStatus.SlaveAddress := 1;
+stModReadAdaptorStatus.AdrFirstSlaveRegisterRead := 0;
+stModReadAdaptorStatus.QtyWordsToRead := 1;
+
+stModReadIndoorUnitConnStatus.SlaveAddress := 1;
+stModReadIndoorUnitConnStatus.AdrFirstSlaveRegisterRead := 1;
+stModReadIndoorUnitConnStatus.QtyWordsToRead := 1;
+
+stModReadIndoorUnitCommsStatus.SlaveAddress := 1;
+stModReadIndoorUnitCommsStatus.AdrFirstSlaveRegisterRead := 5;
+stModReadIndoorUnitCommsStatus.QtyWordsToRead := 1;
+
+stModWriteaAdaptorStatus.SlaveAddress := 1;
+stModWriteaAdaptorStatus.AdrFirstSlaveRegisterWrite := 1;
+stModWriteaAdaptorStatus.QtyWordsToWrite := 1;
+stModWriteaAdaptorStatus.WriteRegVals[1] := 32768; // turn modbus comms on
+
+stModWriteIndoorRoom.SlaveAddress := 1;
+stModWriteIndoorRoom.AdrFirstSlaveRegisterWrite := 2018;
+stModWriteIndoorRoom.QtyWordsToWrite := 1;
+stModWriteIndoorRoom.WriteRegVals[1] := 1889;
+
+stModWriteIndoorSetpoint_R6.SlaveAddress := 1;
+stModWriteIndoorSetpoint_R6.AdrFirstSlaveRegisterWrite := 2017;
+stModWriteIndoorSetpoint_R6.QtyWordsToWrite := 1;
+
+stModWriteIndoorSetpoint_R7.SlaveAddress := 1;
+stModWriteIndoorSetpoint_R7.AdrFirstSlaveRegisterWrite := 2020;
+stModWriteIndoorSetpoint_R7.QtyWordsToWrite := 1;
+
+stModWriteIndoorSetpoint_R8.SlaveAddress := 1;
+stModWriteIndoorSetpoint_R8.AdrFirstSlaveRegisterWrite := 2023;
+stModWriteIndoorSetpoint_R8.QtyWordsToWrite := 1;
+
+stModWriteIndoorSetpoint_R9.SlaveAddress := 1;
+stModWriteIndoorSetpoint_R9.AdrFirstSlaveRegisterWrite := 2026;
+stModWriteIndoorSetpoint_R9.QtyWordsToWrite := 1;
+
+
+FOR i := 1 TO nNumberHVACUnits DO
+	stModReadIndoorUnitSetpoits[i].SlaveAddress := 1;
+	stModReadIndoorUnitSetpoits[i].AdrFirstSlaveRegisterRead := 2002 + ((i-1) * 6);
+	stModReadIndoorUnitSetpoits[i].QtyWordsToRead := 1;
+	
+	stModReadIndoorUnitPower[i].SlaveAddress := 1;
+	stModReadIndoorUnitPower[i].AdrFirstSlaveRegisterRead := 2000 + ((i-1) * 6);
+	stModReadIndoorUnitPower[i].QtyWordsToRead := 1;
+	
+	stModWriteIndoorControlPower[i].SlaveAddress := 1;
+	stModWriteIndoorControlPower[i].AdrFirstSlaveRegisterWrite := 2000 + ((i-1)*3);
+	stModWriteIndoorControlPower[i].QtyWordsToWrite := 1;
+	
+	stModWriteIndoorControlSetpoint[i].SlaveAddress := 1;
+	stModWriteIndoorControlSetpoint[i].AdrFirstSlaveRegisterWrite := 2002 + + ((i-1)*3);
+	stModWriteIndoorControlSetpoint[i].QtyWordsToWrite := 1;
+	
+END_FOR
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="scanInputs" Id="{361b0b9c-c3b5-4e26-9f66-6510310a3e15}">
+      <Declaration><![CDATA[METHOD scanInputs : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 1 TO nNumberHVACUnits DO
+	IF Inputs.HVAC_RND[i].Power THEN
+		stModWriteIndoorControlPower[i].WriteRegVals[1] := 1;
+	ELSE
+		stModWriteIndoorControlPower[i].WriteRegVals[1] := 0;
+	END_IF
+	//stModWriteIndoorControlPower[i].WriteRegVals[1] := BOOL_TO_WORD(Inputs.HVAC_RND[i].Power);
+	stModWriteIndoorControlSetpoint[i].WriteRegVals[1] := (REAL_TO_INT(Inputs.HVAC_RND[i].Setpoint * 10.0));
+	// stModWriteIndoorControlPower[i].WriteRegVals[i] := 2#0111001001100000 AND stModWriteIndoorControlPower[i].WriteRegVals[i]; // binary word includes mandatory fields (fan power / volume / control)
+END_FOR
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_System_RND_HVAC">
+      <LineId Id="1067" Count="20" />
+      <LineId Id="1199" Count="0" />
+      <LineId Id="1212" Count="1" />
+      <LineId Id="1209" Count="0" />
+      <LineId Id="1215" Count="0" />
+      <LineId Id="1210" Count="0" />
+      <LineId Id="1201" Count="0" />
+      <LineId Id="1204" Count="1" />
+      <LineId Id="1216" Count="0" />
+      <LineId Id="1274" Count="0" />
+      <LineId Id="1277" Count="2" />
+      <LineId Id="1275" Count="1" />
+      <LineId Id="1206" Count="0" />
+      <LineId Id="1208" Count="0" />
+      <LineId Id="1207" Count="0" />
+      <LineId Id="1217" Count="0" />
+      <LineId Id="1203" Count="0" />
+      <LineId Id="1202" Count="0" />
+      <LineId Id="1200" Count="0" />
+      <LineId Id="1218" Count="0" />
+      <LineId Id="1135" Count="1" />
+      <LineId Id="1138" Count="1" />
+      <LineId Id="1137" Count="0" />
+      <LineId Id="1142" Count="2" />
+      <LineId Id="1141" Count="0" />
+      <LineId Id="1088" Count="0" />
+      <LineId Id="1090" Count="1" />
+      <LineId Id="1133" Count="0" />
+      <LineId Id="1094" Count="36" />
+      <LineId Id="31" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_System_RND_HVAC.devices_init">
+      <LineId Id="6" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="10" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="21" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_System_RND_HVAC.devices_update">
+      <LineId Id="41" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="44" Count="1" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="48" Count="11" />
+      <LineId Id="61" Count="12" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="77" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_System_RND_HVAC.FB_init">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_System_RND_HVAC.initModRequests">
+      <LineId Id="8" Count="0" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="3" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="14" Count="2" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="63" Count="2" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="68" Count="2" />
+      <LineId Id="91" Count="2" />
+      <LineId Id="90" Count="0" />
+      <LineId Id="72" Count="0" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="73" Count="1" />
+      <LineId Id="100" Count="2" />
+      <LineId Id="99" Count="0" />
+      <LineId Id="82" Count="2" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="50" Count="1" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="44" Count="3" />
+      <LineId Id="52" Count="3" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="39" Count="1" />
+      <LineId Id="21" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_System_RND_HVAC.scanInputs">
+      <LineId Id="5" Count="0" />
+      <LineId Id="15" Count="4" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="13" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

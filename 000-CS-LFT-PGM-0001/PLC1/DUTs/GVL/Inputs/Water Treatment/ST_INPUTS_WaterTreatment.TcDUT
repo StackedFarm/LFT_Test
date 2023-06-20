@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_WaterTreatment" Id="{07f3bd94-29ab-4e31-ad53-c45e1d88f564}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_WaterTreatment :
+STRUCT
+
+	
+	Pump_CleanWaterPumpSelection_A_1_B_0: UINT;
+	Pump_WasteWaterSumpPumpSelection_A_1_B_0: UINT;	
+	Dosing_Pressure_LOW_Limit: UINT;
+	Dosing_Pressure_HIGH_Limit: UINT;
+
+	stWaterQuality: ST_INPUTS_WaterTreatment_Water;
+	stSequenceManager: ST_INPUTS_SequenceManager_DM;
+	stDosingPump_phUp: ST_INPUTS_DosingPump;
+	stDosingPump_phDown: ST_INPUTS_DosingPump;	
+	stPump_CleanWaterPumpA: ST_INPUTS_PumpVSD;
+	stPump_CleanWaterPumpB: ST_INPUTS_PumpVSD;
+	stPump_WasteWaterSumpPumpA : ST_INPUTS_PumpDOL;
+	stPump_WasteWaterSumpPumpB : ST_INPUTS_PumpDOL;
+	stUnit_OzoneGenerator: ST_INPUTS_Unit_OzoneGenerator;
+	stDrumFilter: ST_INPUTS_DrumFilter;
+	stUnit_RO_EDI: ST_INPUTS_Unit_RO_EDI;
+	stValve_DosingSupply: ST_INPUTS_ValveOnOFF;
+	stValve_DM1_Supply: ST_INPUTS_ValveOnOFF;
+	stValve_DM2_Supply: ST_INPUTS_ValveOnOFF;
+	stValve_Seedling_Stack: ST_INPUTS_ValveOnOFF;
+	stValve_SDR_Machine: ST_INPUTS_ValveOnOFF;
+	stValve_Tray_Cleaning: ST_INPUTS_ValveOnOFF;
+	stValve_FogMisting: ST_INPUTS_ValveOnOFF;
+	stValve_TownWater: ST_INPUTS_ValveOnOFF;
+	stControlLoopDosing_PH: ST_INPUTS_Dosing_ControlLoop;
+
+
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

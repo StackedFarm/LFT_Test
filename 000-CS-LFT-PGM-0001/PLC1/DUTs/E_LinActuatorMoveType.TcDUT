@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_LinActuatorMoveType" Id="{8ecc1cff-f1e6-4df3-979e-e71fb6ae432c}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_LinActuatorMoveType :
+(
+	EXTEND,
+	EXTEND_SLOW,
+	RETRACT,
+	RETRACT_SLOW,
+	STOP
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_Unit_OxyInjector" Id="{e45d091e-e389-482b-a50a-bbf8a0135004}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_Unit_OxyInjector:
+STRUCT
+	
+	Mode:     	 E_DeviceMode;
+	Command:     E_DeviceState;
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

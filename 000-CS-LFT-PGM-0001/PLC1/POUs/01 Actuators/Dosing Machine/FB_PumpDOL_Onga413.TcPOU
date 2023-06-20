@@ -1,0 +1,217 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_PumpDOL_Onga413" Id="{98d36f57-66f2-43c3-a9f8-333f76688db4}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_PumpDOL_Onga413 EXTENDS FB_BaseDevice IMPLEMENTS I_Device, I_PumpVSD
+
+VAR
+	{attribute 'OPC.UA.DA' := '1'} 
+	bInContactor AT %I*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	bOutContactor AT %Q*: BOOL := FALSE;
+
+
+	//MB:  REFERENCE TO FB_ModbusMaster;
+	{attribute 'OPC.UA.DA' := '1'} 
+	nFrequencySetPoint: REAL := 0;
+	{attribute 'OPC.UA.DA' := '1'} 
+	nFrequencyActual: REAL := 0;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSMState: (WAIT, STARTING, RUNNING, STOPPING, STOPPED);
+	
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbTONstartTime();
+fbTONstopTime();
+
+IF GVL.bAutoUpdateDeviceState THEN
+	eState := eStateTarget;	
+END_IF
+
+
+
+IF bEnable THEN
+	IF eStateTarget = E_DeviceState.ON AND eState <> E_DeviceState.ON THEN
+		eSMState := STARTING;
+	END_IF
+END_IF
+
+IF eStateTarget = E_DeviceState.OFF AND eState <> E_DeviceState.OFF THEN
+		eSMState := STOPPING;
+END_IF
+
+
+CASE eSMState OF
+	
+	WAIT:
+		//Wait for method call to change ESMState
+		
+	STARTING: 
+		eState := E_DeviceState.STARTING;
+
+		bOutContactor := TRUE;
+	
+		IF fbTONstartTime.Q THEN
+			eSMState := WAIT;
+			raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Failed to Start', Enabled := TRUE, DeviceAlarmID := 2);
+		END_IF
+		
+		IF bInContactor THEN
+			eSMState := RUNNING;
+			eState := E_DeviceState.RUNNING;
+		END_IF
+		
+	RUNNING:
+		IF bInContactor <> TRUE THEN
+			raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Power Lost', Enabled := TRUE, DeviceAlarmID := 2);
+			eState := E_DeviceState.FAULTED;
+			eSMState := WAIT;
+		END_IF
+		
+		// Add pump / motor control here - look at built in Twincat libraries 
+		// Add relevant VSD signals to check
+		
+
+	STOPPING:
+		eState := E_DeviceState.STOPPING;
+		bOutContactor := FALSE;
+				
+		IF fbTONstopTime.Q THEN
+			eSMState := WAIT;
+			raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Failed to Stop', Enabled := TRUE, DeviceAlarmID := 3);
+		END_IF 
+		
+		IF bInContactor = FALSE AND nFrequencyActual = 0 THEN
+			eSMState := STOPPED;	
+		END_IF
+		
+
+	STOPPED:
+		eState := E_DeviceState.IDLE;
+		eSMState := WAIT;
+		
+		
+END_CASE]]></ST>
+    </Implementation>
+    <Method Name="disable" Id="{52184ce4-ba51-492f-8b16-9d6aa7f869d7}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{e71dcaf9-338a-4ee2-8469-1ce0297f1667}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{a509d217-6b91-4892-9851-1386595f7c5a}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD FB_init : BOOL
+VAR_INPUT
+	(* if TRUE, the retain variables are initialized (warm start / cold start)*)
+	bInitRetains	: BOOL;
+	(* if TRUE, the instance afterwards gets moved into the copy code (online change)*)
+	bInCopyCode	: BOOL;
+	PumpID	: STRING(80);
+	PumpDescr	: STRING(255);
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := PumpID;
+sDescr := PumpDescr;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getFrequency" Id="{1bd0517e-c9f7-4f28-ba96-b1d1897dbac0}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getFrequency : REAL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setModbusMaster" Id="{8bb2eba5-78c9-48b5-88ae-9944c4a8a375}">
+      <Declaration><![CDATA[METHOD setModbusMaster : BOOL
+METHOD setModbusMaster : BOOL
+VAR_INPUT
+	//ModbusMaster: REFERENCE TO FB_ModbusMaster;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//MB := ModbusMaster;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOff" Id="{5c03639b-ce96-4c20-8db4-a9f7040b541e}">
+      <Declaration><![CDATA[METHOD setOff : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOn" Id="{a5183cc9-513b-4b74-aad8-b0c8dddf7764}">
+      <Declaration><![CDATA[METHOD setOn : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setReference" Id="{5d727785-f31f-45c7-a65f-6eb9618b8130}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD setReference : BOOL
+VAR_INPUT
+	RefSetPoint	: REAL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_PumpDOL_Onga413">
+      <LineId Id="62" Count="1" />
+      <LineId Id="150" Count="0" />
+      <LineId Id="153" Count="2" />
+      <LineId Id="151" Count="1" />
+      <LineId Id="64" Count="37" />
+      <LineId Id="128" Count="1" />
+      <LineId Id="131" Count="0" />
+      <LineId Id="102" Count="0" />
+      <LineId Id="104" Count="3" />
+      <LineId Id="109" Count="15" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PumpDOL_Onga413.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PumpDOL_Onga413.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PumpDOL_Onga413.FB_init">
+      <LineId Id="23" Count="0" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PumpDOL_Onga413.getFrequency">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PumpDOL_Onga413.setModbusMaster">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PumpDOL_Onga413.setOff">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PumpDOL_Onga413.setOn">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PumpDOL_Onga413.setReference">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

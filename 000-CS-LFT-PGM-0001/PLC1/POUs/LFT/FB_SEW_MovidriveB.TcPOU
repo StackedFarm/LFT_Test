@@ -1,0 +1,217 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SEW_MovidriveB" Id="{15081331-1a1c-4e92-b26a-deb052c11093}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_SEW_MovidriveB EXTENDS FB_BaseDevice
+
+VAR_INPUT 
+	// PA2 + PA3 TARGET POSITION
+	nTargetPosition: DINT;  // User defined units
+	// PA4: SETPOINT SPEED
+	nSetpointSpeed: INT; // 1/min
+	// PA5 + PA6: ACCELERATION RAMP AND DECELERATION RAMP
+	tRamp_Accel: TIME; // 16-bit INT - in seconds
+	tRamp_Decel: TIME; // 16-bit INT - in seconds
+END_VAR
+
+
+VAR_OUTPUT
+	// PE2 + PE3 ACTUAL POSITION
+	nActualPosition: DINT;  // User defined units
+	//PE4: ACTUAL SPEED
+	nActualSpeed: INT; // 1/min
+	//PE5: ACTIVE CURRENT
+	nActiveCurrent: INT; // % of rated current
+	//PE6: UNIT UTILISATION
+	nUnitUtilisation: INT; // % I x t
+END_VAR
+
+VAR
+	// PROCESS OUTPUT DATA 
+	// PO1: CONTROL WORD 2
+	bSWLimitSwitch: BOOL;
+	bModeHigh: BOOL;
+	bModeLow: BOOL;
+	bJog_Rev: BOOL := FALSE;
+	bJog_Fwd: BOOL := FALSE;
+	bStart: BOOL;
+	bFaultReset: BOOL;
+	bParamSet_SwitchOver: BOOL;
+	bRampSwitchover: BOOL;
+	bHold_Ctrl: BOOL;
+	bEnable_Stop: BOOL;
+	bEnable_RapidStop: BOOL;
+	bController_Inhibit: BOOL;
+
+	//PROCESS INPUT DATA
+	
+	// PE1 STATUS WORD
+	FaultCode: BYTE;
+	bLimSwitch_CCW: BOOL;
+	bLimSwitch_CW: BOOL;
+	bFault: BOOL;
+	bBrakeReleased: BOOL;
+	bTargetPosReached: BOOL;
+	bIPOSReference: BOOL;
+	bInverterReady: BOOL;
+	bMotorTurning: BOOL;
+	
+	// PROCESS DATA WORDS to LINK TO DRIVE
+	PO1_ProcessOutput_1 AT %Q* : WORD;
+	PO2_ProcessOutput_2 AT %Q* : WORD;
+	PO3_ProcessOutput_3 AT %Q* : WORD;
+	PO4_ProcessOutput_4 AT %Q* : WORD;
+	PO5_ProcessOutput_5 AT %Q* : WORD;
+	PO6_ProcessOutput_6 AT %Q* : WORD;
+	
+	PI1_ProcessInput_1 AT %I* : WORD;
+	PI2_ProcessInput_2 AT %I* : WORD;
+	PI3_ProcessInput_3 AT %I* : WORD;
+	PI4_ProcessInput_4 AT %I* : WORD;
+	PI5_ProcessInput_5 AT %I* : WORD;
+	PI6_ProcessInput_6 AT %I* : WORD;
+	
+	
+	// Additional Variables
+	eOperatingMode: E_MovidriveB_OpMode := E_MovidriveB_OpMode.JOG_MODE;
+	
+END_VAR
+
+VAR_OUTPUT PERSISTENT 
+	bExtending_1_or_Retracting_0: BOOL;
+END_VAR
+
+VAR PERSISTENT
+	bAbove_1_or_Below_0_HomePos: BOOL;
+	
+	eSMState: (INIT, ENABLE, EXTEND, EXTEND_SLOW, RETRACT, RETRACT_SLOW, JOG_FWD, JOG_REV, STOP, ERROR, RESET) := INIT;
+	
+	nGearRation: REAL; 
+	nInertia: REAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[updateInputs();
+updateOutputs();
+
+CASE eOperatingMode OF 
+	E_MovidriveB_OpMode.JOG_MODE:
+		bModeLow 	:= TRUE;
+		bModeHigh 	:= FALSE;
+	E_MovidriveB_OpMode.REFERENCING_MODE:
+		bModeLow 	:= FALSE;
+		bModeHigh 	:= TRUE;
+	E_MovidriveB_OpMode.AUTOMATIC_MODE:
+		bModeLow 	:= TRUE;
+		bModeHigh 	:= TRUE;
+END_CASE
+
+
+
+]]></ST>
+    </Implementation>
+    <Method Name="updateInputs" Id="{85468d3e-1cca-4dc0-8611-e08853e4d66e}">
+      <Declaration><![CDATA[METHOD updateInputs : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FaultCode 			:= INT_TO_BYTE(SHR((PI1_ProcessInput_1 AND 16#F0), 8));
+bLimSwitch_CCW 		:= PI1_ProcessInput_1.7;
+bLimSwitch_CW 		:= PI1_ProcessInput_1.6;
+bFault 				:= PI1_ProcessInput_1.5;
+bBrakeReleased		:= PI1_ProcessInput_1.4;
+bTargetPosReached 	:= PI1_ProcessInput_1.3;
+bIPOSReference 		:= PI1_ProcessInput_1.2;
+bInverterReady 		:= PI1_ProcessInput_1.1;
+bMotorTurning 		:= PI1_ProcessInput_1.0;
+nActualPosition 	:= SHL(PI2_ProcessInput_2, 8) AND PI3_ProcessInput_3;
+nActualSpeed 		:= WORD_TO_INT(PI4_ProcessInput_4);
+nActiveCurrent 		:= WORD_TO_INT(PI5_ProcessInput_5);
+nUnitUtilisation 	:= WORD_TO_INT(PI6_ProcessInput_6);
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="updateOutputs" Id="{d717cb8f-1931-401b-8aac-06bb4ded51d8}">
+      <Declaration><![CDATA[METHOD updateOutputs : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[PO1_ProcessOutput_1.15 := bSWLimitSwitch;
+PO1_ProcessOutput_1.12 := bModeHigh;
+PO1_ProcessOutput_1.11 := bModeLow;
+PO1_ProcessOutput_1.10 := bJog_Rev;
+PO1_ProcessOutput_1.9 := bJog_Fwd;
+PO1_ProcessOutput_1.8 := bStart;
+PO1_ProcessOutput_1.6 := bFaultReset;
+PO1_ProcessOutput_1.5 := bParamSet_SwitchOver;
+PO1_ProcessOutput_1.4 := bRampSwitchover;
+PO1_ProcessOutput_1.3 := bHold_Ctrl;
+PO1_ProcessOutput_1.2 := bEnable_Stop; 
+PO1_ProcessOutput_1.1 := bEnable_RapidStop;
+PO1_ProcessOutput_1.0 := bController_Inhibit;
+
+PO2_ProcessOutput_2 := UDINT_TO_WORD(SHR(nTargetPosition AND 16#F0, 8));
+PO3_ProcessOutput_3 := UDINT_TO_WORD(nTargetPosition AND 16#0F);
+
+PO4_ProcessOutput_4 := INT_TO_WORD(nSetpointSpeed);
+
+PO5_ProcessOutput_5 := DINT_TO_WORD(TIME_TO_DINT(tRamp_Accel)/1000);
+PO6_ProcessOutput_6 := DINT_TO_WORD(TIME_TO_DINT(tRamp_Decel)/1000);
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_SEW_MovidriveB">
+      <LineId Id="9" Count="0" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="170" Count="0" />
+      <LineId Id="169" Count="0" />
+      <LineId Id="171" Count="0" />
+      <LineId Id="173" Count="0" />
+      <LineId Id="202" Count="0" />
+      <LineId Id="174" Count="0" />
+      <LineId Id="203" Count="0" />
+      <LineId Id="175" Count="1" />
+      <LineId Id="204" Count="0" />
+      <LineId Id="177" Count="0" />
+      <LineId Id="172" Count="0" />
+      <LineId Id="208" Count="0" />
+      <LineId Id="207" Count="0" />
+      <LineId Id="206" Count="0" />
+      <LineId Id="205" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SEW_MovidriveB.updateInputs">
+      <LineId Id="46" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="18" Count="6" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="37" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SEW_MovidriveB.updateOutputs">
+      <LineId Id="6" Count="9" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="20" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

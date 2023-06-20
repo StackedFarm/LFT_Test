@@ -1,0 +1,169 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_UVFilter_Pentair_EU40" Id="{66450e10-72f9-4f09-98e9-94012e816dbf}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_UVFilter_Pentair_EU40 EXTENDS FB_BaseDevice IMPLEMENTS I_Device
+
+VAR
+	{attribute 'OPC.UA.DA' := '1'} 
+	bInRelay AT %I*: BOOL := FALSE;
+	
+	{attribute 'OPC.UA.DA' := '1'} 
+	bOutRelay AT %Q*: BOOL := FALSE;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSMState: (WAIT, TURNING_ON, ON, TURNING_OFF, OFF);
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	tActionTimeout: TIME := T#5S;
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbTON_timeout: TON := (PT := tActionTimeout, IN := FALSE);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF GVL.bAutoUpdateDeviceState THEN
+	eState := eStateTarget;	
+END_IF
+
+IF eMode = E_DeviceMode.MANUAL THEN
+	bEnable := TRUE;
+END_IF
+
+IF (eStateTarget = E_DeviceState.ON) AND bEnable AND eSMState <> ON THEN
+	eSMState := TURNING_ON;
+END_IF
+
+IF ((eStateTarget = E_DeviceState.OFF) OR (NOT bEnable)) AND eSMState <> OFF THEN
+	eSMState := TURNING_OFF;
+END_IF
+
+
+
+CASE eSMState OF
+	
+		
+	TURNING_ON: 
+		bOutRelay := TRUE;
+		eSMState := ON;
+		eState := E_DeviceState.ON;
+		
+	ON:
+		IF NOT bOutRelay THEN
+			eSMState := TURNING_OFF;
+		END_IF
+		
+	TURNING_OFF:
+		bOutRelay := FALSE;
+		eSMState := OFF;
+		eState := E_DeviceState.TURNING_OFF;
+		
+	OFF:
+		eState := E_DeviceState.OFF;
+		bBusy := FALSE;
+		
+END_CASE
+]]></ST>
+    </Implementation>
+    <Method Name="disable" Id="{26ea0b53-814a-4abe-a4f6-3680a851d335}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{fca10751-3609-47b2-992a-a93960b24ef3}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{0a9c7970-3b42-4214-88e5-4d3a1acb1be8}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	UnitID: STRING(80);
+	UnitDescr: STRING(255); 
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := UnitID;
+sDescr := UnitDescr;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOff" Id="{a49c8c7e-1503-4a0a-9631-50a15a090bf6}">
+      <Declaration><![CDATA[METHOD setOff : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bEnable THEN
+	eSMState := TURNING_OFF;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOn" Id="{89d75852-f0e4-4993-850f-a89750075b03}">
+      <Declaration><![CDATA[METHOD setOn : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bEnable THEN
+	eSMState := TURNING_ON;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_UVFilter_Pentair_EU40">
+      <LineId Id="191" Count="2" />
+      <LineId Id="240" Count="0" />
+      <LineId Id="261" Count="3" />
+      <LineId Id="223" Count="0" />
+      <LineId Id="318" Count="1" />
+      <LineId Id="321" Count="0" />
+      <LineId Id="324" Count="0" />
+      <LineId Id="323" Count="0" />
+      <LineId Id="320" Count="0" />
+      <LineId Id="236" Count="0" />
+      <LineId Id="238" Count="0" />
+      <LineId Id="196" Count="1" />
+      <LineId Id="225" Count="1" />
+      <LineId Id="200" Count="3" />
+      <LineId Id="227" Count="0" />
+      <LineId Id="204" Count="0" />
+      <LineId Id="209" Count="0" />
+      <LineId Id="298" Count="1" />
+      <LineId Id="210" Count="2" />
+      <LineId Id="214" Count="1" />
+      <LineId Id="228" Count="0" />
+      <LineId Id="216" Count="0" />
+      <LineId Id="218" Count="0" />
+      <LineId Id="220" Count="0" />
+      <LineId Id="229" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="289" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UVFilter_Pentair_EU40.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UVFilter_Pentair_EU40.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UVFilter_Pentair_EU40.FB_init">
+      <LineId Id="7" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UVFilter_Pentair_EU40.setOff">
+      <LineId Id="9" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UVFilter_Pentair_EU40.setOn">
+      <LineId Id="9" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

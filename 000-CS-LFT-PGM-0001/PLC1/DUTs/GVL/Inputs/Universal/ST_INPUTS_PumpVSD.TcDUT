@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_PumpVSD" Id="{41596eab-fbe4-43f5-84b6-01b6b98958be}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_PumpVSD:
+STRUCT
+	
+	
+	Mode:     			E_DeviceMode;
+	Command:     		E_DeviceState;
+	MinFrequency:     	UINT;
+	CommandFrequency:   UINT;
+	
+	
+
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

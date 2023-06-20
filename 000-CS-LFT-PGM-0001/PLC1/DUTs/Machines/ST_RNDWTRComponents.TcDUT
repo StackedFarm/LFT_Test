@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_RNDWTRComponents" Id="{097e3526-ebdc-4154-be04-c87877f7308a}">
+    <Declaration><![CDATA[TYPE ST_RNDWTRComponents :
+STRUCT
+	
+	
+	// Pumps
+	fbPump_CleanWaterPumpA: POINTER TO  FB_PumpDOL_Onga413_RND;
+
+	// Actuator Units
+	fbUnit_RO_EDI: POINTER TO FB_Unit_RO_RND;
+	
+	
+	
+	// Sensors - Clean Water Tank A (CWT-A) 
+	fbSensor_CWT_A_LIT : POINTER TO  FB_Sensor_4_20mA_Generic;
+	fbSensor_CWT_A_LSLL : POINTER TO  FB_Sensor_SICKLevelSwitch_GRF18S;
+	fbSensor_CWT_A_LSL : POINTER TO  FB_Sensor_SICKLevelSwitch_GRF18S;
+	fbSensor_CWT_A_LSH : POINTER TO  FB_Sensor_SICKLevelSwitch_GRF18S;
+	fbSensor_CWT_A_LSHH : POINTER TO  FB_Sensor_SICKLevelSwitch_GRF18S;
+	
+	// Actuated Valves - Incoming
+	fbValve_TownWaterSupply: POINTER TO  FB_Valve_ONOFF_woMonitoring;
+	
+	// Actuated Valves - Outgoing
+	fbValve_DM1Supply: POINTER TO  FB_Valve_ONOFF_woMonitoring;
+	
+	
+	// Tanks and Sumps
+	fbTank_CWTA: POINTER TO   FB_Tank;
+	
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

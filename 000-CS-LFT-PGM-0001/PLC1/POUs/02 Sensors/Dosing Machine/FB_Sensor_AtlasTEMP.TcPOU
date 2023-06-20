@@ -1,0 +1,204 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Sensor_AtlasTEMP" Id="{b11dd2e4-750b-4c0b-8749-9d8880cdd4e4}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_Sensor_AtlasTEMP EXTENDS FB_BaseDevice IMPLEMENTS I_Device, I_Sensor
+
+
+VAR
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSensorType: E_SensorType;
+	{attribute 'OPC.UA.DA' := '0'} 
+	nRawInput AT %I*: INT;
+	nFaultInput AT %I*: BOOL;
+	{attribute 'OPC.UA.DA' := '1'} 
+	nCurrentValue: REAL;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	nCalOutput1 AT %Q*: BOOL;
+	{attribute 'OPC.UA.DA' := '0'} 
+	nCalOutput2 AT %Q*: BOOL;
+	{attribute 'OPC.UA.DA' := '0'} 
+	nCalOutput3 AT %Q*: BOOL;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	trigCalibrate: R_TRIG;
+	{attribute 'OPC.UA.DA' := '0'} 
+	timerBtnPress: TON := (PT:=T#250MS,IN := FALSE);
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	timerDoCalibration: TON := (PT:=T#120S,IN := FALSE); // Check this time during testing! The instructions are not clear about what happens after initiating a calibration request 
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSMState: (WAIT, CAL_START, CAL_FINISH) := WAIT;
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[calculate();
+
+CASE eSMState OF 
+	WAIT:
+		// wait for the calibrate method call to change the ESMState variable
+		
+	CAL_START:
+		nCalOutput1 := TRUE;
+		timerBtnPress.IN := TRUE;
+		IF timerBtnPress.Q THEN
+			nCalOutput1 := FALSE;
+			eSMState := CAL_FINISH;
+			timerBtnPress.IN := FALSE; 
+			timerDoCalibration.IN := TRUE;
+		END_IF
+		
+		eSMState := CAL_FINISH;
+		
+	CAL_FINISH:
+		IF timerDoCalibration.Q THEN
+			timerDoCalibration.IN := FALSE;			// CHeck the functionality of this step - instructions are not clear
+			bBusy := FALSE;
+			eSMState := WAIT;
+		END_IF
+		
+END_CASE]]></ST>
+    </Implementation>
+    <Method Name="calculate" Id="{941d7dcd-930d-451f-805f-aa243a998271}">
+      <Declaration><![CDATA[METHOD PRIVATE calculate : BOOL
+VAR_INPUT
+	
+	// Var
+END_VAR
+
+VAR
+	nMeasuredCurrent: REAL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nMeasuredCurrent := (INT_TO_REAL(nRawInput)/GVL.nMaxADCOutput)*16.0 + 4.0; // in mA
+
+
+nCurrentValue := (((nMeasuredCurrent - 4.0) / 16.0) * 360.0)- 180;  // equation is TEMP =    [(mA reading - 4.0)* 275 / 16 ] - 55
+
+// nCurrentValue := (((nMeasuredCurrent - 4.0) * 275.0 / 16.0))- 55;  // equation is TEMP =    [(mA reading - 4.0)* 275 / 16 ] - 55
+
+// This equation is for the default probe type 'Option 1' with a range of -55 to 220 deg C
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="calibrate" Id="{a9b4ffa8-e9b4-4ab4-9196-15bad53243cf}">
+      <Declaration><![CDATA[METHOD calibrate : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// The user manual only shows a manual calibration method
+// Perhaps this probe does not need to be calibrated as often and the PLC method is not offered? Need to investigate
+
+eSMState := CAL_START;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="disable" Id="{f939450c-6bec-4198-991a-8c401f97969b}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{74603c3a-bd0a-4224-a697-d934ff0f5feb}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{cb568df2-7f7d-4a5a-bc89-ee2652e7e838}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD FB_init : BOOL
+VAR_INPUT
+	(* if TRUE, the retain variables are initialized (warm start / cold start)*)
+	bInitRetains	: BOOL;
+	(* if TRUE, the instance afterwards gets moved into the copy code (online change)*)
+	bInCopyCode	: BOOL;
+	
+	SensorID	: STRING(80);
+	SensorDescr	: STRING(255);
+	SensorType	: E_SensorType;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := SensorID;
+sDescr := SensorDescr;
+eSensorType := SensorType;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getType" Id="{d53072a6-eaa1-4bc3-97d1-6eb0d14bf41e}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getType : E_SensorType
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getType := eSensorType;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getValue" Id="{6a84d899-123e-451a-9ee3-6da50c71861a}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getValue : REAL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getValue := nCurrentValue;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="write" Id="{368759f4-ee5d-40c4-8ccc-b78dcd8b06f4}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD write : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// use this method to initiated a hardware read from assigned IO if required
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Sensor_AtlasTEMP">
+      <LineId Id="9" Count="0" />
+      <LineId Id="43" Count="21" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="68" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasTEMP.calculate">
+      <LineId Id="53" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="74" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="41" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasTEMP.calibrate">
+      <LineId Id="5" Count="1" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasTEMP.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasTEMP.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasTEMP.FB_init">
+      <LineId Id="13" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasTEMP.getType">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasTEMP.getValue">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_AtlasTEMP.write">
+      <LineId Id="4" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

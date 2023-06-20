@@ -1,0 +1,183 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_LinearActuator_Pneumatic" Id="{dd7298cc-e501-4f54-b196-3765549d666c}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LinearActuator_Pneumatic EXTENDS FB_BaseDevice IMPLEMENTS I_Device
+
+VAR
+	// Instantiation config variables
+	nStroke: INT;
+	nAccelMax: INT;			// mm/s2
+	nVelocityMax: INT; 		// mm/s
+	tExtend: TIME;			// Target time for extend action
+	tRetract: TIME;			// Target timef ro retract action
+	
+	//Output variables
+	bOutput_Extend AT %Q*: BOOL;
+	bOutput_Retract AT %Q*: BOOL;
+
+	//eSMState:			eMoveState;
+	eSMState: (WAIT, EXTEND, RETRACT, STOP, ERROR, RESET) := WAIT;
+
+	tgExecute: 				R_TRIG;
+	tTimeout:				TIME := T#3S;
+	fbTON_Timeout: TON := 	(PT := tTimeout, IN := FALSE);
+END_VAR
+
+
+VAR_INPUT
+	bExecute: BOOL := FALSE;
+	eMoveType: E_LinActuatorMoveType;
+	fbSwitchExtend:  FB_AutoSwitch;
+	fbSwitchRetract: FB_AutoSwitch;
+END_VAR
+
+VAR_OUTPUT
+	nErrorID: INT;
+	bDone: BOOL := FALSE;
+END_VAR
+
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[tgExecute(CLK := bExecute);
+fbTON_Timeout(PT := tTimeout);
+
+IF eStateTarget <> eState AND (bEnable OR (eMode = E_DeviceMode.MANUAL)) THEN
+	
+	CASE eStateTarget OF 
+		E_DeviceState.EXTENDED:
+			eMoveType := E_LinActuatorMoveType.EXTEND;
+		E_DeviceState.RETRACTED:
+			eMoveType := E_LinActuatorMoveType.RETRACT;
+		E_DeviceState.IDLE:
+			eMoveType := E_LinActuatorMoveType.STOP;
+	END_CASE
+	bExecute := TRUE;
+END_IF
+
+
+(* move axis using a state machine *)
+CASE eSMState OF
+
+	WAIT :	
+		// Wait for a command
+		IF tgExecute.Q THEN
+			CASE eMoveType OF
+					E_LinActuatorMoveType.EXTEND:
+						eSMState := EXTEND;
+					E_LinActuatorMoveType.RETRACT:
+						eSMState := RETRACT;
+					E_LinActuatorMoveType.STOP:
+						eSMState := STOP;
+			END_CASE
+
+		END_IF
+
+	EXTEND :
+		bOutput_Extend := TRUE;
+		bOutput_Retract := FALSE;
+		eState := E_DeviceState.EXTENDING;							
+
+		IF fbSwitchExtend.getState() = E_DeviceState.ON THEN
+			eState := E_DeviceState.EXTENDED;
+			eSMState := WAIT;
+			bExecute := FALSE;
+		ELSIF fbTON_Timeout.Q THEN
+			eSMState := ERROR;
+		END_IF
+
+	RETRACT :			
+		bOutput_Extend := FALSE;
+		bOutput_Retract := TRUE;
+		eState := E_DeviceState.RETRACTING;							
+
+		IF fbSwitchRetract.getState() = E_DeviceState.ON THEN
+			eState := E_DeviceState.RETRACTED;
+			eSMState := WAIT;
+			bExecute := FALSE;
+		ELSIF fbTON_Timeout.Q THEN
+			eSMState := ERROR;
+		END_IF
+		
+	STOP :
+		bOutput_Extend := FALSE;
+		bOutput_Retract := FALSE;
+		eState := E_DeviceState.IDLE;
+		bExecute := FALSE;
+
+	ERROR :
+		eState := E_DeviceState.FAULTED;
+	
+END_CASE
+
+]]></ST>
+    </Implementation>
+    <Method Name="FB_init" Id="{7b20836a-22cf-4c5f-9860-2c3af3af6db5}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	Stroke: INT;
+	TimeExtend: TIME;
+	TimeRetract: TIME;
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nStroke := Stroke;
+tExtend := TimeExtend;
+tRetract := TimeRetract;
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_LinearActuator_Pneumatic">
+      <LineId Id="494" Count="0" />
+      <LineId Id="519" Count="0" />
+      <LineId Id="670" Count="0" />
+      <LineId Id="672" Count="9" />
+      <LineId Id="731" Count="0" />
+      <LineId Id="671" Count="0" />
+      <LineId Id="669" Count="0" />
+      <LineId Id="233" Count="5" />
+      <LineId Id="682" Count="0" />
+      <LineId Id="684" Count="2" />
+      <LineId Id="689" Count="1" />
+      <LineId Id="693" Count="1" />
+      <LineId Id="683" Count="0" />
+      <LineId Id="733" Count="0" />
+      <LineId Id="732" Count="0" />
+      <LineId Id="252" Count="1" />
+      <LineId Id="617" Count="1" />
+      <LineId Id="515" Count="0" />
+      <LineId Id="257" Count="0" />
+      <LineId Id="620" Count="0" />
+      <LineId Id="527" Count="0" />
+      <LineId Id="262" Count="0" />
+      <LineId Id="734" Count="0" />
+      <LineId Id="263" Count="1" />
+      <LineId Id="521" Count="0" />
+      <LineId Id="446" Count="0" />
+      <LineId Id="448" Count="0" />
+      <LineId Id="621" Count="6" />
+      <LineId Id="735" Count="0" />
+      <LineId Id="628" Count="1" />
+      <LineId Id="458" Count="0" />
+      <LineId Id="470" Count="0" />
+      <LineId Id="292" Count="0" />
+      <LineId Id="474" Count="0" />
+      <LineId Id="630" Count="1" />
+      <LineId Id="736" Count="0" />
+      <LineId Id="306" Count="1" />
+      <LineId Id="632" Count="0" />
+      <LineId Id="399" Count="0" />
+      <LineId Id="322" Count="0" />
+      <LineId Id="400" Count="0" />
+      <LineId Id="52" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_LinearActuator_Pneumatic.FB_init">
+      <LineId Id="7" Count="0" />
+      <LineId Id="22" Count="2" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

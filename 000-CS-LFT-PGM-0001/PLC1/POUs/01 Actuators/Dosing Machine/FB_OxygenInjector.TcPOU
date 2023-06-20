@@ -1,0 +1,171 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_OxygenInjector" Id="{668e5d45-802e-42ce-9ddc-d94c74748a0f}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_OxygenInjector EXTENDS FB_BaseDevice IMPLEMENTS I_Device
+
+VAR
+	
+	{attribute 'OPC.UA.DA' := '1'} 
+	bInContactor AT %I*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	bOutContactor AT %Q*: BOOL := FALSE;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSMState: (WAIT, TURNING_ON, ON, TURNING_OFF, OFF);
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	tActionTimeout: TIME := T#5S;
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbTON_timeout: TON := (PT := tActionTimeout, IN := FALSE);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbTONstartTime();
+fbTONstopTime();
+
+IF GVL.bAutoUpdateDeviceState THEN
+	eState := eStateTarget;	
+END_IF
+
+IF eMode = E_DeviceMode.AUTO AND (eStateTarget = E_DeviceState.ON) THEN
+	bEnable := TRUE;
+END_IF
+
+IF eMode = E_DeviceMode.MANUAL THEN
+	bEnable := TRUE;
+END_IF
+
+IF (bEnable AND (eStateTarget = E_DeviceState.ON)) AND eSMState <> ON THEN
+		eSMState := TURNING_ON;
+END_IF
+
+IF ((bEnable = FALSE) OR (eStateTarget = E_DeviceState.OFF)) AND eSMState <> OFF THEN
+		eSMState := TURNING_OFF;
+END_IF
+
+
+
+CASE eSMState OF
+	
+	WAIT:
+		//Wait for method call to change ESMState
+		eState := E_DeviceState.OFF;
+		bOutContactor := FALSE;
+		
+	TURNING_ON: 
+		eState := E_DeviceState.TURNING_ON;
+		eSMState := ON;
+		bOutContactor := TRUE;
+	
+	ON:
+		eState := E_DeviceState.ON;
+		bOutContactor := TRUE;
+		
+		
+	TURNING_OFF:
+
+		bOutContactor := FALSE;
+		eSMState := OFF;
+		
+		
+	OFF:
+		eState := E_DeviceState.OFF;
+		bOutContactor := FALSE;
+		
+END_CASE]]></ST>
+    </Implementation>
+    <Method Name="disable" Id="{82040bb5-71ab-4d86-a794-fbb58cb5f5e0}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{49a84da0-ad12-43f5-9c2e-92c3330955d7}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{5f642094-3fe8-470e-b726-75950d4bfae4}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	UnitID: STRING(80);
+	UnitDescr: STRING(255); 
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := UnitID;
+sDescr := UnitDescr;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOff" Id="{915557b5-a8ae-40a8-a503-2cceae72eb35}">
+      <Declaration><![CDATA[METHOD setOff : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eStateTarget := E_DeviceState.OFF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOn" Id="{5726c980-29e3-4f0e-8f81-7222163776cc}">
+      <Declaration><![CDATA[METHOD setOn : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eStateTarget := E_DeviceState.ON;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_OxygenInjector">
+      <LineId Id="145" Count="1" />
+      <LineId Id="226" Count="0" />
+      <LineId Id="228" Count="2" />
+      <LineId Id="332" Count="2" />
+      <LineId Id="331" Count="0" />
+      <LineId Id="258" Count="0" />
+      <LineId Id="280" Count="9" />
+      <LineId Id="251" Count="1" />
+      <LineId Id="157" Count="5" />
+      <LineId Id="253" Count="0" />
+      <LineId Id="312" Count="0" />
+      <LineId Id="163" Count="5" />
+      <LineId Id="179" Count="0" />
+      <LineId Id="254" Count="0" />
+      <LineId Id="310" Count="0" />
+      <LineId Id="185" Count="0" />
+      <LineId Id="308" Count="0" />
+      <LineId Id="188" Count="2" />
+      <LineId Id="309" Count="0" />
+      <LineId Id="255" Count="0" />
+      <LineId Id="202" Count="1" />
+      <LineId Id="257" Count="0" />
+      <LineId Id="311" Count="0" />
+      <LineId Id="206" Count="0" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OxygenInjector.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OxygenInjector.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OxygenInjector.FB_init">
+      <LineId Id="16" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OxygenInjector.setOff">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OxygenInjector.setOn">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

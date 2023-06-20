@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_DosingMachine_Sump" Id="{17864b6a-097f-42f2-8631-e116f693f0bf}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_DosingMachine_Sump :
+STRUCT
+
+	Level_LOW_LOW_Limit:    	UINT;
+	Level_LOW_Limit:    		UINT;
+	Level_HIGH_Limit:    	UINT;
+	Level_HIGH_HIGH_Limit:   UINT;
+	Level_Setpoint:    		UINT;
+	
+	Pressure_Dosing_LOW_Limit:    	UINT;
+	Pressure_Dosing_HIGH_Limit:    	UINT;
+		
+
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

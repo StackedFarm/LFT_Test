@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_POPComponents" Id="{dd6ee9b0-670c-4d69-9971-3d85f7effe8b}">
+    <Declaration><![CDATA[(*
+		This structure is used enable efficient passing device FBs by reference to sub-FBs of the 
+		machine FB, while maintaining an instance of each plant component at the 
+		highest heirarchy level within the machine FB 
+*)
+
+TYPE ST_POPComponents :
+STRUCT
+	(*
+					ACTUATORS (devices that can perform an action)
+	*)	
+	// Linear Actuators for vertical movement (POPPING)
+	fbLinAct_POP1: 		POINTER TO FB_LinearActuator_Elec;
+	fbLinAct_POP2: 		POINTER TO FB_LinearActuator_Elec;
+	fbLinAct_POP3: 		POINTER TO FB_LinearActuator_Elec; 
+	
+	fbStaticConv_POP1: POINTER TO FB_StaticConveyor;
+	fbStaticConv_POP2: POINTER TO FB_StaticConveyor;
+	fbStaticConv_POP3: POINTER TO FB_StaticConveyor;
+	
+	fbTrayCentre_POP1: POINTER TO FB_LinearActuator_Pneumatic;
+	fbTrayCentre_POP2: POINTER TO FB_LinearActuator_Pneumatic;
+	fbTrayCentre_POP3: POINTER TO FB_LinearActuator_Pneumatic;
+	
+	fbTrayEndSensor: POINTER TO FB_Sensor_OMRON_E3AS;
+	
+	fbHandshakeUpstream: 	POINTER TO FB_HandShake_TrayMovement;
+	fbHandshakeDownstream: 	POINTER TO FB_HandShake_TrayMovement;
+	
+	
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

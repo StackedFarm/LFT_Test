@@ -1,0 +1,78 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_RNDDMComponents" Id="{54862d8f-5d87-474e-90af-cc6c96e1df21}">
+    <Declaration><![CDATA[(*
+		This structure is used enable efficient passing device FBs by reference to sub-FBs of the 
+		machine FB, while maintaining an instance of each plant component at the 
+		highest heirarchy level within the machine FB 
+*)
+
+TYPE ST_RNDDMComponents :
+STRUCT
+	(*
+					ACTUATORS (devices that can perform an action)
+	*)	
+	// Actuated Valves
+	fbValve_RevOsSupply: 		POINTER TO FB_Valve_ONOFF_woMonitoring;
+	fbValve_IrrigatorSupply: 	POINTER TO FB_Valve_ONOFF_woMonitoring;
+	fbValve_Drain: 	POINTER TO FB_Valve_ONOFF_woMonitoring; 
+	// DOL Pump
+	fbPump_MainPumpA: 			POINTER TO FB_PumpDOL_Onga413;
+	
+	// Filters and Cleaners
+	fbUVFilter1:				POINTER TO FB_UVFilter_Pentair_EU40;
+	
+	// Passive Components
+	fbSumpDosing: 				POINTER TO FB_Tank;
+	
+	// Tanks
+	fbDosingPump_phUp : 		POINTER TO FB_DosingPumpAgrowtek;
+	fbDosingPump_phDown : 		POINTER TO FB_DosingPumpAgrowtek;
+	fbDosingPump_NutrientA	: 	POINTER TO FB_DosingPumpAgrowtek;	
+	fbDosingPump_NutrientB	: 	POINTER TO FB_DosingPumpAgrowtek;
+	fbDosingPump_NutrientC	: 	POINTER TO FB_DosingPumpAgrowtek;
+	
+	(*
+					SENSORS (devices that measure)
+	*)	
+	fbSensor_DissOx1: 	POINTER TO FB_Sensor_AtlasDO;
+	fbSensor_EC1: 		POINTER TO FB_Sensor_AtlasEC;
+	fbSensor_ORP1: 		POINTER TO FB_Sensor_AtlasORP;
+	fbSensor_PH1: 		POINTER TO FB_Sensor_AtlasPH;
+	fbSensor_TMP1: 		POINTER TO FB_Sensor_AtlasTEMP;
+	fbSensor_SumpLSH:				POINTER TO FB_Sensor_SICKLevelSwitch_GRF18S;
+	
+	fbSensor_TankpHUP_LS1:			POINTER TO FB_Sensor_SICKLevelSwitch_GRF18S;
+	fbSensor_TankpHDown_LS1:		POINTER TO FB_Sensor_SICKLevelSwitch_GRF18S;
+	fbSensor_TankNutrientA_LS1:		POINTER TO FB_Sensor_SICKLevelSwitch_GRF18S;
+	fbSensor_TankNutrientB_LS1:		POINTER TO FB_Sensor_SICKLevelSwitch_GRF18S;
+	fbSensor_TankNutrientC_LS1:		POINTER TO FB_Sensor_SICKLevelSwitch_GRF18S;
+ 
+	fbSensor_FilterPIT1: POINTER TO FB_Sensor_IFM_PG2453;
+	fbSensor_FilterPIT2: POINTER TO FB_Sensor_IFM_PG2453;
+	fbSensor_DosingPIT1: POINTER TO FB_Sensor_IFM_PG2453;
+	
+	// Nutrient Tanks
+	fbTank_pHUP: POINTER TO FB_Tank;
+	fbTank_pHDown: POINTER TO FB_Tank;
+	fbTank_NutrientA: POINTER TO FB_Tank;
+	fbTank_NutrientB: POINTER TO FB_Tank;
+	fbTank_NutrientC: POINTER TO FB_Tank;
+	
+	fbUnit_OxyInjector: POINTER TO FB_OxygenInjector;
+	(*
+				CONTROL LOOPS (an algorithm that uses sensor data to compute which commans should be sent to actuators)
+	*)
+	// Control Loops
+	fbControlLoop_Dosing: POINTER TO FB_ControlLoop_Dosing;
+	
+	
+	fbControlLoop_TankLevel: 	POINTER TO FB_ControlLoop_TankLevel;
+	fbControlLoop_DissOx: 		POINTER TO FB_ControlLoop_DissOx;
+	
+	
+	
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

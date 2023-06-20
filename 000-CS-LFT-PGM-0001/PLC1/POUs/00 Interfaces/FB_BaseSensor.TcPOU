@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_BaseSensor" Id="{7d796613-ccc7-4fd0-b38b-7d2ab61745f2}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_BaseSensor EXTENDS FB_BaseDevice
+
+VAR
+	
+	// Base Sensor Variables 
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSensorType: E_SensorType;
+	{attribute 'OPC.UA.DA' := '0'} 
+	nRawInput AT %I*: INT;				// Link to IO
+	{attribute 'OPC.UA.DA' := '1'} 
+	nMeasuredCurrent: REAL;				// Raw-input converted to mA units
+	{attribute 'OPC.UA.DA' := '1'}
+	nFilteredCurrent: REAL; 			// MA filter to mA reading
+	{attribute 'OPC.UA.DA' := '1'}
+	nCurrentValue: REAL; 				// Unfiltered value after conversion to desired units
+	{attribute 'OPC.UA.DA' := '1'}
+	nCurrentValueFiltered: REAL; 		// MA & threshhold filtered after conversion to desired units
+	
+	
+	// MA Filter Variables
+
+	bResetTimer: 					BOOL := FALSE;
+	fbTON_Filter:	 				TON := (PT := nSampleRate, IN := TRUE);
+	fbFilter:						FB_SigCond_MovingAverage := (nSamplesToFilter := nQtySamples, tCtrlCycleTime := nSampleRate, tTaskCycleTime := GVL.tPLCTaskTime);
+	
+	
+END_VAR
+
+VAR PERSISTENT
+	// MA Filter Variables
+	nQtySamples:					UINT := 200;
+	nSampleRate: 					TIME := T#100MS;
+	
+	// Threshold filtering variables
+	nThresholdMin: REAL := 0;
+	nThresholdMax: REAL := 1000000;
+	bThresholdEnable: BOOL := FALSE;
+
+	
+END_VAR
+
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// This is the base class for all devices (actuators and sensors)
+// Provides common variables to all instances 
+// Note that the I_Device interface provides the common methods for all devices
+
+]]></ST>
+    </Implementation>
+    <Method Name="filter" Id="{a1c7e7b8-6cee-4868-a6e2-51d59eddd34b}">
+      <Declaration><![CDATA[METHOD filter : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bResetTimer THEN
+	fbTON_Filter(IN := TRUE);
+	bResetTimer := FALSE;
+END_IF
+
+fbTON_Filter();
+fbFilter(nSamplesToFilter := nQtySamples, tCtrlCycleTime := nSampleRate, tTaskCycleTime := GVL.tPLCTaskTime);
+
+IF fbTON_Filter.Q THEN
+	fbFilter(fIn := nMeasuredCurrent);
+	fbTON_Filter(IN := FALSE);
+	bResetTimer := TRUE;
+	nFilteredCurrent := fbFilter.fOut;
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_BaseSensor">
+      <LineId Id="9" Count="0" />
+      <LineId Id="18" Count="1" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="36" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseSensor.filter">
+      <LineId Id="7" Count="5" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="16" Count="2" />
+      <LineId Id="20" Count="2" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="23" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

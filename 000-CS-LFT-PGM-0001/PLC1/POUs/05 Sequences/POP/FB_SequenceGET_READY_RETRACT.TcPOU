@@ -1,0 +1,118 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SequenceGET_READY_RETRACT" Id="{c7788ce4-523f-4ce6-8eab-74019aed1fdc}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_SequenceGET_READY_RETRACT EXTENDS FB_SequenceBase
+
+
+
+VAR_IN_OUT
+	devices: ST_POPComponents;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="FB_init" Id="{be4fb643-7e3c-48c6-adb2-36932ef806f5}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+		Here we set the order of things to command, what the commands should be, and also how much time to allow during and between steps
+		Every component listed below becomes 'Enabled' at each step
+*)
+sSequenceName:= 'POP Conveyor Reverse Sequence';
+sSequenceDescription := 'Performs the full reverse series of actions (starting with lifting movement and followed by static conveyors';
+bSequentional_1_Flood_0 := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="populateSteps" Id="{bdf41fe4-0c03-4d4b-b008-b64cfb54daee}">
+      <Declaration><![CDATA[METHOD populateSteps : ST_SequenceStep
+VAR_INPUT
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+		Here we set the order of things to command, what the commands should be, and also how much time to allow during and between steps
+		Every component listed below becomes 'Enabled' at each step
+*)
+
+Step1.Device := devices.fbLinAct_POP1;
+Step1.Command := E_DeviceState.RETRACTED;
+Step1.StepMinDuration := T#0S; 
+Step1.DelayUntilNextStep := T#0S;
+Step1.WaitForAction := FALSE;
+aSequenceSteps[1] :=   Step1;
+
+Step2.Device := devices.fbLinAct_POP1;
+Step2.Command := E_DeviceState.RETRACTED;
+Step2.StepMinDuration := T#0S; 
+Step2.DelayUntilNextStep := T#0S;
+Step2.WaitForAction := FALSE;
+aSequenceSteps[2] :=   Step2;
+
+Step3.Device := devices.fbLinAct_POP2;
+Step3.Command := E_DeviceState.RETRACTED;
+Step3.StepMinDuration := T#0S;
+Step3.DelayUntilNextStep := T#0S;
+Step3.WaitForAction := FALSE;
+aSequenceSteps[3] :=   Step3;
+
+Step4.Device := devices.fbTrayCentre_POP1;
+Step4.Command := E_DeviceState.RETRACTED;
+Step4.StepMinDuration := T#0S;
+Step4.DelayUntilNextStep := T#0S;
+Step4.WaitForAction := FALSE;
+aSequenceSteps[4] :=   Step4;
+
+Step5.Device := devices.fbTrayCentre_POP2;
+Step5.Command := E_DeviceState.RETRACTED;
+Step5.StepMinDuration := T#0S;
+Step5.DelayUntilNextStep := T#0S;
+Step5.WaitForAction := FALSE;
+aSequenceSteps[5] :=   Step5;
+
+Step6.Device := devices.fbTrayCentre_POP3;
+Step6.Command := E_DeviceState.RETRACTED;
+Step6.StepMinDuration := T#0S;
+Step6.DelayUntilNextStep := T#0S;
+Step6.WaitForAction := FALSE;
+aSequenceSteps[6] :=   Step6;
+
+nNumberSequenceSteps := 6;  // use this number to limit the number of operations
+updateVarIDs();
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_SequenceGET_READY_RETRACT">
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceGET_READY_RETRACT.FB_init">
+      <LineId Id="10" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="97" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceGET_READY_RETRACT.populateSteps">
+      <LineId Id="472" Count="4" />
+      <LineId Id="577" Count="4" />
+      <LineId Id="575" Count="1" />
+      <LineId Id="477" Count="15" />
+      <LineId Id="494" Count="6" />
+      <LineId Id="502" Count="6" />
+      <LineId Id="510" Count="3" />
+      <LineId Id="523" Count="2" />
+      <LineId Id="530" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

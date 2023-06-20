@@ -1,0 +1,300 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SequenceDM_Calibrate" Id="{3fa9dd96-7b85-48c6-b580-58628749504a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_SequenceDM_Calibrate EXTENDS FB_SequenceBase
+
+VAR
+	bUseMainPump_A: BOOL := TRUE;  // this boolean is used to keep track of which of the two redudant pumps we should use
+END_VAR
+
+VAR_IN_OUT
+	devices: ST_DMComponents;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="FB_init" Id="{e9215a47-cdac-422d-b687-0b8b04d723a2}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+END_VAR
+
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+		Here we set the order of things to command, what the commands should be, and also how much time to allow during and between steps
+		Every component listed below becomes 'Enabled' at each step
+*)
+sSequenceName := 'DM Calibrate SEQ';
+sSequenceName := 'Dosing Machine Calibrate sequence';
+
+(*
+Step9.Component := 
+Step9.Command :=
+Step9.StepMinDuration :=
+Step9.DelayUntilNextStep :=
+ 
+Step10.Component :=
+Step10.Command :=
+Step10.StepMinDuration :=
+Step10.DelayUntilNextStep :=
+ 
+Step11.Component :=
+Step11.Command :=
+Step11.StepMinDuration :=
+Step11.DelayUntilNextStep :=
+ 
+Step12.Component :=
+Step12.Command :=
+Step12.StepMinDuration :=
+Step12.DelayUntilNextStep :=
+ 
+Step13.Component :=
+Step13.Command :=
+Step13.StepMinDuration :=
+Step13.DelayUntilNextStep :=
+ 
+Step14.Component :=
+Step14.Command :=
+Step14.StepMinDuration :=
+Step14.DelayUntilNextStep :=
+ 
+Step15.Component :=
+Step15.Command :=
+Step15.StepMinDuration :=
+Step15.DelayUntilNextStep :=
+ 
+Step16.Component :=
+Step16.Command :=
+Step16.StepMinDuration :=
+Step16.DelayUntilNextStep :=
+ 
+Step17.Component :=
+Step17.Command :=
+Step17.StepMinDuration :=
+Step17.DelayUntilNextStep :=
+ 
+Step18.Component :=
+Step18.Command :=
+Step18.StepMinDuration :=
+Step18.DelayUntilNextStep :=
+ 
+Step19.Component :=
+Step19.Command :=
+Step19.StepMinDuration :=
+Step19.DelayUntilNextStep :=
+ 
+Step20.Component :=
+Step20.Command :=
+Step20.StepMinDuration :=
+Step20.DelayUntilNextStep :=
+ 
+Step21.Component :=
+Step21.Command :=
+Step21.StepMinDuration :=
+Step21.DelayUntilNextStep :=
+ 
+Step22.Component :=
+Step22.Command :=
+Step22.StepMinDuration :=
+Step22.DelayUntilNextStep :=
+ 
+Step23.Component :=
+Step23.Command :=
+Step23.StepMinDuration :=
+Step23.DelayUntilNextStep :=
+ 
+Step24.Component :=
+Step24.Command :=
+Step24.StepMinDuration :=
+Step24.DelayUntilNextStep :=
+ 
+Step25.Component :=
+Step25.Command :=
+Step25.StepMinDuration :=
+Step25.DelayUntilNextStep :=
+ 
+Step26.Component :=
+Step26.Command :=
+Step26.StepMinDuration :=
+Step26.DelayUntilNextStep :=
+ 
+Step27.Component :=
+Step27.Command :=
+Step27.StepMinDuration :=
+Step27.DelayUntilNextStep :=
+ 
+Step28.Component :=
+Step28.Command :=
+Step28.StepMinDuration :=
+Step28.DelayUntilNextStep :=
+ 
+Step29.Component :=
+Step29.Command :=
+Step29.StepMinDuration :=
+Step29.DelayUntilNextStep :=
+ 
+Step30.Component :=
+Step30.Command :=
+Step30.StepMinDuration :=
+Step30.DelayUntilNextStep :=
+ 
+Step31.Component :=
+Step31.Command :=
+Step31.StepMinDuration :=
+Step31.DelayUntilNextStep :=
+ 
+Step32.Component :=
+Step32.Command :=
+Step32.StepMinDuration :=
+Step32.DelayUntilNextStep :=
+ 
+Step33.Component :=
+Step33.Command :=
+Step33.StepMinDuration :=
+Step33.DelayUntilNextStep :=
+ 
+Step34.Component :=
+Step34.Command :=
+Step34.StepMinDuration :=
+Step34.DelayUntilNextStep :=
+ 
+Step35.Component :=
+Step35.Command :=
+Step35.StepMinDuration :=
+Step35.DelayUntilNextStep :=
+ 
+Step36.Component :=
+Step36.Command :=
+Step36.StepMinDuration :=
+Step36.DelayUntilNextStep :=
+ 
+Step37.Component :=
+Step37.Command :=
+Step37.StepMinDuration :=
+Step37.DelayUntilNextStep :=
+ 
+Step38.Component :=
+Step38.Command :=
+Step38.StepMinDuration :=
+Step38.DelayUntilNextStep :=
+ 
+Step39.Component :=
+Step39.Command :=
+Step39.StepMinDuration :=
+Step39.DelayUntilNextStep :=
+
+*)
+
+ 
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="populateSteps" Id="{c583483a-c334-4636-a706-11802d7a35ec}">
+      <Declaration><![CDATA[METHOD populateSteps : ST_SequenceStep
+VAR_INPUT
+
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+		Here we set the order of things to command, what the commands should be, and also how much time to allow during and between steps
+		Every component listed below becomes 'Enabled' at each step
+*)
+sSequenceName := 'DM Calibrate SEQ';
+sSequenceName := 'Dosing Machine Calibrate sequence';
+
+Step1.Device := ADR(devices.fbValve_DosingSupply^);
+//Step1.Component := devices.fbControlLoop_Dosing;			
+Step1.Command := E_DeviceState.IDLE;
+Step1.StepMinDuration := T#0S;
+Step1.DelayUntilNextStep := T#5S; // allow sufficient time to clear the dosing line
+aSequenceSteps[1] := Step1;
+ 
+Step2.Device := ADR(devices.fbStrainer^);
+Step2.Command := E_DeviceState.RUNNING;
+Step2.StepMinDuration := T#0S;
+Step2.DelayUntilNextStep := T#0S;
+aSequenceSteps[2] := Step2;
+ 
+Step3.Device := ADR(devices.fbUnit_UltraSonCleaner^);
+Step3.Command := E_DeviceState.ON;
+Step3.StepMinDuration := T#0S;
+Step3.DelayUntilNextStep := T#0S;
+aSequenceSteps[3] := Step3;
+ 
+Step4.Device := ADR(Devices.fbUVFilter1^);
+Step4.Command := E_DeviceState.ON;
+Step4.StepMinDuration := T#0S;
+Step4.DelayUntilNextStep := T#0S;
+aSequenceSteps[4] := Step4;
+
+
+Step5.Device := ADR(devices.fbValve_DosingSupply^);
+Step5.Command := E_DeviceState.CLOSED;
+Step5.StepMinDuration := T#0S;
+Step5.DelayUntilNextStep := T#0S;
+aSequenceSteps[5] := Step5;
+ 
+Step6.Device := ADR(devices.fbPump_MainPumpA^);
+Step6.Command := E_DeviceState.RUNNING;
+Step6.StepMinDuration := T#0S;
+Step6.DelayUntilNextStep := T#0S;
+aSequenceSteps[6] := Step6;
+ 
+Step7.Device := ADR(devices.fbPump_MainPumpB^);
+Step7.Command := E_DeviceState.RUNNING;
+Step7.StepMinDuration := T#0S;
+Step7.DelayUntilNextStep := T#0S;
+aSequenceSteps[7] := Step7;
+ 
+Step8.Device := ADR(devices.fbValve_IrrigatorSupply^);
+Step8.Command := E_DeviceState.OPEN;
+Step8.StepMinDuration := T#0S;
+Step8.DelayUntilNextStep := T#0S;
+aSequenceSteps[8] := Step8;
+
+nNumberSequenceSteps := 8;  // use this number to limit the number of operations
+updateVarIDs();
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_SequenceDM_Calibrate">
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceDM_Calibrate.FB_init">
+      <LineId Id="10" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="308" Count="0" />
+      <LineId Id="306" Count="1" />
+      <LineId Id="335" Count="0" />
+      <LineId Id="142" Count="153" />
+      <LineId Id="298" Count="0" />
+      <LineId Id="297" Count="0" />
+      <LineId Id="100" Count="0" />
+      <LineId Id="99" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="98" Count="0" />
+      <LineId Id="97" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceDM_Calibrate.populateSteps">
+      <LineId Id="9" Count="5" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="76" Count="0" />
+      <LineId Id="19" Count="4" />
+      <LineId Id="92" Count="0" />
+      <LineId Id="25" Count="15" />
+      <LineId Id="82" Count="0" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="42" Count="24" />
+      <LineId Id="87" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,316 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ParameterCoE_ReadWrite_GenC" Id="{4684d1ee-204f-4404-9dce-4f481837c705}" SpecialFunc="None">
+    <Declaration><![CDATA[(*-----------------------------------------------------------------------------------------------------------
+	Function: CoE/Sdo Acces for Read and Write Services on MOVI-C devices of SEW EURODRIVE
+	Version: 1.4
+	Date: 2022-07-01
+	Author: Christian Bolz; SE-PAS
+	
+	Change-Log:
+		2018-04-25: V1.1:
+					- Functionality is working properly
+					- first tests
+		2022-07-15: V1.4
+					- Changing Service Input to Enumeration
+					- Chaning Axis Number Input to Enumeration
+					- Inserting missing inputs as enumeration as output of the FB (eConfigurationState)
+============================================================================================================*)	
+
+
+FUNCTION_BLOCK FB_ParameterCoE_ReadWrite_GenC
+VAR_INPUT
+	xExecute						: BOOL;						//Execute FoE-Service
+	amsEthercatMaster_NetID			: T_AmsNetId;				//EtherCAT Master Net-ID
+	nEthercatSlave_Address			: UINT;						//EtherCAT Adress Slave
+	eAxisNumber						: E_AxisNumberCoE;			//1-->Modular-SingleAxis/Modular-DoubleAxisLEFT/SystemAxis; 2-->Modular-DoubleAxisRIGHT
+	eCoEService						: E_CoEService; 			//1-->Read / 2-->write
+	nIndex							: UINT;						//Parameterindex of EtherCAT Slave
+	nSubIndex 						: BYTE;						//Subindex of Parameter
+	nWriteValue						: DINT;						//Value to write to EtherCAT Slave
+	nByteSize						: UINT;
+
+END_VAR
+VAR_OUTPUT
+	xError_CoE						: BOOL;						//TRUE-->Error during CoE-service
+	xCoEDone						: BOOL;						//TRUE-->CoE-access successful
+	nErrId_ADS						: UDINT;					//ADS Error-ID of FoE-service
+	xCoEBusy						: BOOL;						//TRUE-->Function block busy
+	eActualCoEService				: E_COEService;				//Selected CoE-service
+	xInit							: BOOL;						//TRUE-->parametrization OK / FALSE--> parmetrization not OK
+	nReadValue						: DINT;						//Value that is read from EtherAT Slave
+	eConfigurationStateCoE			: E_ConfigurationStateCoE;
+END_VAR
+VAR
+	(*------------------------------------------------------------------------------------------------------
+		READ/WRITE Function Blocks
+	=======================================================================================================*)
+	fbFB_EcCoeSdoReadEx: FB_EcCoeSdoReadEx;
+	fbFB_EcCoeSdoWriteEx: FB_EcCoeSdoWriteEx;
+
+	(*------------------------------------------------------------------------------------------------------
+		BUFFER
+	=======================================================================================================*)
+	buffer_read_0						: BYTE;
+	buffer_write_0						: BYTE;
+	buffer_read_1						: BYTE;					//Buffer where the read value is stored, ParamSize := BYTE
+	buffer_write_1						: BYTE;					//Buffer where the value to write is stored, ParamSize := BYTE
+	buffer_read_2						: INT;					//Buffer where the read value is stored, ParamSize := INT
+	buffer_write_2						: INT;					//Buffer where the value to write is stored, ParamSize := INT
+	buffer_read_4						: DINT;					//Buffer where the read value is stored, ParamSize := DINT
+	buffer_write_4						: DINT;					//Buffer where the value to write is stored, ParamSize := DINT
+	(*------------------------------------------------------------------------------------------------------
+		GENERAL VARS
+	=======================================================================================================*)	
+	iState_CoEWrite					: INT;					//state of FoE write service
+	iState_CoERead					: INT;					//state of FoE read service
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF xExecute THEN
+	IF NOT xInit THEN
+		xError_CoE := FALSE;
+		xCoEDone := FALSE;
+		
+		IF amsEthercatMaster_NetID<>'' AND nEthercatSlave_Address<>0  AND nByteSize<>0 AND nByteSize<=4 AND nByteSize<>3 THEN
+			xInit := TRUE;
+			eConfigurationStateCoE := 0;
+		ELSE
+			IF amsEthercatMaster_NetID='' THEN
+				eConfigurationStateCoE := 1;
+			END_IF
+			IF nEthercatSlave_Address=0 THEN
+				eConfigurationStateCoE := 2;
+			END_IF
+			IF nByteSize=0 OR nByteSize>4 OR nByteSize=3 OR nByteSize = 1 THEN
+				eConfigurationStateCoE := 3;
+			END_IF
+		END_IF		
+	END_IF
+	
+	CASE eCoEService OF
+		0:
+			eActualCoEService := 0;
+		1:
+		
+			CASE eAxisNumber OF
+				1:;
+				2:
+					nIndex := nIndex+16#1000;
+			END_CASE
+			
+			IF xInit THEN
+				ACT_Read();	
+			END_IF
+			
+		2:
+			CASE eAxisNumber OF
+				1:;
+				2:
+					nIndex := nIndex+16#1000;
+			END_CASE
+			
+			IF xInit THEN
+				ACT_Write();
+			end_if
+	END_CASE
+	
+ELSE
+	xInit := FALSE;
+	xCoEBusy := FALSE;
+	xError_CoE := FALSE;
+	
+	nReadValue := 0;
+	iState_CoEWrite := 0;
+	iState_CoERead := 0;
+	xCoEDone := FALSE;
+	nErrId_ADS := 0;
+	fbFB_EcCoeSdoReadEx(pDstBuf := ADR(buffer_read_0),
+						cbBufLen := SIZEOF(buffer_read_0));
+END_IF
+
+IF NOT xExecute  AND NOT xCoEBusy THEN
+	xError_CoE := FALSE;
+	xInit := FALSE;
+	nErrId_ADS := 0;
+ELSIF xError_CoE AND xCoEBusy AND NOT xExecute THEN
+	xError_CoE := FALSE;
+	iState_CoEWrite := 0;
+	iState_CoERead := 0;
+	xInit := FALSE;
+	
+END_IF]]></ST>
+    </Implementation>
+    <Action Name="ACT_Read" Id="{2ac8be67-9cd0-4323-a7e9-20d11946aa64}">
+      <Implementation>
+        <ST><![CDATA[eActualCoEService := 1;
+CASE iState_CoERead OF
+	0:
+		fbFB_EcCoeSdoReadEx(bExecute := FALSE,
+			sNetId := amsEthercatMaster_NetID,
+			nSlaveAddr := nEthercatSlave_Address,
+			nSubINdex := nSubIndex,
+			nIndex := nIndex,
+			(*pDstBuf := ADR(buffer_read),
+			cbBufLen := 4(*SIZEOF(buffer_read)*),*)
+			tTimeout := T#200MS,
+			bBusy => xCoEBusy,
+			bError => xError_CoE,
+			nErrId => nErrId_ADS,
+			bCompleteAccess := FALSE);
+			
+			CASE nByteSize OF
+				1:
+					fbFB_EcCoeSdoReadEx(pDstBuf := ADR(buffer_read_1),
+						cbBufLen := SIZEOF(buffer_read_1));
+				2:
+					fbFB_EcCoeSdoReadEx(pDstBuf := ADR(buffer_read_2),
+						cbBufLen := SIZEOF(buffer_read_2));
+				4:
+					fbFB_EcCoeSdoReadEx(pDstBuf := ADR(buffer_read_4),
+						cbBufLen := SIZEOF(buffer_read_4));
+			END_CASE
+			
+			iState_CoERead := iState_CoERead+1;
+		1:
+			fbFB_EcCoeSdoReadEx(bExecute := TRUE);
+			
+			IF NOT fbFB_EcCoeSdoReadEx.bBusy THEN
+				IF fbFB_EcCoeSdoReadEx.bError THEN
+					iState_CoERead := 101;
+					nErrId_ADS := fbFB_EcCoeSdoReadEx.nErrId;
+				ELSE
+					CASE nByteSize OF
+						1:
+							nReadValue := BYTE_TO_DINT(buffer_read_1);
+						2:
+							nReadValue := INT_TO_DINT(buffer_read_2);
+						4:
+							nReadValue := buffer_read_4;
+					END_CASE
+					
+					iState_CoERead := 1000;
+				END_IF
+			END_IF
+		
+		101:
+			xError_CoE := TRUE;
+		1000:
+			xCoEDone := TRUE;
+			nErrId_ADS := 0;
+			xError_CoE := FALSE;
+END_CASE
+
+
+
+
+
+
+	
+	
+	]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="ACT_Write" Id="{2f197c1c-f400-40f3-816a-8c998ba2baf8}">
+      <Implementation>
+        <ST><![CDATA[eActualCoEService := 2;
+CASE iState_CoEWrite OF
+	0:
+		CASE nByteSize OF 
+			1:
+				buffer_write_1 := DINT_TO_BYTE(nWriteValue);
+			2:
+				buffer_write_2 := DINT_TO_INT(nWriteValue);
+			4:
+				buffer_write_4 := nWriteValue;
+		END_CASE
+		
+		
+		iState_CoEWrite := iState_CoEWrite+1;
+	1:
+		fbFB_EcCoeSdoWriteEx(bExecute := FALSE,
+			sNetId := amsEthercatMaster_NetID,
+			nSlaveAddr := nEthercatSlave_Address,
+			nSubINdex := nSubIndex,
+			nIndex := nIndex,
+			tTimeout := T#200MS,
+			bBusy => xCoEBusy,
+			bError => xError_CoE,
+			nErrId => nErrId_ADS,
+			bCompleteAccess := FALSE);
+			
+			CASE nByteSize OF
+				1:
+					fbFB_EcCoeSdoWriteEx(pSrcBuf := ADR(buffer_write_1),
+						cbBufLen := SIZEOF(buffer_write_1));
+				2:
+					fbFB_EcCoeSdoWriteEx(pSrcBuf := ADR(buffer_write_2),
+						cbBufLen := SIZEOF(buffer_write_2));
+				4:
+					fbFB_EcCoeSdoWriteEx(pSrcBuf := ADR(buffer_write_4),
+						cbBufLen := SIZEOF(buffer_write_4));
+			END_CASE
+			
+			iState_CoEWrite := iState_CoEWrite+1;
+		2:
+			fbFB_EcCoeSdoWriteEx(bExecute := TRUE);
+			
+			IF NOT fbFB_EcCoeSdoWriteEx.bBusy THEN
+				IF fbFB_EcCoeSdoWriteEx.bError THEN
+					iState_CoEWrite := 202;
+					nErrId_ADS := fbFB_EcCoeSdoWriteEx.nErrId;
+				ELSE
+					
+					iState_CoEWrite := 1000;
+				END_IF
+			END_IF
+		
+		202:
+			xError_CoE := TRUE;
+		1000:
+			xCoEDone := TRUE;
+			nErrId_ADS := 0;
+			xError_CoE := FALSE;
+END_CASE
+
+
+
+
+
+
+	
+	
+	]]></ST>
+      </Implementation>
+    </Action>
+    <LineIds Name="FB_ParameterCoE_ReadWrite_GenC">
+      <LineId Id="3" Count="6" />
+      <LineId Id="251" Count="0" />
+      <LineId Id="243" Count="1" />
+      <LineId Id="246" Count="4" />
+      <LineId Id="252" Count="2" />
+      <LineId Id="10" Count="3" />
+      <LineId Id="102" Count="0" />
+      <LineId Id="180" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="169" Count="2" />
+      <LineId Id="173" Count="1" />
+      <LineId Id="172" Count="0" />
+      <LineId Id="17" Count="2" />
+      <LineId Id="21" Count="2" />
+      <LineId Id="175" Count="3" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="179" Count="0" />
+      <LineId Id="27" Count="28" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ParameterCoE_ReadWrite_GenC.ACT_Read">
+      <LineId Id="2" Count="64" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ParameterCoE_ReadWrite_GenC.ACT_Write">
+      <LineId Id="2" Count="66" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

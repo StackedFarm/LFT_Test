@@ -1,0 +1,147 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_UVFilter_UltraAqua_MR4_220PP" Id="{385edac2-8eb4-4ec2-9211-8f9b03d8c461}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_UVFilter_UltraAqua_MR4_220PP EXTENDS FB_BaseDevice IMPLEMENTS I_Device
+
+VAR
+	{attribute 'OPC.UA.DA' := '1'} 
+	bInContactor AT %I*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '0'} 
+	bInRun AT %I*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '0'} 
+	bInAlarm AT %I*: BOOL := FALSE;
+	
+	{attribute 'OPC.UA.DA' := '1'} 
+	bOutContactor AT %Q*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '0'} 
+	bOutON AT %Q*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '0'} 
+	bOutEnable AT %Q*: BOOL := FALSE;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSMState: (WAIT, TURNING_ON, ON, TURNING_OFF, OFF);
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	tActionTimeout: TIME := T#5S;
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbTON_timeout: TON := (PT := tActionTimeout, IN := FALSE);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF GVL.bAutoUpdateDeviceState THEN
+	eState := eStateTarget;	
+END_IF
+
+
+
+CASE eSMState OF
+	WAIT:
+		//Wait for method call to change ESMState
+	TURNING_ON: 
+		bOutContactor := TRUE;
+		bOutON := TRUE;
+		bOutEnable := TRUE;
+		eSMState := ON;
+		eState := E_DeviceState.TURNING_ON;
+	ON:
+		IF bInContactor = TRUE AND bInRun = TRUE THEN
+			eState := E_DeviceState.CLOSED;
+			eSMState := ON;
+			bBusy := FALSE;
+		END_IF	
+		
+	TURNING_OFF:
+		bOutContactor := FALSE;
+		bOutEnable := FALSE;
+		bOutON :=  FALSE;
+		
+		eSMState := OFF;
+		eState := E_DeviceState.TURNING_OFF;
+	OFF:
+		IF bInContactor = FALSE AND bInRun = FALSE THEN
+			eState := E_DeviceState.OFF;
+			eSMState := WAIT;
+			bBusy := FALSE;
+		END_IF
+END_CASE]]></ST>
+    </Implementation>
+    <Method Name="disable" Id="{dd6e5f0f-30ad-404a-a746-66c5ffc54c38}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{10cc826a-b306-4fa2-8d1d-e22bb9b8a6b1}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{a365a447-8bf9-49c2-8353-809451104a63}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	UnitID: STRING(80);
+	UnitDescr: STRING(255); 
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := UnitID;
+sDescr := UnitDescr;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOff" Id="{3d72ee9b-c4e7-4945-ab3c-5c5919e3f471}">
+      <Declaration><![CDATA[METHOD setOff : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eSMState := TURNING_OFF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOn" Id="{b2b4301f-e602-468b-90f4-b55ee78643fe}">
+      <Declaration><![CDATA[METHOD setOn : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eSMState := TURNING_ON;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_UVFilter_UltraAqua_MR4_220PP">
+      <LineId Id="103" Count="2" />
+      <LineId Id="100" Count="2" />
+      <LineId Id="29" Count="4" />
+      <LineId Id="69" Count="1" />
+      <LineId Id="34" Count="7" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="42" Count="1" />
+      <LineId Id="71" Count="2" />
+      <LineId Id="44" Count="7" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UVFilter_UltraAqua_MR4_220PP.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UVFilter_UltraAqua_MR4_220PP.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UVFilter_UltraAqua_MR4_220PP.FB_init">
+      <LineId Id="7" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UVFilter_UltraAqua_MR4_220PP.setOff">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UVFilter_UltraAqua_MR4_220PP.setOn">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

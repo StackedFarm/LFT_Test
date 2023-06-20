@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_Unit_UVFilter" Id="{9990a773-6717-458b-a1c4-1b6eb6c92d0d}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_Unit_UVFilter:
+STRUCT
+	
+	Mode:     		E_DeviceMode;
+	Command:     E_DeviceState;
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

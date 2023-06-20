@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_POP_Type" Id="{5a80e3fe-3b38-467a-9c29-53f845bacaba}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_POP_Type :
+(
+	EXTEND_CONVEY := 0,
+	CONVEY_EXTEND := 1,
+	RETRACT_CONVEY := 2,
+	CONVEY_RETRACT := 3
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

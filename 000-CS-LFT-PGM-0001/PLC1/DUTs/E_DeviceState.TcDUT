@@ -1,0 +1,59 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_DeviceState" Id="{0e4e9156-7b84-4197-a4c4-31722f9c8278}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_DeviceState :
+(
+	// Motors & Pumps
+	IDLE,
+	STARTING,
+	RUNNING ,
+	REVERSE ,
+	STOPPING,
+	
+	// Universal
+	FAULTED ,
+	ENABLED  ,
+	
+	// Tanks & Sumps
+	// Sensors 
+	HIGH_HIGH,
+	HIGH ,
+	LOW ,
+	LOW_LOW,
+	
+	// Sensors 
+	IN_RANGE ,
+	OUT_OF_RANGE,
+	
+	
+	// Valves
+	OPEN ,
+	OPENING,
+	CLOSED ,
+	CLOSING,
+	
+	// Other ON/OFF devices (e.g. oxygen injector, UV filter)
+	TURNING_ON,
+	ON ,
+	TURNING_OFF,
+	OFF,
+	
+	// Sensors
+	CAL_STEP1,
+	CAL_STEP2,
+	CAL_STEP3,
+	CAL_STEP4,
+	
+	// Linear Actuator
+	EXTENDING,
+	EXTENDED,
+	RETRACTING,
+	RETRACTED
+	
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

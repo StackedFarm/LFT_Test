@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_RND_LevelWaterControl" Id="{da0cb66f-e640-4ee0-b1d2-f2e13ff41d17}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_RND_LevelWaterControl :
+STRUCT
+	
+	Valve: 	ST_INPUTS_ValveOnOFF;
+	MinutesOff : INT;
+	MinutesOn : INT;
+	
+	//TimeUntilOn: INT; // number of seconds until the irrigator is turned on (0s of the irrigator is on)
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

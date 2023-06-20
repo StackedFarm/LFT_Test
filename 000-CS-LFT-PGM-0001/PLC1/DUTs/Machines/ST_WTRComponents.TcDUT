@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_WTRComponents" Id="{aec03da3-3ccb-4625-ae77-82a2a821f777}">
+    <Declaration><![CDATA[TYPE ST_WTRComponents :
+STRUCT
+	// Dosing Pumps
+	fbDosingPump_phUp: POINTER TO FB_DosingPumpPRISMA;
+	fbDosingPump_phDown: POINTER TO FB_DosingPumpPRISMA;
+	
+	// Pumps - VSD
+	fbPump_CleanWaterPumpA: POINTER TO  FB_PumpVSD_GrundfosCUE;
+	fbPump_CleanWaterPumpB: POINTER TO  FB_PumpVSD_GrundfosCUE;
+	
+	// Pumps - DOL
+	fbPump_WasteWaterSumpPumpA : POINTER TO  FB_PumpDOL_Onga413_RND;
+	fbPump_WasteWaterSumpPumpB : POINTER TO  FB_PumpDOL_Onga413_RND;
+	
+	// Actuator Units
+	fbUnit_OzoneGenerator: POINTER TO  FB_OzoneGenerator;
+	fbDrumFilter_WasteWaterSump: POINTER TO  FB_DrumFilter_Faivre60;
+	fbUnit_RO_EDI: POINTER TO FB_Unit_RO_RND;
+	
+	
+	// Sensors - Water PH and Temp
+	fbSensor_PH1: POINTER TO  FB_Sensor_AtlasPH;
+	fbSensor_PH2: POINTER TO  FB_Sensor_AtlasPH;
+	fbSensor_PH: POINTER TO  FB_DualRedundantSensor;
+	
+	fbSensor_TMP1: POINTER TO  FB_Sensor_AtlasTEMP;
+	fbSensor_TMP2: POINTER TO  FB_Sensor_AtlasTEMP;
+	fbSensor_TMP: POINTER TO  FB_DualRedundantSensor;
+	
+	// Sensors - Clean Water Tank A (CWT-A) 
+	fbSensor_CWT_A_LIT1 : POINTER TO  FB_Sensor_4_20mA_Generic; 
+	fbSensor_CWT_A_LIT2 : POINTER TO  FB_Sensor_4_20mA_Generic;
+	fbSensor_CWT_A_LIT : POINTER TO  FB_DualRedundantSensor;
+	
+	fbSensor_CWT_A_LSLL : POINTER TO  FB_Sensor_SICKLevelSwitch_GRF18S;
+	fbSensor_CWT_A_LSL : POINTER TO  FB_Sensor_SICKLevelSwitch_GRF18S;
+	fbSensor_CWT_A_LSH : POINTER TO  FB_Sensor_SICKLevelSwitch_GRF18S;
+	fbSensor_CWT_A_LSHH : POINTER TO  FB_Sensor_SICKLevelSwitch_GRF18S;
+	
+	// Sensors - Clean Water Tank B (CWT-B)
+	fbSensor_CWT_B_LIT1 : POINTER TO  FB_Sensor_4_20mA_Generic; 
+	fbSensor_CWT_B_LIT2 : POINTER TO  FB_Sensor_4_20mA_Generic;
+	fbSensor_CWT_B_LIT : POINTER TO  FB_DualRedundantSensor;
+	
+	fbSensor_CWT_B_LSLL : POINTER TO  FB_Sensor_SICKLevelSwitch_GRF18S;
+	fbSensor_CWT_B_LSL : POINTER TO  FB_Sensor_SICKLevelSwitch_GRF18S;
+	fbSensor_CWT_B_LSH : POINTER TO  FB_Sensor_SICKLevelSwitch_GRF18S;
+	fbSensor_CWT_B_LSHH : POINTER TO  FB_Sensor_SICKLevelSwitch_GRF18S;
+	
+	// Sensors - Waster Water Sump
+	fbSensor_WWS_LSLL : POINTER TO  FB_Sensor_SICKLevelSwitch_GRF18S;
+	fbSensor_WWS_LSL : POINTER TO  FB_Sensor_SICKLevelSwitch_GRF18S;
+	fbSensor_WWS_LSH : POINTER TO  FB_Sensor_SICKLevelSwitch_GRF18S;
+	
+	// Sensors - Waster Water Tank
+	fbSensor_WWT_LIT1 : POINTER TO  FB_Sensor_4_20mA_Generic; 
+	fbSensor_WWT_LIT2 : POINTER TO  FB_Sensor_4_20mA_Generic;
+	fbSensor_WWT_LIT : POINTER TO  FB_DualRedundantSensor;
+	
+	// Actuated Valves - Incoming
+	fbValve_TownWaterSupply: POINTER TO  FB_Valve_ONOFF_woMonitoring;
+	
+	// Actuated Valves - Recirc
+	fbValve_DosingSupply: POINTER TO  FB_Valve_ONOFF_woMonitoring;
+	
+	// Actuated Valves - Outgoing
+	fbValve_DM1Supply: POINTER TO  FB_Valve_ONOFF_woMonitoring;
+	fbValve_DM2Supply: POINTER TO  FB_Valve_ONOFF_woMonitoring;
+	fbValve_SeedStackSupply: POINTER TO  FB_Valve_ONOFF_woMonitoring;
+	fbValve_SDRSoakSupply: POINTER TO  FB_Valve_ONOFF_woMonitoring;
+	fbValve_WashSupply: POINTER TO  FB_Valve_ONOFF_woMonitoring;
+	fbValve_FogMistSupply: POINTER TO  FB_Valve_ONOFF_woMonitoring;
+	
+	// Tanks and Sumps
+	fbTank_CWTA: POINTER TO   FB_Tank;
+	fbTank_CWTB: POINTER TO   FB_Tank;
+	fbTank_WWT: POINTER TO   FB_Tank;
+	fbSump_WWS: POINTER TO   FB_Tank;
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

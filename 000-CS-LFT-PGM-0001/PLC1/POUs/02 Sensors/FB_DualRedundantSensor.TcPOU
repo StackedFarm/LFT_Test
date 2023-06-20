@@ -1,0 +1,164 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_DualRedundantSensor" Id="{a5c68a1b-a487-4b48-ac1d-4396ce8245c3}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_DualRedundantSensor EXTENDS FB_BaseDevice IMPLEMENTS I_Device, I_Sensor
+
+VAR
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor1: REFERENCE TO I_Sensor;
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor2: REFERENCE TO I_Sensor;
+	{attribute 'OPC.UA.DA' := '1'}
+	nCurrentValue: REAL;
+	
+	eSensorType: E_SensorType;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbSenso1_vals: ARRAY[1..200] OF REAL;  //Arrays to store last 200 samples of sensors, enabling historic analysis
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbSenso2_vals: ARRAY[1..200] OF REAL;
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[calculate();]]></ST>
+    </Implementation>
+    <Method Name="addSensors" Id="{b25eb56e-45ff-4588-a0f0-488590343201}">
+      <Declaration><![CDATA[METHOD addSensors : BOOL
+VAR_INPUT
+	
+	Sensor1: REFERENCE TO I_Sensor;
+	Sensor2: REFERENCE TO I_Sensor;
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+fbSensor1 := Sensor1;
+fbSensor2 := Sensor2;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="calculate" Id="{7ad4c3a6-32f7-44b3-9963-2b10866d254a}">
+      <Declaration><![CDATA[METHOD calculate : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//nCurrentValue := ( fbSensor1.getValue() + fbSensor2.getValue() ) / 2.0;  // calculate average of 2 sensors and return ]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkCorrelation" Id="{ef7218f3-8352-4a9f-809c-839d41e57faf}">
+      <Declaration><![CDATA[METHOD checkCorrelation : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="disable" Id="{8120a105-8dca-42e0-993c-99aade26fc13}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{8835bbf1-a6a7-42f3-9e7b-e72453e610d4}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{21ad96c2-dadb-4aab-9c6d-66a6c1d353d2}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD FB_init : BOOL
+VAR_INPUT
+	(* if TRUE, the retain variables are initialized (warm start / cold start)*)
+	bInitRetains	: BOOL;
+	(* if TRUE, the instance afterwards gets moved into the copy code (online change)*)
+	bInCopyCode	: BOOL;
+	SensorID	: STRING(80);
+	SensorDescr	: STRING(255);
+	SensorType	: E_SensorType;
+	
+
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := SensorID;
+sDescr := SensorDescr;
+eSensorType := SensorType;
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getType" Id="{23ba2315-6878-4867-946c-6c4a39bc5ac3}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getType : E_SensorType
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getValue" Id="{ccfd48c3-6284-46d9-a3b4-aa64aca7f967}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getValue : REAL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="write" Id="{2f984d04-9bee-4b11-a561-3b8d9dee2f11}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD write : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_DualRedundantSensor">
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DualRedundantSensor.addSensors">
+      <LineId Id="6" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DualRedundantSensor.calculate">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DualRedundantSensor.checkCorrelation">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DualRedundantSensor.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DualRedundantSensor.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DualRedundantSensor.FB_init">
+      <LineId Id="21" Count="0" />
+      <LineId Id="24" Count="1" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="18" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_DualRedundantSensor.getType">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DualRedundantSensor.getValue">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DualRedundantSensor.write">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

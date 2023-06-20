@@ -1,0 +1,229 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_BaseMachine" Id="{6ab281f6-25bb-4cb2-98da-8fb2f940b9cd}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_BaseMachine
+VAR
+
+	{attribute 'OPC.UA.DA' := '0'} 
+	bBusy: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	bError: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	bEnable: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	eState: E_MachineState := E_MachineState.IDLE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSequenceManager: FB_SequenceManager;
+	{attribute 'OPC.UA.DA' := '0'} 
+	aAllComponents: ARRAY[1..50] OF POINTER TO FB_BaseDevice;
+	
+	{attribute 'OPC.UA.DA' := '1'} 
+	aErrors: ARRAY[1..20] OF ST_Alarm;	// raiseEvent() method updates Error1 / aErrors[1] only at the moment, must implement a ring buffer with error active checking for full functionality
+
+	
+END_VAR 
+
+VAR_INPUT
+	{attribute 'OPC.UA.DA' := '1'} 
+	sID: STRING;  
+	{attribute 'OPC.UA.DA' := '1'} 
+	sDescr: STRING;
+	{attribute 'OPC.UA.DA' := '1'} 
+	nQtyComponents: INT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="devices_disable_All" Id="{d244f351-60e3-4280-ab38-d2f479e80693}">
+      <Declaration><![CDATA[METHOD devices_disable_All : BOOL
+VAR
+	iterator: INT;
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR iterator:=1 TO nQtyComponents BY 1 DO
+	aAllComponents[iterator]^.disable();
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="devices_disable_CurrSeq" Id="{817dca39-f242-4aa7-9a18-de59e2831eb6}">
+      <Declaration><![CDATA[METHOD devices_disable_CurrSeq : BOOL
+VAR
+	iterator: INT;
+	Steps : ARRAY[1..20] OF ST_SequenceStep;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR iterator:=1 TO fbSequenceManager.getCurrentSeq_FB()^.stepsTotal() BY 1 DO
+	
+	Steps := fbSequenceManager.getCurrentSeq_FB()^.steps();
+	Steps[iterator].Device^.disable();
+	
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="devices_enable_All" Id="{2d5bb57e-f62f-4d54-9a86-b18d71deee3e}">
+      <Declaration><![CDATA[METHOD devices_enable_All : BOOL
+VAR
+	iterator: INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR iterator:=1 TO nQtyComponents BY 1 DO
+	aAllComponents[iterator]^.enable();
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="devices_enable_CurrSeq" Id="{550e4379-d359-40ab-b762-42d88501c446}">
+      <Declaration><![CDATA[METHOD devices_enable_CurrSeq : BOOL
+VAR
+	iterator: INT;
+	Steps : ARRAY[1..20] OF ST_SequenceStep;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR iterator:=1 TO fbSequenceManager.getCurrentSeq_FB()^.stepsTotal() BY 1 DO
+	Steps := fbSequenceManager.getCurrentSeq_FB()^.steps();
+	Steps[iterator].Device^.enable();
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="devices_setAuto_All" Id="{44b6de1d-80f7-48b6-8b11-23cf806f7ffc}">
+      <Declaration><![CDATA[METHOD devices_setAuto_All : BOOL
+VAR
+	iterator: INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR iterator:=1 TO nQtyComponents BY 1 DO
+	aAllComponents[iterator]^.setMode(Mode := E_DeviceMode.AUTO);
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="devices_setAuto_CurrSeq" Id="{48a97b93-3542-44cf-932a-920144fa55a6}">
+      <Declaration><![CDATA[METHOD devices_setAuto_CurrSeq : BOOL
+VAR
+	iterator: INT;
+	Steps : ARRAY[1..20] OF ST_SequenceStep;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR iterator:=1 TO fbSequenceManager.getCurrentSeq_FB()^.stepsTotal() BY 1 DO
+	
+	Steps := fbSequenceManager.getCurrentSeq_FB()^.steps();
+	Steps[iterator].Device^.setMode(Mode := E_DeviceMode.AUTO);
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="devices_setManual_All" Id="{820e5822-0b50-4978-9aa1-512ccb6baa9c}">
+      <Declaration><![CDATA[METHOD devices_setManual_All : BOOL
+VAR
+	iterator: INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR iterator:=1 TO nQtyComponents BY 1 DO
+	aAllComponents[iterator]^.setMode(Mode := E_DeviceMode.AUTO);
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="devices_setManual_CurrSeq" Id="{50e4b034-7cce-4db5-818c-7f74c9807537}">
+      <Declaration><![CDATA[METHOD devices_setManual_CurrSeq : BOOL
+VAR
+	iterator: INT;
+	Steps : ARRAY[1..20] OF ST_SequenceStep;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR iterator:=1 TO fbSequenceManager.getCurrentSeq_FB()^.stepsTotal() BY 1 DO
+	
+	Steps := fbSequenceManager.getCurrentSeq_FB()^.steps();
+	Steps[iterator].Device^.setMode(Mode := E_DeviceMode.MANUAL);
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="seq_Pause" Id="{dcf13c55-b5ac-44bd-9861-9f3985e52050}">
+      <Declaration><![CDATA[METHOD seq_Pause : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbSequenceManager.pauseSequence();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="seq_Start" Id="{16b9da48-2ae5-47cb-b10d-16db289d1f6e}">
+      <Declaration><![CDATA[METHOD seq_Start : BOOL
+VAR_INPUT
+	SeqNum: UINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[devices_disable_All();
+fbSequenceManager.selectSequence(Sequence := 1);
+devices_enable_CurrSeq();
+fbSequenceManager.startSequence();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="seq_Stop" Id="{b22b4d46-f25e-4eb7-a917-e47b5fc4aab8}">
+      <Declaration><![CDATA[METHOD seq_Stop : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbSequenceManager.stopSequence();]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_BaseMachine">
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseMachine.devices_disable_All">
+      <LineId Id="17" Count="1" />
+      <LineId Id="3" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseMachine.devices_disable_CurrSeq">
+      <LineId Id="6" Count="4" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseMachine.devices_enable_All">
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_BaseMachine.devices_enable_CurrSeq">
+      <LineId Id="6" Count="0" />
+      <LineId Id="8" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseMachine.devices_setAuto_All">
+      <LineId Id="6" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseMachine.devices_setAuto_CurrSeq">
+      <LineId Id="10" Count="3" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseMachine.devices_setManual_All">
+      <LineId Id="6" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseMachine.devices_setManual_CurrSeq">
+      <LineId Id="6" Count="3" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseMachine.seq_Pause">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseMachine.seq_Start">
+      <LineId Id="12" Count="0" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseMachine.seq_Stop">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

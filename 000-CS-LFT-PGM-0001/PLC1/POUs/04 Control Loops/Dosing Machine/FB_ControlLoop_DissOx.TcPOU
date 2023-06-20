@@ -1,0 +1,153 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ControlLoop_DissOx" Id="{82094251-7bb9-4cce-aa77-5198aa8377e5}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Function Block which performs a level control using a DOL pump and a high level switch
+*)
+{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_ControlLoop_DissOx EXTENDS FB_BaseDevice
+VAR_IN_OUT
+	fbInjector: 			FB_OxygenInjector;
+	fbSensorDissOx: 		FB_Sensor_AtlasDO;
+	nSetPoint:				REAL;
+END_VAR
+
+
+VAR PERSISTENT
+	tDebounce: TIME := T#1M; 
+END_VAR
+
+VAR
+	bFirstRun: BOOL := TRUE;
+	eSMState: (WAIT, DOSE_ON, DOSE_OFF, TURNING_OFF);
+	fbTON_Debouce: TON := (PT := tDebounce, IN := FALSE);
+
+END_VAR
+
+
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF bFirstRun THEN
+	
+	bFirstRun := FALSE;
+END_IF
+
+
+IF GVL.bAutoUpdateDeviceState THEN
+	eState := eStateTarget;	
+END_IF
+
+
+IF eMode = E_DeviceMode.MANUAL OR eStateTarget = E_DeviceState.ON THEN
+	bEnable := TRUE;
+	fbInjector.enable();
+END_IF
+
+IF bEnable AND (eStateTarget = E_DeviceState.ON) AND (eSMState <> DOSE_ON) THEN
+		eSMState := DOSE_OFF;
+		fbInjector.enable();
+END_IF
+
+
+IF (bEnable = FALSE) OR (eStateTarget = E_DeviceState.OFF) THEN
+		eSMState := TURNING_OFF;
+		fbInjector.disable();
+END_IF
+
+
+IF bEnable THEN
+	CASE eSMState OF
+		WAIT:
+			// Do nothing
+			eState := E_DeviceState.OFF;
+			
+			
+		DOSE_OFF:
+			fbTON_Debouce(PT := tDebounce, IN := TRUE);
+			eState := E_DeviceState.ON;
+			fbInjector.setCommand(StateTarget := E_DeviceState.OFF);
+			IF (fbSensorDissOx.getValue() < nSetPoint)  AND (fbTON_Debouce.Q) THEN
+				eSMState := DOSE_ON;
+			END_IF
+			
+		DOSE_ON:
+			fbTON_Debouce(IN := FALSE);
+			eState := E_DeviceState.ON;
+			fbInjector.setCommand(StateTarget := E_DeviceState.ON);
+			IF (fbSensorDissOx.getValue() > nSetPoint)THEN
+				eSMState := DOSE_OFF;
+			END_IF
+			
+		TURNING_OFF:
+			eState := E_DeviceState.TURNING_OFF;
+			fbInjector.setCommand(StateTarget := E_DeviceState.OFF);
+			eSMState := WAIT;
+			
+	END_CASE
+END_IF
+]]></ST>
+    </Implementation>
+    <Method Name="setState" Id="{5836fcd8-d635-419e-aa2c-5f02430854b9}">
+      <Declaration><![CDATA[METHOD setState : BOOL
+VAR_INPUT
+	state : E_DeviceState;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+eState := state;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ControlLoop_DissOx">
+      <LineId Id="239" Count="0" />
+      <LineId Id="243" Count="0" />
+      <LineId Id="245" Count="0" />
+      <LineId Id="244" Count="0" />
+      <LineId Id="240" Count="0" />
+      <LineId Id="192" Count="0" />
+      <LineId Id="196" Count="2" />
+      <LineId Id="200" Count="3" />
+      <LineId Id="329" Count="0" />
+      <LineId Id="204" Count="3" />
+      <LineId Id="302" Count="0" />
+      <LineId Id="208" Count="0" />
+      <LineId Id="214" Count="0" />
+      <LineId Id="209" Count="2" />
+      <LineId Id="303" Count="0" />
+      <LineId Id="193" Count="0" />
+      <LineId Id="195" Count="0" />
+      <LineId Id="236" Count="0" />
+      <LineId Id="3" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="184" Count="0" />
+      <LineId Id="186" Count="0" />
+      <LineId Id="273" Count="2" />
+      <LineId Id="188" Count="0" />
+      <LineId Id="187" Count="0" />
+      <LineId Id="247" Count="0" />
+      <LineId Id="222" Count="0" />
+      <LineId Id="218" Count="0" />
+      <LineId Id="220" Count="1" />
+      <LineId Id="224" Count="0" />
+      <LineId Id="189" Count="0" />
+      <LineId Id="246" Count="0" />
+      <LineId Id="223" Count="0" />
+      <LineId Id="225" Count="0" />
+      <LineId Id="232" Count="2" />
+      <LineId Id="226" Count="0" />
+      <LineId Id="215" Count="0" />
+      <LineId Id="276" Count="0" />
+      <LineId Id="217" Count="0" />
+      <LineId Id="235" Count="0" />
+      <LineId Id="228" Count="0" />
+      <LineId Id="185" Count="0" />
+      <LineId Id="237" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlLoop_DissOx.setState">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

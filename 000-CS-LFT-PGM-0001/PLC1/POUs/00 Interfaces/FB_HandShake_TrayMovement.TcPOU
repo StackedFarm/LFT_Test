@@ -1,0 +1,62 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_HandShake_TrayMovement" Id="{ff5ffaa3-9496-4938-ab3b-43645d0a3fe8}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_HandShake_TrayMovement EXTENDS FB_BaseDevice
+
+
+
+VAR_INPUT PERSISTENT 
+	stTrayExchangeInput: ST_TrayExchangeHandshake;
+END_VAR
+
+VAR_OUTPUT PERSISTENT
+	stTrayExchgangeOutput: ST_TrayExchangeHandshake;
+END_VAR
+
+
+VAR
+	fbTON_Timer: TON;			// used to time duration from bExecuture move TRUE to both bDone booleans set to true
+	{attribute 'OPC.UA.DA' := '1'} 
+	tDurationMovement: TIME;	// holds the duration of the last tray movement
+
+
+END_VAR
+
+VAR PERSISTENT
+	{attribute 'OPC.UA.DA' := '1'} 
+	tAlarmMovement: TIME;		// user specified duration for tray movement alarm
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbTON_Timer(IN := (stTrayExchangeInput.eState = E_TrayExchangeState.IN_PROGRESS));
+
+IF fbTON_Timer.Q THEN
+	 aErrors[1].bEnabled 	:= TRUE;
+	 aErrors[1].ePriority 	:= E_AlarmPriority.High;
+	 aErrors[1].sLabel 		:= 'Tray Movement Timeout';
+END_IF 
+
+IF stTrayExchangeInput.bDoneReceiver AND stTrayExchangeInput.bDoneSender THEN
+	stTrayExchangeInput.eState := E_TrayExchangeState.COMPLETED;
+END_IF
+
+IF stTrayExchangeInput.eState = E_TrayExchangeState.IN_PROGRESS THEN
+	stTrayExchangeInput.stTrayOutgoing := stTrayExchangeInput.stTrayIncoming;
+END_IF
+
+
+stTrayExchgangeOutput := stTrayExchangeInput;
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_HandShake_TrayMovement">
+      <LineId Id="133" Count="6" />
+      <LineId Id="148" Count="0" />
+      <LineId Id="140" Count="0" />
+      <LineId Id="149" Count="1" />
+      <LineId Id="141" Count="3" />
+      <LineId Id="146" Count="1" />
+      <LineId Id="145" Count="0" />
+      <LineId Id="61" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SequenceRND_Fill" Id="{3c155411-c1d0-41f7-820a-188e33ee7bbf}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_SequenceRND_Fill EXTENDS FB_SequenceBase
+
+VAR
+	bUseMainPump_A: BOOL := TRUE;  // this boolean is used to keep track of which of the two redudant pumps we should use
+END_VAR
+
+VAR_IN_OUT
+	devices: ST_RNDDMComponents;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="FB_init" Id="{2ee70b51-621f-433b-bc68-e1c3bb2d8aa1}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+		Here we set the order of things to command, what the commands should be, and also how much time to allow during and between steps
+		Every component listed below becomes 'Enabled' at each step
+*)
+
+sSequenceName := 'RND-DM Fill SEQ';
+sSequenceName := 'R&D Dosing Machine Fill sequence';
+
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="populateSteps" Id="{6adf2520-a3fc-4b81-b805-573964887439}">
+      <Declaration><![CDATA[METHOD populateSteps : ST_SequenceStep
+VAR_INPUT
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+		Here we set the order of things to command, what the commands should be, and also how much time to allow during and between steps
+		Every component listed below becomes 'Enabled' at each step
+*)
+
+Step1.Device := devices.fbValve_Drain;
+Step1.Command := E_DeviceState.CLOSED;
+Step1.StepMinDuration := T#5S; 
+Step1.DelayUntilNextStep := T#5S;
+Step1.WaitForAction := TRUE;
+aSequenceSteps[1] :=   Step1;
+
+Step2.Device := devices.fbValve_RevOsSupply;
+Step2.Command := E_DeviceState.OPEN;
+Step2.StepMinDuration := T#5S;
+Step2.DelayUntilNextStep := T#5S;
+Step2.WaitForAction := TRUE;
+aSequenceSteps[2] :=   Step2;
+
+
+nNumberSequenceSteps := 2;  // use this number to limit the number of operations
+updateVarIDs();
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_SequenceRND_Fill">
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceRND_Fill.FB_init">
+      <LineId Id="10" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="309" Count="0" />
+      <LineId Id="311" Count="0" />
+      <LineId Id="310" Count="0" />
+      <LineId Id="308" Count="0" />
+      <LineId Id="307" Count="0" />
+      <LineId Id="304" Count="0" />
+      <LineId Id="301" Count="0" />
+      <LineId Id="97" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceRND_Fill.populateSteps">
+      <LineId Id="462" Count="17" />
+      <LineId Id="512" Count="3" />
+      <LineId Id="157" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

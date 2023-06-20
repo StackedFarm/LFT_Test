@@ -1,0 +1,293 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Stack_Controller_RND" Id="{f1ea2bd0-3428-4ae5-87bb-421cc1c91974}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Stack_Controller_RND EXTENDS FB_BaseDevice
+VAR_INPUT CONSTANT
+	 nLevels : INT;
+	 nStack : INT;
+END_VAR
+
+VAR_IN_OUT
+	fbModbusManager : FB_ModbusManager;
+	fbHVAC: FB_System_RND_HVAC;
+	stInputs: ST_INPUTS_RND_StackControl;
+	stInputsHVAC: ST_HVAC;
+END_VAR
+
+VAR
+	
+	bFirstRun: BOOL := TRUE;
+	i : INT;
+	//fbEnvironmentSensors : FB_SensorVirtual_Vaisala;\
+	nSensorModbusID_1: 		UINT;
+	nSensorModbusID_2: 		UINT;
+	sZoneName: 				STRING;
+	
+	fbEnvironmentZones 		: ARRAY[0..1] OF FB_SensorVirtual_Vaisala; 				// ARRAY[0..10] OF FB_SensorVirtual_Vaisala;
+	fbLevelWaterControls 	: ARRAY[1..2] OF FB_LevelWaterControl; 
+	
+	nModbusUnitIDs: ARRAY[0..10] OF UINT := [11(0)];
+
+	//fbHumidityControl 		: FB_BangBangControl;
+	fbHumidityControl 		: FB_ControlLoop_PID;
+	
+	fbHumidityFilter:		FB_SigCond_MovingAverage := (nSamplesToFilter := 30, tCtrlCycleTime := T#2S, tTaskCycleTime := T#10MS);
+	fbTON_HumMovAg: 		TON := (PT := T#2S, IN := FALSE);
+	bResetTimer: 			BOOL := FALSE;
+	
+	fbCO2Control 			: FB_BangBangControl;
+	//fbTemperatureControl 	: FB_BangBangControl_Analog;
+	// fbTemperatureControl 	: FB_ControlLoop_HVAC;
+	fbTemperatureControl 	: FB_ControlLoop_HVAC_1;
+ 
+	fbFanControl_Exhaust:		FB_BangBangControl;	 
+	fbFanControl_Circulation:	FB_BangBangControl;
+	
+	{attribute 'OPC.UA.DA' := '1'}
+	rStackHumidity : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	rStackCO2 : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	rStackTemp : REAL;
+	
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF bFirstRun THEN
+	bFirstRun := FALSE;
+	nModbusUnitIDs[0] := nSensorModbusID_1;
+	nModbusUnitIDs[1] := nSensorModbusID_2;
+	// nModbusUnitIDs[1] := nSensorModbusID_2; - bring this back after testing
+	fbTON_HumMovAg(IN := TRUE);
+	// run the temp and CO2 controls
+	fbCO2Control.setState(E_DeviceState.RUNNING);
+	fbTemperatureControl.setState(E_DeviceState.RUNNING);
+	//fbHumidityControl.setState(E_DeviceState.RUNNING);
+
+END_IF
+
+IF bResetTimer THEN
+	fbTON_HumMovAg(IN := TRUE);
+	bResetTimer := FALSE;
+END_IF
+
+fbTON_HumMovAg();
+
+(*
+scanInputs();
+*)
+
+// Read temp, CO2 and humidity from Vaisala sensors
+fbEnvironmentZones[0](nModbusUnitIDs := nModbusUnitIDs, rMaxDiscrepency := 0.1, fbModbusManager := fbModbusManager, sZoneName := sZoneName);
+rStackCO2 		:= fbEnvironmentZones[0].rCO2; 
+//rStackHumidity 	:= fbEnvironmentZones[0].rHumidity;
+rStackTemp 		:= fbEnvironmentZones[0].rTemperature;
+
+fbHumidityFilter();
+// filter the humidity values
+IF fbTON_HumMovAg.Q THEN
+	fbHumidityFilter(fIn := fbEnvironmentZones[0].rHumidity);
+	fbTON_HumMovAg(IN := FALSE);
+	bResetTimer := TRUE;
+	rStackHumidity	:= fbHumidityFilter.fOut;
+END_IF
+
+IF NOT stInputs.bParamsInitialised THEN
+		fbLevelWaterControls[1].fbValve.enable();
+		//fbLevelWaterControls[1].fbValve(bNO_or_NC_0_or_1 := stInputs.bIrrigatorValve_NC_1_NO_0);
+		fbLevelWaterControls[1].fbValve();
+		fbLevelWaterControls[1].fbValve.close();
+		
+
+END_IF
+
+IF stInputs.bParamsInitialised THEN
+	scanInputs();
+	// control for humidity
+	//fbHumidityControl(nProcessValue := rStackHumidity, sParameterName := 'Humidity', bEnabled := stInputs.HumidityControl.bEnabled);
+	fbHumidityControl(nProcessValue := fbHumidityFilter.fOut, sParameterName := 'Humidity', bEnabled := stInputs.HumidityControl.bEnabled);
+	// bang bang control for CO2
+	fbCO2Control(rCurrentValue := rStackCO2, sParameterName := 'CO2', bEnabled := stInputs.CO2Control.bEnabled);
+	// bang bang analog control for temperature
+	fbTemperatureControl(rCurrentValue := rStackTemp, sParameterName := 'Temperature', nControlValue := ADR(stInputsHVAC.Setpoint), bEnabled := stInputs.TemperatureControl.bEnabled);
+	//fbHumidityControl(rCurrentValue := rStackHumidity, sParameterName := 'Humidity', bEnabled := stInputs.HumidityControl.bEnabled);
+	fbFanControl_Exhaust(rCurrentValue := rStackCO2, sParameterName := 'Exhaust Fan Control', bEnabled := stInputs.FanControl_Circulation.bEnabled);
+	fbFanControl_Circulation(rCurrentValue := rStackCO2, sParameterName := 'Circulation Fan Control', bEnabled := stInputs.FanControl_Exhaust.bEnabled);
+	FOR i := 1 TO nLevels DO
+		// Irrigation valve
+		fbLevelWaterControls[i](nLevel := i, stSCInputs := stInputs);
+	END_FOR
+END_IF
+
+// Function blocks which have an instance for every level...
+
+
+checkCropJobs();]]></ST>
+    </Implementation>
+    <Method Name="checkCropJobs" Id="{7627c64e-a790-4fd2-983e-d6f6418fcc56}">
+      <Declaration><![CDATA[METHOD checkCropJobs : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+// reset all crop jobs to false. Any active ones will be changed to true.
+
+fbLevelWaterControls[1].bActiveCropJob := FALSE;
+
+
+FOR i := 0 TO GVL.MaxCropJob DO
+	
+	// check if this crop job is coming FROM this stack
+	IF Inputs.CropJobs[i].crop.stack = nStack AND Inputs.CropJobs[i].job_status > E_Job_Status.waiting AND Inputs.CropJobs[i].job_status < E_Job_Status.finished THEN
+		fbLevelWaterControls[1].bActiveCropJob := TRUE;
+	END_IF
+	
+	// check if this crop job is going TO this stack
+	IF Inputs.CropJobs[i].stack = nStack AND Inputs.CropJobs[i].job_status > E_Job_Status.waiting AND Inputs.CropJobs[i].job_status < E_Job_Status.finished THEN
+		fbLevelWaterControls[1].bActiveCropJob := TRUE;
+	END_IF
+
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{10c29289-aa39-4881-bc91-1d26214a1835}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	ID : STRING;
+	Description : STRING;
+	ModID_Sensor1: UINT;
+	ModID_Sensor2: UINT;
+	ZoneName:			STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+sID := ID;
+sDescr := Description;
+
+nSensorModbusID_1 := ModID_Sensor1;
+nSensorModbusID_2 := ModID_Sensor2;
+sZoneName := ZoneName;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="scanInputs" Id="{10c4d9c0-0b47-47d1-80b7-38b33d51ddba}">
+      <Declaration><![CDATA[METHOD scanInputs : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+
+fbHumidityControl.bEnabled 				:= stInputs.HumidityControl.bEnabled;
+fbHumidityControl.nAdjustDelay 			:= stInputs.HumidityControl.nAdjustDelay;
+//fbHumidityControl.nAdjustDownDuration 	:= stInputs.HumidityControl.nAdjustDownDuration;
+//fbHumidityControl.nAdjustUpDuration 	:= stInputs.HumidityControl.nAdjustUpDuration;
+fbHumidityControl.rAlarmHigh 			:= stInputs.HumidityControl.rAlarmHigh;
+fbHumidityControl.rAlarmLow 			:= stInputs.HumidityControl.rAlarmLow;
+fbHumidityControl.rLimitHigh 			:= stInputs.HumidityControl.rLimitHigh;
+fbHumidityControl.rLimitLow 			:= stInputs.HumidityControl.rLimitLow;
+
+fbCO2Control.bEnabled 				:= stInputs.CO2Control.bEnabled;
+fbCO2Control.nAdjustDelay 			:= stInputs.CO2Control.nAdjustDelay;
+fbCO2Control.nAdjustDownDuration 	:= stInputs.CO2Control.nAdjustDownDuration;
+fbCO2Control.nAdjustUpDuration 		:= stInputs.CO2Control.nAdjustUpDuration;
+fbCO2Control.rAlarmHigh 			:= stInputs.CO2Control.rAlarmHigh;
+fbCO2Control.rAlarmLow 				:= stInputs.CO2Control.rAlarmLow;
+fbCO2Control.rLimitHigh 			:= stInputs.CO2Control.rLimitHigh;
+fbCO2Control.rLimitLow 				:= stInputs.CO2Control.rLimitLow;
+
+fbTEMPERATUREControl.bEnabled 				:= stInputs.TemperatureControl.bEnabled;
+fbTEMPERATUREControl.nAdjustDelay 			:= stInputs.TemperatureControl.nAdjustDelay;
+fbTEMPERATUREControl.nAdjustDownIncrement 	:= stInputs.TemperatureControl.nAdjustDownIncrement;
+fbTEMPERATUREControl.nAdjustUpIncrement 	:= stInputs.TemperatureControl.nAdjustUpIncrement;
+fbTEMPERATUREControl.rAlarmHigh 			:= stInputs.TemperatureControl.rAlarmHigh;
+fbTEMPERATUREControl.rAlarmLow 				:= stInputs.TemperatureControl.rAlarmLow;
+fbTEMPERATUREControl.rLimitHigh 			:= stInputs.TemperatureControl.rLimitHigh;
+fbTEMPERATUREControl.rLimitLow 				:= stInputs.TemperatureControl.rLimitLow;
+
+fbTemperatureControl.nDegPerHr				:= stInputs.TemperatureControl.rDegPerHr;
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Stack_Controller_RND">
+      <LineId Id="428" Count="0" />
+      <LineId Id="430" Count="0" />
+      <LineId Id="466" Count="0" />
+      <LineId Id="679" Count="0" />
+      <LineId Id="465" Count="0" />
+      <LineId Id="735" Count="0" />
+      <LineId Id="802" Count="2" />
+      <LineId Id="807" Count="0" />
+      <LineId Id="858" Count="0" />
+      <LineId Id="431" Count="0" />
+      <LineId Id="744" Count="0" />
+      <LineId Id="743" Count="0" />
+      <LineId Id="745" Count="0" />
+      <LineId Id="747" Count="0" />
+      <LineId Id="746" Count="0" />
+      <LineId Id="749" Count="0" />
+      <LineId Id="748" Count="0" />
+      <LineId Id="505" Count="0" />
+      <LineId Id="461" Count="1" />
+      <LineId Id="436" Count="1" />
+      <LineId Id="440" Count="4" />
+      <LineId Id="726" Count="2" />
+      <LineId Id="736" Count="1" />
+      <LineId Id="739" Count="1" />
+      <LineId Id="750" Count="0" />
+      <LineId Id="738" Count="0" />
+      <LineId Id="741" Count="0" />
+      <LineId Id="729" Count="0" />
+      <LineId Id="859" Count="0" />
+      <LineId Id="912" Count="0" />
+      <LineId Id="977" Count="0" />
+      <LineId Id="926" Count="0" />
+      <LineId Id="861" Count="0" />
+      <LineId Id="924" Count="0" />
+      <LineId Id="860" Count="0" />
+      <LineId Id="447" Count="0" />
+      <LineId Id="464" Count="0" />
+      <LineId Id="587" Count="0" />
+      <LineId Id="467" Count="0" />
+      <LineId Id="448" Count="0" />
+      <LineId Id="731" Count="0" />
+      <LineId Id="449" Count="3" />
+      <LineId Id="635" Count="2" />
+      <LineId Id="921" Count="2" />
+      <LineId Id="920" Count="0" />
+      <LineId Id="453" Count="0" />
+      <LineId Id="545" Count="1" />
+      <LineId Id="543" Count="0" />
+      <LineId Id="454" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Stack_Controller_RND.checkCropJobs">
+      <LineId Id="3" Count="17" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Stack_Controller_RND.FB_init">
+      <LineId Id="8" Count="1" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="23" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_Stack_Controller_RND.scanInputs">
+      <LineId Id="15" Count="0" />
+      <LineId Id="6" Count="2" />
+      <LineId Id="39" Count="1" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="11" Count="3" />
+      <LineId Id="17" Count="8" />
+      <LineId Id="27" Count="8" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="48" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

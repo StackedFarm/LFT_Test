@@ -1,0 +1,650 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_DosingPumpAgrowtek" Id="{c1adf950-4fd9-48b4-907a-843ea260736e}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_DosingPumpAgrowtek EXTENDS FB_BaseDevice IMPLEMENTS I_PumpDosing
+
+VAR_IN_OUT
+	{attribute 'OPC.UA.DA' := '0'}
+	fbModbusMaster: FB_ModbusMaster;
+END_VAR
+
+
+VAR
+	// Modbus Variables
+	nPumpID: UINT;	
+	nModbusUnitID: UINT; 
+	ePumpType: E_DosingPump;
+	
+	{attribute 'OPC.UA.DA' := '0'}
+	nReadRegsVals: ARRAY[1..10] OF WORD;
+	{attribute 'OPC.UA.DA' := '0'}
+	nWriteRegsVals: ARRAY[1..10] OF WORD;
+	{attribute 'OPC.UA.DA' := '0'}
+	nQtyWordsWrite: UINT;
+	{attribute 'OPC.UA.DA' := '0'}
+	nAddrWrite: UINT;
+	{attribute 'OPC.UA.DA' := '0'}
+	nRegisterWordstoRead: UINT;
+	{attribute 'OPC.UA.DA' := '0'}
+	nAddrRead: UINT;
+	
+	// Async Statemachine Variables
+	{attribute 'OPC.UA.DA' := '0'}
+	eSMState: (WAIT, READ_TRIG, READ, WRITE_TRIG, WRITE, SET_ON_TRIG, SET_ON, SET_OFF_TRIG, SET_OFF, ERROR);
+	{attribute 'OPC.UA.DA' := '0'} 
+	eOpType: (READ_OP, WRITE_OP);
+	{attribute 'OPC.UA.DA' := '0'} 
+	bRequestFinished: POINTER TO BOOL;
+	{attribute 'OPC.UA.DA' := '0'} 
+	bRequestSentToMaster: BOOL 	:= FALSE;
+	{attribute 'OPC.UA.DA' := '0'} 
+	bRequestCompleted: BOOL 	:= FALSE;
+	
+	// Dosing Variable
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbTONdoseTime: TON;  // time the pump shall remain on at the nominated dosing rate
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbTONdoseMsgDelay: TON := (PT := T#100MS); // ensures pump has sufficient time to respond to request
+	{attribute 'OPC.UA.DA' := '1'} 
+	nDoseRateMLph: UINT;
+	{attribute 'OPC.UA.DA' := '1'} 
+	nDoseQtyMls: UINT;
+	{attribute 'OPC.UA.DA' := '1'} 
+	tTimeToDose: TIME;
+	{attribute 'OPC.UA.DA' := '1'} 
+	nPumpSpeed: UINT; 
+	
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbTONdoseTime();
+fbTONdoseMsgDelay();
+
+IF GVL.bAutoUpdateDeviceState THEN
+	eState := eStateTarget;	
+END_IF
+
+
+CASE eSMState OF
+	
+	WAIT :
+	//Do nothing and wait for eState to be changed by a called method
+
+	READ_TRIG : //Read the first 122 registers (out of a total ~216)
+	
+		fbModbusMaster.readRegs(
+			ReadRegsVals:= ADR(nReadRegsVals), 
+			SlaveAddress:= nModbusUnitID, 
+			QtyWordsToRead:= nRegisterWordstoRead, 
+			AdrFirstSlaveRegisterRead:= nAddrRead, 
+			bRequestCompleted:= ADR(bRequestCompleted), 
+			bRequestAccepted=> bRequestSentToMaster);
+				
+		IF bRequestSentToMaster THEN
+			eSMState := READ;				// set bBusy within the method calls
+		END_IF
+	
+	READ:
+		IF bRequestCompleted THEN	
+			eSMState := WAIT; 			
+			bRequestSentToMaster := FALSE;
+			bRequestCompleted := FALSE;
+			bBusy := FALSE;
+		END_IF
+		
+		nPumpSpeed := nReadRegsVals[1];
+
+
+	WRITE_TRIG :
+		
+		
+		(* fbModbusMaster.writeRegs(
+			WriteRegVals:= nWriteRegsVals, 
+			SlaveAddress:= nModbusUnitID, 
+			QtyWordsToWrite:= nQtyWordsWrite, 
+			AdrFirstSlaveRegisterWrite:= nAddrWrite, 
+			bRequestCompleted:= ADR(bRequestCompleted), 
+			bRequestAccepted=> bRequestSentToMaster);
+			*)
+		
+		fbModbusMaster.writeReg(
+			WriteRegVal := nWriteRegsVals[1],
+			SlaveAddress := nModbusUnitID,
+			AdrFirstSlaveRegisterWrite := nAddrWrite,
+			bRequestCompleted := ADR(bRequestCompleted),
+			bRequestAccepted => bRequestSentToMaster);
+			
+			
+		IF bRequestSentToMaster THEN
+			eSMState := WRITE;           // set bBusy within the method calls
+		END_IF
+		
+	
+	WRITE:
+		IF bRequestCompleted THEN
+			eSMState := WAIT;
+			bRequestCompleted := FALSE;
+			bRequestSentToMaster := FALSE;
+			bBusy := FALSE;
+		END_IF
+		
+		
+	
+	SET_ON_TRIG:
+		(*
+		fbModbusMaster.writeRegs(
+			WriteRegVals:= nWriteRegsVals, 
+			SlaveAddress:= nModbusUnitID, 
+			QtyWordsToWrite:= 1, 				
+			AdrFirstSlaveRegisterWrite:= nAddrWrite, 
+			bRequestCompleted:= ADR(bRequestCompleted), 
+			bRequestAccepted=> bRequestSentToMaster);
+			*)
+			
+		fbModbusMaster.writeReg(
+			WriteRegVal := nWriteRegsVals[1],
+			SlaveAddress := nModbusUnitID,
+			AdrFirstSlaveRegisterWrite := nAddrWrite,
+			bRequestCompleted := ADR(bRequestCompleted),
+			bRequestAccepted => bRequestSentToMaster);
+			
+		eSMState := SET_ON;
+		
+	SET_ON:
+		IF bRequestCompleted  THEN
+			eSMState := SET_OFF_TRIG;
+			bRequestCompleted := FALSE;
+			bRequestSentToMaster := FALSE;
+			fbTONdoseTime(IN:=TRUE, PT := tTimeToDose); // start the min delay timer and dose timer
+			fbTONdoseMsgDelay(IN:= TRUE);			 
+		END_IF	
+	
+	
+		
+		
+	SET_OFF_TRIG:
+	      
+		IF fbModbusMaster.isBusy() = FALSE THEN
+			IF fbTONdoseMsgDelay.Q AND fbTONdoseTime.Q THEN
+		
+				fbModbusMaster.writeReg(
+					WriteRegVal := 0, // turn off
+					SlaveAddress := nModbusUnitID,
+					AdrFirstSlaveRegisterWrite := nAddrWrite,
+					bRequestCompleted := ADR(bRequestCompleted),
+					bRequestAccepted => bRequestSentToMaster);
+				
+				(*
+				nWriteRegsVals[1] := 0; // set the speed to 0
+				fbModbusMaster.writeRegs(
+					WriteRegVals:= nWriteRegsVals, 
+					SlaveAddress:= nModbusUnitID, 
+					QtyWordsToWrite:= 1, 				
+					AdrFirstSlaveRegisterWrite:= nAddrWrite, 
+					bRequestCompleted:= ADR(bRequestCompleted), 
+					bRequestAccepted=> bRequestSentToMaster);
+					*)
+				fbTONdoseMsgDelay.IN := FALSE;
+				fbTONdoseTime.IN := FALSE;
+				eSMState := SET_OFF;
+			END_IF
+		END_IF
+		
+		
+		
+	SET_OFF:
+		IF bRequestCompleted THEN
+			eSMState := WAIT;
+			bRequestCompleted := FALSE;
+			bRequestSentToMaster := FALSE;
+			bBusy := FALSE;
+			nDoseQtyMls := 0;  // Set this to zero so that the historised tag can capture duplicate successive doses
+		END_IF
+		
+END_CASE
+
+
+
+]]></ST>
+    </Implementation>
+    <Method Name="executeDose" Id="{1f92f30d-016b-4bc4-8e12-15f13c075fae}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD executeDose : BOOL
+VAR_INPUT
+	DoseQtyMls	: LREAL;
+	DoseRateMlph: UINT; // ignore this (required to comply to interface)
+	RequestComplete	: POINTER TO BOOL;
+END_VAR
+VAR_OUTPUT
+	RequestAccepted	: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(* setDose dispenses the amount requested at a user requested dose rate *)
+(*
+IF NOT bBusy AND bEnable THEN
+		nDoseQtyMls := DoseQtyMls;
+		nDoseRateMLph := DoseQtyMls;
+		tTimeToDose := REAL_TO_TIME( (((UINT_TO_REAL(nDoseQtyMls)) / 480) * 60.0)*1000);  // Agrowtek maximum flow rate is 480 ml/min
+		nWriteRegsVals[1] := 100;
+		nAddrWrite := getAdrReadWriteSpeed(ePumpType);
+		bBusy := TRUE;
+		RequestAccepted := TRUE;
+		bRequestSentToMaster := FALSE;
+		bRequestFinished := RequestComplete;
+		eSMState := SET_ON_TRIG;
+		bBusy := TRUE;
+END_IF
+*)]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{472620e4-d177-41e9-8c83-a9084dc3385e}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+
+
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	PumpID: STRING;
+	PumpDescription: STRING;
+	PumpType: E_DosingPump;
+	
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := PumpID;
+sDescr := PumpDescription;
+ePumpType := PumpType;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getAdrReadAccumRunTime" Id="{e070e756-5ffa-46c1-b93e-70288adea8f0}">
+      <Declaration><![CDATA[METHOD getAdrReadAccumRunTime : BOOL
+VAR_INPUT
+	PumpType: E_DosingPump;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// This method retrieves the Modbus register for the individual Agrowtek pump
+// We need to do this because 5 pumps share the same Modbus slave ID, however have differing registers to write to
+
+CASE PumpType OF
+	
+	E_DosingPump.PH_UP:
+		nAddrWrite := 16#64;
+		
+	E_DosingPump.PH_DOWN:
+		nAddrWrite := 16#65;
+		
+	E_DosingPump.NUTRIENT_A:
+		nAddrWrite := 16#66;
+		
+	E_DosingPump.NUTRIENT_B:
+		nAddrWrite := 16#67;
+		
+	E_DosingPump.NUTRIENT_C:
+		nAddrWrite := 16#68;
+		
+END_CASE
+	
+		 ]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getAdrReadWriteSpeed" Id="{b9a03ac0-9468-4878-b2ea-bf2c7a4e6947}">
+      <Declaration><![CDATA[METHOD getAdrReadWriteSpeed : UINT
+VAR_INPUT
+	PumpType: E_DosingPump;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// This method retrieves the Modbus register for the individual Agrowtek pump
+// We need to do this because 5 pumps share the same Modbus slave ID, however have differing registers to write to
+
+CASE PumpType OF
+	
+	E_DosingPump.PH_UP:
+		getAdrReadWriteSpeed := 16#64;
+		
+	E_DosingPump.PH_DOWN:
+		getAdrReadWriteSpeed := 16#65;
+		
+	E_DosingPump.NUTRIENT_A:
+		getAdrReadWriteSpeed := 16#66;
+		
+	E_DosingPump.NUTRIENT_B:
+		getAdrReadWriteSpeed := 16#67;
+		
+	E_DosingPump.NUTRIENT_C:
+		getAdrReadWriteSpeed := 16#68;
+		
+END_CASE
+	
+		 ]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="readSpeed" Id="{a4f8185f-b16c-4173-a9f4-bc5b7c7d89d1}">
+      <Declaration><![CDATA[METHOD readSpeed : BOOL
+VAR_INPUT
+	RequestComplete	: POINTER TO BOOL;
+	AddressToRead: UINT;
+	NumberWords: UINT;
+END_VAR
+VAR_OUTPUT
+	RequestAccepted	: BOOL;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bBusy AND bEnable THEN
+	nReadRegsVals[1] := 16#00;
+	nReadRegsVals[2] := 16#00;
+	nReadRegsVals[3] := 16#00;
+	nReadRegsVals[4] := 16#00;
+	nRegisterWordstoRead := NumberWords;
+	nAddrRead:= AddressToRead;
+	eSMState := READ_TRIG;
+	bBusy := TRUE;		
+	readSpeed := TRUE;		
+ELSE
+	readSpeed := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setModID" Id="{c4eb5450-67b8-45bd-8f47-7fc2393f92aa}">
+      <Declaration><![CDATA[METHOD setModID : BOOL
+VAR_INPUT
+	desiredID: UINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bBusy AND bEnable THEN
+	nModbusUnitID := 254;
+	nQtyWordsWrite := 1;
+	nAddrWrite := 0;
+	nWriteRegsVals[1] := desiredID; 
+	eSMState := WRITE_TRIG;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOFF" Id="{a71b0179-a32e-4895-b834-14ec9a547568}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD setOFF : BOOL
+VAR_INPUT
+	RequestComplete	: POINTER TO BOOL;
+END_VAR
+VAR_OUTPUT
+	RequestAccepted	: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bBusy AND bEnable THEN
+	nModbusUnitID := 3;
+	nWriteRegsVals[1] := 16#0; // speed 0
+	nQtyWordsWrite := 1;
+	nAddrWrite := getAdrReadWriteSpeed(ePumpType);
+	eSMState := WRITE_TRIG;
+	RequestAccepted := TRUE;
+	bRequestSentToMaster := FALSE;
+	bRequestFinished := RequestComplete;
+	bBusy := TRUE;
+	setOFF := TRUE;
+ELSE
+	setOFF := FALSE;
+END_IF ]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOFF_All" Id="{823eef50-7683-4e0d-848c-48db1c200308}">
+      <Declaration><![CDATA[METHOD setOFF_All : BOOL
+VAR_INPUT
+	RequestComplete	: POINTER TO BOOL;
+END_VAR
+VAR_OUTPUT
+	RequestAccepted	: BOOL;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bBusy AND bEnable THEN
+	nModbusUnitID := 3;
+	nWriteRegsVals[1] := 100; // speed 100
+	nWriteRegsVals[2] := 100; // speed 100
+	nWriteRegsVals[3] := 100; // speed 100
+	nWriteRegsVals[4] := 100; // speed 100
+	nWriteRegsVals[5] := 100; // speed 100
+	nQtyWordsWrite := 5;
+	nAddrWrite := 100;
+	eSMState := WRITE_TRIG;
+	RequestAccepted := TRUE;
+	bRequestSentToMaster := FALSE;
+	bRequestFinished := RequestComplete;
+
+	setOFF_All := TRUE;
+ELSE
+	setOFF_All := FALSE;
+END_IF 
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setON" Id="{b26473d3-efe7-4ce9-bef6-c4b2c94578f7}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD setON : BOOL
+VAR_INPUT
+	RateMlph	: UINT;
+	RequestComplete	: POINTER TO BOOL;
+END_VAR
+VAR_OUTPUT
+	RequestAccepted	: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bBusy AND bEnable THEN
+	nModbusUnitID := 3;
+	nWriteRegsVals[1] := 16#64; // speed 100
+	nQtyWordsWrite := 2;
+	nAddrWrite := getAdrReadWriteSpeed(ePumpType);
+	eSMState := WRITE_TRIG;
+	RequestAccepted := TRUE;
+	bRequestSentToMaster := FALSE;
+	bRequestFinished := RequestComplete;
+	bBusy := TRUE;
+	setON := TRUE;
+ELSE
+	setON := FALSE;
+END_IF 
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setON_All" Id="{8b15d1ac-1a15-499d-bd78-889bf5a665bd}">
+      <Declaration><![CDATA[METHOD setON_All : BOOL
+VAR_INPUT
+	RequestComplete	: POINTER TO BOOL;
+END_VAR
+VAR_OUTPUT
+	RequestAccepted	: BOOL;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bBusy AND bEnable THEN
+	nModbusUnitID := 3;
+	nWriteRegsVals[1] := 0; // speed 0
+	nWriteRegsVals[2] := 0; // speed 0
+	nWriteRegsVals[3] := 0; // speed 0
+	nWriteRegsVals[4] := 0; // speed 0
+	nWriteRegsVals[5] := 0; // speed 0
+	nQtyWordsWrite := 5;
+	nAddrWrite := 100;
+	eSMState := WRITE_TRIG;
+	RequestAccepted := TRUE;
+	bRequestSentToMaster := FALSE;
+	bRequestFinished := RequestComplete;
+
+	setON_All := TRUE;
+ELSE
+	setON_All := FALSE;
+END_IF 
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_DosingPumpAgrowtek">
+      <LineId Id="60" Count="1" />
+      <LineId Id="374" Count="3" />
+      <LineId Id="63" Count="5" />
+      <LineId Id="78" Count="1" />
+      <LineId Id="432" Count="0" />
+      <LineId Id="80" Count="7" />
+      <LineId Id="89" Count="2" />
+      <LineId Id="93" Count="5" />
+      <LineId Id="101" Count="0" />
+      <LineId Id="105" Count="0" />
+      <LineId Id="504" Count="1" />
+      <LineId Id="106" Count="0" />
+      <LineId Id="132" Count="2" />
+      <LineId Id="501" Count="0" />
+      <LineId Id="135" Count="6" />
+      <LineId Id="487" Count="1" />
+      <LineId Id="560" Count="0" />
+      <LineId Id="495" Count="0" />
+      <LineId Id="497" Count="3" />
+      <LineId Id="561" Count="0" />
+      <LineId Id="142" Count="2" />
+      <LineId Id="146" Count="8" />
+      <LineId Id="157" Count="2" />
+      <LineId Id="161" Count="1" />
+      <LineId Id="435" Count="0" />
+      <LineId Id="168" Count="6" />
+      <LineId Id="621" Count="0" />
+      <LineId Id="614" Count="0" />
+      <LineId Id="616" Count="4" />
+      <LineId Id="615" Count="0" />
+      <LineId Id="558" Count="1" />
+      <LineId Id="316" Count="0" />
+      <LineId Id="183" Count="4" />
+      <LineId Id="317" Count="0" />
+      <LineId Id="189" Count="3" />
+      <LineId Id="433" Count="1" />
+      <LineId Id="193" Count="0" />
+      <LineId Id="319" Count="0" />
+      <LineId Id="196" Count="2" />
+      <LineId Id="625" Count="4" />
+      <LineId Id="622" Count="2" />
+      <LineId Id="631" Count="0" />
+      <LineId Id="201" Count="6" />
+      <LineId Id="630" Count="0" />
+      <LineId Id="635" Count="1" />
+      <LineId Id="634" Count="0" />
+      <LineId Id="208" Count="1" />
+      <LineId Id="632" Count="1" />
+      <LineId Id="216" Count="5" />
+      <LineId Id="637" Count="0" />
+      <LineId Id="692" Count="0" />
+      <LineId Id="222" Count="1" />
+      <LineId Id="307" Count="3" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpAgrowtek.executeDose">
+      <LineId Id="93" Count="2" />
+      <LineId Id="97" Count="2" />
+      <LineId Id="120" Count="0" />
+      <LineId Id="100" Count="5" />
+      <LineId Id="132" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="143" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpAgrowtek.FB_init">
+      <LineId Id="20" Count="1" />
+      <LineId Id="58" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpAgrowtek.getAdrReadAccumRunTime">
+      <LineId Id="5" Count="1" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="12" Count="1" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="19" Count="1" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpAgrowtek.getAdrReadWriteSpeed">
+      <LineId Id="5" Count="1" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="12" Count="1" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="19" Count="1" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpAgrowtek.readSpeed">
+      <LineId Id="6" Count="0" />
+      <LineId Id="8" Count="8" />
+      <LineId Id="18" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpAgrowtek.setModID">
+      <LineId Id="20" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="8" Count="1" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="21" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpAgrowtek.setOFF">
+      <LineId Id="11" Count="3" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="47" Count="1" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="33" Count="2" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpAgrowtek.setOFF_All">
+      <LineId Id="6" Count="2" />
+      <LineId Id="29" Count="3" />
+      <LineId Id="9" Count="11" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpAgrowtek.setON">
+      <LineId Id="12" Count="3" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="52" Count="1" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="19" Count="5" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DosingPumpAgrowtek.setON_All">
+      <LineId Id="6" Count="2" />
+      <LineId Id="29" Count="3" />
+      <LineId Id="9" Count="11" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

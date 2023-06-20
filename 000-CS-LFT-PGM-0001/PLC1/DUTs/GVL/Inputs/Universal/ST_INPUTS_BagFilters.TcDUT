@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_BagFilters" Id="{cc839e59-5a4b-47bd-8dbe-02a13eae3cac}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_BagFilters:
+STRUCT
+	
+	Filter1_MaxDiffPressure:    UINT;
+	Filter2_MaxDiffPressure:    UINT;
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

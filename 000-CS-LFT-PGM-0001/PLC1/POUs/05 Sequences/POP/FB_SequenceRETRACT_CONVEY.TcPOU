@@ -1,0 +1,177 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SequenceRETRACT_CONVEY" Id="{660c5574-ccd2-4c23-857c-6a8a4a37d97c}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_SequenceRETRACT_CONVEY EXTENDS FB_SequenceBase
+
+
+
+VAR_IN_OUT
+	devices: ST_POPComponents;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="FB_init" Id="{ef3a6762-008a-46ea-8999-c615b90085e5}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+		Here we set the order of things to command, what the commands should be, and also how much time to allow during and between steps
+		Every component listed below becomes 'Enabled' at each step
+*)
+sSequenceName:= 'POP Conveyor Reverse Sequence';
+sSequenceDescription := 'Performs the full reverse series of actions (starting with lifting movement and followed by static conveyors';
+bSequentional_1_Flood_0 := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="populateSteps" Id="{7b974e7a-6626-404c-aa68-cc7e9ffa2c84}">
+      <Declaration><![CDATA[METHOD populateSteps : ST_SequenceStep
+VAR_INPUT
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+		Here we set the order of things to command, what the commands should be, and also how much time to allow during and between steps
+		Every component listed below becomes 'Enabled' at each step
+*)
+
+
+Step1.Device := devices.fbLinAct_POP1;
+Step1.Command := E_DeviceState.RETRACTED;
+Step1.StepMinDuration := T#0S; 
+Step1.DelayUntilNextStep := T#0S;
+Step1.WaitForAction := FALSE;
+aSequenceSteps[1] :=   Step1;
+
+Step2.Device := devices.fbLinAct_POP1;
+Step2.Command := E_DeviceState.RETRACTED;
+Step2.StepMinDuration := T#0S; 
+Step2.DelayUntilNextStep := T#0S;
+Step2.WaitForAction := FALSE;
+aSequenceSteps[2] :=   Step2;
+
+Step3.Device := devices.fbLinAct_POP2;
+Step3.Command := E_DeviceState.RETRACTED;
+Step3.StepMinDuration := T#0S;
+Step3.DelayUntilNextStep := T#0S;
+Step3.WaitForAction := FALSE;
+aSequenceSteps[3] :=   Step3;
+
+Step4.Device := devices.fbTrayEndSensor;
+Step4.Command := E_DeviceState.ON;
+Step4.StepMinDuration := T#0S;
+Step4.DelayUntilNextStep := T#0S;
+Step4.WaitForAction := TRUE;
+aSequenceSteps[4] :=   Step4;
+
+Step5.Device := devices.fbTrayCentre_POP1;
+Step5.Command := E_DeviceState.EXTENDED;
+Step5.StepMinDuration := T#0S;
+Step5.DelayUntilNextStep := T#0S;
+Step5.WaitForAction := FALSE;
+aSequenceSteps[5] :=   Step5;
+
+Step6.Device := devices.fbTrayCentre_POP2;
+Step6.Command := E_DeviceState.EXTENDED;
+Step6.StepMinDuration := T#0S;
+Step6.DelayUntilNextStep := T#0S;
+Step6.WaitForAction := FALSE;
+aSequenceSteps[6] :=   Step6;
+
+Step7.Device := devices.fbTrayCentre_POP3;
+Step7.Command := E_DeviceState.EXTENDED;
+Step7.StepMinDuration := T#0S;
+Step7.DelayUntilNextStep := T#0S;
+Step7.WaitForAction := TRUE;
+aSequenceSteps[7] :=   Step7;
+
+Step8.Device := devices.fbStaticConv_POP1;
+Step8.Command := E_DeviceState.RUNNING;
+Step8.StepMinDuration := T#0S;
+Step8.DelayUntilNextStep := T#0S;
+Step8.WaitForAction := FALSE;
+aSequenceSteps[8] :=   Step8;
+
+
+Step9.Device := devices.fbStaticConv_POP2;
+Step9.Command := E_DeviceState.RUNNING;
+Step9.StepMinDuration := T#0S;
+Step9.DelayUntilNextStep := T#0S;
+Step9.WaitForAction := FALSE;
+aSequenceSteps[9] :=   Step9;
+
+Step10.Device := devices.fbStaticConv_POP3;
+Step10.Command := E_DeviceState.RUNNING;
+Step10.StepMinDuration := T#0S;
+Step10.DelayUntilNextStep := T#0S;
+Step10.WaitForAction := TRUE;
+aSequenceSteps[10] :=   Step10;
+
+Step11.Device := devices.fbTrayEndSensor;
+Step11.Command := E_DeviceState.OFF;
+Step11.StepMinDuration := T#0S;
+Step11.DelayUntilNextStep := T#0S;
+Step11.WaitForAction := TRUE;
+aSequenceSteps[11] :=   Step11;
+
+Step12.Device := devices.fbLinAct_POP1;
+Step12.Command := E_DeviceState.RETRACTED;
+Step12.StepMinDuration := T#0S; 
+Step12.DelayUntilNextStep := T#0S;
+Step12.WaitForAction := FALSE;
+aSequenceSteps[12] :=   Step12;
+
+Step13.Device := devices.fbLinAct_POP2;
+Step13.Command := E_DeviceState.RETRACTED;
+Step13.StepMinDuration := T#0S; 
+Step13.DelayUntilNextStep := T#0S;
+Step13.WaitForAction := FALSE;
+aSequenceSteps[13] :=   Step13;
+
+Step14.Device := devices.fbLinAct_POP3;
+Step14.Command := E_DeviceState.RETRACTED;
+Step14.StepMinDuration := T#0S; 
+Step14.DelayUntilNextStep := T#0S;
+Step14.WaitForAction := FALSE;
+aSequenceSteps[14] :=   Step14;
+
+
+Step15.Device := devices.fbTrayEndSensor;
+Step15.Command := E_DeviceState.OFF;
+Step15.StepMinDuration := T#0S; 
+Step15.DelayUntilNextStep := T#0S;
+Step15.WaitForAction := TRUE;
+aSequenceSteps[15] :=   Step15;
+
+
+nNumberSequenceSteps := 15;  // use this number to limit the number of operations
+updateVarIDs();
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_SequenceRETRACT_CONVEY">
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceRETRACT_CONVEY.FB_init">
+      <LineId Id="10" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="97" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceRETRACT_CONVEY.populateSteps">
+      <LineId Id="608" Count="116" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,340 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ControlLoop_HVAC_1" Id="{c767543d-1e68-4a16-b6cb-7e8a10ad53f1}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Function Block which performs a bang-bang control loop.
+*)
+{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_ControlLoop_HVAC_1 EXTENDS FB_BaseDevice
+VAR_INPUT PERSISTENT
+
+	{attribute 'OPC.UA.DA' := '1'}
+	nProcessValue : REAL;  
+	{attribute 'OPC.UA.DA' := '1'}
+	rSetpoint: REAL;
+
+	{attribute 'OPC.UA.DA' := '1'}
+	rAlarmHigh : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	rAlarmLow : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	rLimitHigh : REAL; // the upper limit of the desirable range (when the downward adjustment is activated)
+	{attribute 'OPC.UA.DA' := '1'}
+	rLimitLow : REAL; // lower limit of the desirable range (when the upward adjustment is activated)
+	{attribute 'OPC.UA.DA' := '1'}
+	nAdjustDelay : INT := 30; // min time in seconds between adjustments
+	{attribute 'OPC.UA.DA' := '1'}
+	nAdjustDownIncrement : REAL := 0.5;
+	{attribute 'OPC.UA.DA' := '1'}
+	nAdjustUpIncrement : REAL := 0.5; 
+	{attribute 'OPC.UA.DA' := '1'}
+	rCurrentValue : REAL; 
+	{attribute 'OPC.UA.DA' := '1'}
+	bEnabled : BOOL; 
+	{attribute 'OPC.UA.DA' := '1'}
+	sParameterName : STRING;
+	
+	{attribute 'OPC.UA.DA' := '1'}
+	nControlValue: POINTER TO REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	nControlValueCopy: REAL;
+	
+	{attribute 'OPC.UA.DA' := '1'} 
+	tPIDLoopTime: TIME := T#1M;	// how often the PID loop should be executed
+	
+	nStepChange: REAL;
+	nDegPerHr: REAL;
+
+	
+	
+	{attribute 'OPC.UA.DA' := '1'}
+	Mode:    E_CTRL_MODE;
+END_VAR
+
+VAR_OUTPUT
+
+	{attribute 'OPC.UA.DA' := '1'}
+	bAlarmHigh : BOOL;
+	{attribute 'OPC.UA.DA' := '1'}
+	bAlarmLow : BOOL;
+END_VAR
+
+VAR
+	bFirstRun : BOOL;
+	bResetTimer: BOOL := FALSE;
+	tAdjustDownTimer : TON;
+	tAdjustUpTimer : TON;
+	tAdjustDelayTimer : TON;
+	bAdjustDownActive : BOOL;
+	bAdjustUpActive : BOOL;
+	bDelayActive : BOOL;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbTON_PIDLoop: TON := (PT := tPIDLoopTime, IN := FALSE);
+	
+	{attribute 'OPC.UA.DA' := '0'}
+	PID: FB_CTRL_PID;
+	
+	eSMState: 	(WAIT, CALCULATE, TRIG_UP, TRIG_DOWN) := WAIT;
+
+END_VAR
+
+
+
+VAR PERSISTENT
+
+	n_ProcessValue: FLOAT;
+	
+	// PID loop variables below
+	nPID_Setpoint:			REAL; 
+	nPID_SetpointBand:		REAL; 
+	nPID_ManSyncVal:		REAL;
+	bPID_Sync: 				BOOL;
+	nPID_Error:				REAL;
+	nPID_ErrorPerc:			REAL;  
+	nPID_Output: 			LREAL; 
+	bPID_Hold: 				BOOL;
+	ePID_Mode: 				E_CTRL_MODE;
+	stPID_Parameters: 		ST_CTRL_PID_PARAMS;
+	ePID_ErrorId: 			E_CTRL_ERRORCODES;
+	bPID_Error: 			BOOL;
+	bPID_ARWactive: 		BOOL;
+	
+	//stPIDParams values
+	tPID_CtrlCycleTime: 		TIME := tPIDLoopTime;
+	tPID_TaskCycleTime:			TIME := T#10MS;
+	nPID_Kp:  					REAL := 1.0;
+	nPID_Compensator:  			REAL := 1.0/1000.0;
+	tPID_Tn: 					TIME := T#0S;
+	tPID_Tv:					TIME := T#0S;
+	tPID_Td:					TIME := T#200S; 
+	nPID_OutMaxLimit: 			REAL := 300; 		// this is set in the cyclic routine, the error band moves with the setpoint
+	nPID_OutMinLimit:			REAL := 0;
+	bPID_PInTheFeedbackPath: 	BOOL := FALSE;
+	bPID_DInTheFeedbackPath: 	BOOL := FALSE;
+	bPID_ARWOnIPartOnly:		BOOL := FALSE;
+	
+	n_Output: LREAL := 0;
+	
+	nDeadBandPerc: REAL := 0.05; 
+	
+END_VAR
+
+
+
+
+
+
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF bFirstRun THEN
+	fbTON_PIDLoop(PT := tPIDLoopTime, IN := TRUE);
+	bFirstRun := FALSE;
+END_IF
+
+//eState := eStateTarget;
+
+IF (NOT bEnable) OR (eState = E_DeviceState.IDLE) THEN
+	eState := E_DeviceState.IDLE;
+	eStateTarget := E_DeviceState.IDLE;
+	PID.eMode := E_CTRL_MODE.eCTRL_MODE_RESET;
+END_IF
+
+IF bEnable AND (eState = E_DeviceState.RUNNING) THEN
+	PID.eMode := E_CTRL_MODE.eCTRL_MODE_ACTIVE;
+END_IF 
+
+
+fbTON_PIDLoop(PT := tPIDLoopTime);
+updatePIDParams();
+
+nPID_Setpoint := (rLimitHigh + rLimitLow) / 2.0;
+rSetpoint := (rLimitHigh + rLimitLow) / 2.0;
+nPID_Error 	:= nPID_Setpoint - rCurrentValue; 
+
+
+IF eState = E_DeviceState.RUNNING THEN
+	PID( fSetpointValue := nPID_Setpoint, fActualValue := rCurrentValue, stParams := stPID_Parameters);
+END_IF
+
+
+// IF control loop is ON and the loop timer has elapsed then enter the calculate / action state machine below
+IF fbTON_PIDLoop.Q  AND (eState = E_DeviceState.RUNNING) THEN
+	fbTON_PIDLoop.IN 	:= FALSE;
+	eSMState 			:= CALCULATE;		
+END_IF
+
+
+CASE eSMState OF
+
+	WAIT:
+		fbTON_PIDLoop(IN := TRUE);
+	
+	CALCULATE:
+		
+		
+		
+		IF (rCurrentValue > (nPID_Setpoint * ( 1 + nDeadBandPerc))) THEN
+			nControlValue^ := nControlValue^ - (nDegPerHr * (TIME_TO_LREAL(tPIDLoopTime)/3600000));
+		ELSIF (rCurrentValue < (nPID_Setpoint * ( 1 - nDeadBandPerc))) THEN
+			nControlValue^ := nControlValue^ + (nDegPerHr * (TIME_TO_LREAL(tPIDLoopTime)/3600000));
+		END_IF
+		
+		IF nControlValue^ < 16 THEN
+			nControlValue^ := 16;
+		ELSIF nControlValue^ > 32 THEN
+			nControlValue^ := 32;
+		END_IF
+		
+		nControlValueCopy := nControlValue^;
+		
+		eSMState := WAIT;
+		fbTON_PIDLoop(IN := FALSE);
+ 
+	(*
+		IF ABS((nControlValue^ - nPID_Setpoint) > 0.2) THEN
+			nControlValue^ := nControlValue^ + PID.fOut;
+		ELSE
+			tPID_Tn := T#0S;
+		END_IF
+		// nControlValue^ :=  PID.fOut;
+		
+		IF nControlValue^ < 16 THEN
+			nControlValue^ := 16;
+		ELSIF nControlValue^ > 32 THEN
+			nControlValue^ := 32;
+		END_IF
+		
+		fbTON_PIDLoop(IN := FALSE);
+		eSMState := WAIT;	
+		
+		*)
+END_CASE
+
+
+
+]]></ST>
+    </Implementation>
+    <Method Name="setState" Id="{2ca690e5-f2e9-4c17-899a-695901cf893a}">
+      <Declaration><![CDATA[METHOD setState : BOOL
+VAR_INPUT
+	state : E_DeviceState;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+eState := state;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="timers" Id="{da04fe40-1097-4f7c-8301-fe3f9f84f6d5}">
+      <Declaration><![CDATA[
+(*
+	Run the timers for delay, adjust up and adjust down
+*)
+METHOD timers : BOOL
+VAR_INPUT
+END_VAR
+
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[tAdjustDelayTimer(IN := bDelayActive, PT := INT_TO_TIME(nAdjustDelay) * 1000);
+
+
+IF tAdjustDelayTimer.Q THEN
+	// the delay timer is finished so check if we need to activate an adjustment
+	
+	//bAdjustDownActive := (rCurrentValue > rLimitHigh);
+	//bAdjustUpActive := (rCurrentValue < rLimitLow);
+	
+	bAdjustDownActive := (rCurrentValue > ((rLimitHigh + rLimitLow)/2.0)+0.6);
+	bAdjustUpActive := (rCurrentValue < ((rLimitHigh + rLimitLow)/2.0)-0.6);
+	
+END_IF
+
+// run the delay timer whenever we are not activating an output
+bDelayActive := NOT bAdjustDownActive AND NOT bAdjustUpActive;
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="updatePIDParams" Id="{21924047-3375-45ca-942b-b03ce7b09b22}">
+      <Declaration><![CDATA[METHOD updatePIDParams : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+stPID_Parameters.tCtrlCycleTime := 		tPID_CtrlCycleTime;
+stPID_Parameters.tTaskCycleTime := 		tPID_TaskCycleTime;
+stPID_Parameters.fKp := 				nPID_Kp;
+stPID_Parameters.tTn := 				tPID_Tn;
+stPID_Parameters.tTv := 				tPID_Tv;
+stPID_Parameters.tTd := 				tPID_Td;
+stPID_Parameters.fOutMaxLimit := 		nPID_OutMaxLimit;
+stPID_Parameters.fOutMinLimit := 		nPID_OutMinLimit;
+stPID_Parameters.bPInTheFeedbackPath := bPID_PInTheFeedbackPath;
+stPID_Parameters.bDInTheFeedbackPath := bPID_DInTheFeedbackPath;
+stPID_Parameters.bARWOnIPartOnly := 	bPID_ARWOnIPartOnly;
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ControlLoop_HVAC_1">
+      <LineId Id="484" Count="16" />
+      <LineId Id="503" Count="1" />
+      <LineId Id="508" Count="0" />
+      <LineId Id="730" Count="0" />
+      <LineId Id="729" Count="0" />
+      <LineId Id="1114" Count="0" />
+      <LineId Id="510" Count="0" />
+      <LineId Id="523" Count="11" />
+      <LineId Id="536" Count="4" />
+      <LineId Id="542" Count="2" />
+      <LineId Id="981" Count="0" />
+      <LineId Id="1117" Count="2" />
+      <LineId Id="1121" Count="1" />
+      <LineId Id="1129" Count="4" />
+      <LineId Id="1135" Count="1" />
+      <LineId Id="1134" Count="0" />
+      <LineId Id="1137" Count="4" />
+      <LineId Id="1120" Count="0" />
+      <LineId Id="982" Count="0" />
+      <LineId Id="977" Count="0" />
+      <LineId Id="546" Count="0" />
+      <LineId Id="979" Count="1" />
+      <LineId Id="978" Count="0" />
+      <LineId Id="857" Count="0" />
+      <LineId Id="737" Count="0" />
+      <LineId Id="731" Count="5" />
+      <LineId Id="547" Count="0" />
+      <LineId Id="549" Count="0" />
+      <LineId Id="983" Count="1" />
+      <LineId Id="389" Count="0" />
+      <LineId Id="481" Count="2" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlLoop_HVAC_1.setState">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlLoop_HVAC_1.timers">
+      <LineId Id="4" Count="0" />
+      <LineId Id="6" Count="6" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="13" Count="4" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlLoop_HVAC_1.updatePIDParams">
+      <LineId Id="6" Count="15" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

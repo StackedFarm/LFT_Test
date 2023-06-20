@@ -1,0 +1,182 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Valve_ONOFF_woMonitoring_1" Id="{381ecdce-874b-45df-befe-2affcb9f55dc}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA' := '1'}
+FUNCTION_BLOCK FB_Valve_ONOFF_woMonitoring_1 EXTENDS FB_BaseDevice IMPLEMENTS I_Device, I_ValveActuated
+
+VAR
+	
+	{attribute 'OPC.UA.DA' := '1'} 
+	bValveMonitor_OPEN AT %I*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	bValveMonitor_CLOSED AT %I*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	bValveOutput_OPEN AT %Q*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	bValveOutput_CLOSE AT %Q*: BOOL := FALSE;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSMState: (WAIT, CLOSING, CLOSED, OPENING, OPEN);
+	
+	{attribute 'OPC.UA.DA' := '1'} 
+	tActionTimeout: TIME := T#5S;
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbTON_timeout: TON := (PT := tActionTimeout, IN := FALSE);
+	{attribute 'OPC.UA.DA' := '0'}
+	fbTON_simulation_delay: TON := (PT := T#1S, IN := FALSE);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbTONstartTime();
+fbTONstopTime();
+
+IF GVL.bAutoUpdateDeviceState THEN
+	eState := eStateTarget;	
+END_IF
+
+IF bEnable = FALSE THEN
+	eSMState := CLOSE
+END_IF
+
+	
+CASE eSMState OF
+	
+	WAIT:
+		//Wait for method call to change ESMState
+		
+	OPENING: 
+		eState := E_DeviceState.TURNING_ON;
+		bValveOutput_CLOSE 	:= FALSE;
+		bValveOutput_OPEN 	:= TRUE;
+
+	
+		IF fbTONstartTime.Q THEN
+			eSMState := WAIT;
+			raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Failed to Open', Enabled := TRUE, DeviceAlarmID := 1);
+		END_IF
+		
+		IF bValveMonitor_OPEN  THEN
+			eSMState := OPEN;
+			eState := E_DeviceState.OPEN;
+		END_IF
+		
+	OPEN:
+		IF bValveMonitor_OPEN <> TRUE THEN
+			raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Valve Closed Unexpectedly', Enabled := TRUE, DeviceAlarmID := 2);
+			eState := E_DeviceState.CLOSED;
+			eSMState := WAIT;
+		END_IF
+		
+
+	CLOSING:
+		eState := E_DeviceState.TURNING_OFF;
+		bValveOutput_CLOSE 	:= TRUE;
+		bValveOutput_OPEN 	:= FALSE;
+
+				
+		IF fbTONstopTime.Q THEN
+			eSMState := WAIT;
+			raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Failed to Close', Enabled := TRUE, DeviceAlarmID := 3);
+		END_IF 
+		
+		IF bValveMonitor_CLOSED = TRUE THEN
+			eSMState := CLOSED;	
+		END_IF
+		
+
+	CLOSED:
+		eState := E_DeviceState.CLOSED;
+		eSMState := WAIT;
+		
+END_CASE
+]]></ST>
+    </Implementation>
+    <Method Name="close" Id="{7bf9648b-f4d0-471b-9726-f9d18b0fcb72}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD close : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eSMState := CLOSING;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="disable" Id="{20b18462-0c10-4d61-b2f1-7a189a821346}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{977408f2-4580-46e6-a693-706688e61fc0}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{2a3fb5bb-98a9-4870-b7b0-7534d171ef8b}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD FB_init : BOOL
+VAR_INPUT
+	(* if TRUE, the retain variables are initialized (warm start / cold start)*)
+	bInitRetains	: BOOL;
+	(* if TRUE, the instance afterwards gets moved into the copy code (online change)*)
+	bInCopyCode	: BOOL;
+	
+	ValveID: STRING(80);
+	ValveDescr: STRING(255); 
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := ValveID;
+sDescr := ValveDescr;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="open" Id="{08a2afaf-59a1-4b47-a8c8-bb1e63b6e563}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD open : BOOL
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eSMState := OPENING;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Valve_ONOFF_woMonitoring_1">
+      <LineId Id="77" Count="1" />
+      <LineId Id="161" Count="3" />
+      <LineId Id="260" Count="0" />
+      <LineId Id="259" Count="0" />
+      <LineId Id="261" Count="1" />
+      <LineId Id="160" Count="0" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="91" Count="6" />
+      <LineId Id="233" Count="0" />
+      <LineId Id="232" Count="0" />
+      <LineId Id="98" Count="0" />
+      <LineId Id="100" Count="17" />
+      <LineId Id="119" Count="3" />
+      <LineId Id="231" Count="0" />
+      <LineId Id="123" Count="14" />
+      <LineId Id="258" Count="0" />
+      <LineId Id="138" Count="0" />
+      <LineId Id="206" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Valve_ONOFF_woMonitoring_1.close">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Valve_ONOFF_woMonitoring_1.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Valve_ONOFF_woMonitoring_1.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Valve_ONOFF_woMonitoring_1.FB_init">
+      <LineId Id="10" Count="0" />
+      <LineId Id="23" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Valve_ONOFF_woMonitoring_1.open">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

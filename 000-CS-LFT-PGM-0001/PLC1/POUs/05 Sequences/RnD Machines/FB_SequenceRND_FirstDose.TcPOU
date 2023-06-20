@@ -1,0 +1,139 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SequenceRND_FirstDose" Id="{6d1e0078-a846-401f-ac01-258efeef714d}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_SequenceRND_FirstDose EXTENDS FB_SequenceBase
+
+VAR
+	bUseMainPump_A: BOOL := TRUE;  // this boolean is used to keep track of which of the two redudant pumps we should use
+END_VAR
+
+VAR_IN_OUT
+	devices: ST_RNDDMComponents;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="FB_init" Id="{c4c73567-91bb-49ca-b6d6-b82bc2db6b18}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+		Here we set the order of things to command, what the commands should be, and also how much time to allow during and between steps
+		Every component listed below becomes 'Enabled' at each step
+*)
+sSequenceName:= 'RND-DM First Dose Sequence';
+sSequenceDescription := 'First dose sequence after tank change';
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="populateSteps" Id="{12f24587-1a21-490b-a380-4f2a61eb3145}">
+      <Declaration><![CDATA[METHOD populateSteps : ST_SequenceStep
+VAR_INPUT
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+		Here we set the order of things to command, what the commands should be, and also how much time to allow during and between steps
+		Every component listed below becomes 'Enabled' at each step
+*)
+
+Step1.Device := devices.fbPump_MainPumpA;
+Step1.Command := E_DeviceState.RUNNING;
+Step1.StepMinDuration := T#5S; 
+Step1.DelayUntilNextStep := T#5S;
+Step1.WaitForAction := TRUE;
+aSequenceSteps[1] :=   Step1;
+
+Step2.Device := devices.fbUVFilter1;
+Step2.Command := E_DeviceState.ON;
+Step2.StepMinDuration := T#5S;
+Step2.DelayUntilNextStep := T#5S;
+Step2.WaitForAction := TRUE;
+aSequenceSteps[2] :=   Step2;
+
+Step3.Device := devices.fbControlLoop_TankLevel;
+Step3.Command := E_DeviceState.ON;
+Step3.DelayUntilNextStep := T#5S;
+Step3.StepMinDuration := T#5S;
+Step3.DelayUntilNextStep := T#5S;
+Step3.WaitForAction := TRUE;
+aSequenceSteps[3] :=   Step3;
+
+Step4.Device := devices.fbControlLoop_DissOx;
+Step4.Command := E_DeviceState.ON;
+Step4.DelayUntilNextStep := T#5S;
+Step4.StepMinDuration := T#5S;
+Step4.DelayUntilNextStep := T#5S;
+Step4.WaitForAction := TRUE;
+aSequenceSteps[4] :=   Step4;
+
+Step5.Device := devices.fbValve_Drain;
+Step5.Command := E_DeviceState.CLOSED;
+Step5.DelayUntilNextStep := T#5S;
+Step5.StepMinDuration := T#5S;
+Step5.DelayUntilNextStep := T#5S;
+Step5.WaitForAction := TRUE;
+aSequenceSteps[5] :=   Step5;
+
+Step6.Device := devices.fbDosingPump_NutrientA;
+Step6.Command := E_DeviceState.RUNNING;					// add a boolean flag to sequence step structure indicating the the command is one-shot..rather than sustained (allowing the state to change back to IDLE and the sequence continue finishing 
+Step6.DelayUntilNextStep := T#5S;
+Step6.StepMinDuration := T#5S;
+Step6.DelayUntilNextStep := T#2M;
+Step6.WaitForAction := TRUE;
+aSequenceSteps[6] :=   Step6;
+
+Step7.Device := devices.fbDosingPump_NutrientB;
+Step7.Command := E_DeviceState.RUNNING;
+Step7.DelayUntilNextStep := T#5S;
+Step7.StepMinDuration := T#5S;
+Step7.DelayUntilNextStep := T#2M;
+Step7.WaitForAction := TRUE;
+aSequenceSteps[7] :=   Step7;
+
+Step8.Device := devices.fbDosingPump_NutrientC;
+Step8.Command := E_DeviceState.RUNNING;
+Step8.DelayUntilNextStep := T#5S;
+Step8.StepMinDuration := T#5S;
+Step8.DelayUntilNextStep := T#2M;
+Step8.WaitForAction := TRUE;
+aSequenceSteps[8] :=   Step8;
+
+nNumberSequenceSteps := 8;  // use this number to limit the number of operations
+updateVarIDs();
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_SequenceRND_FirstDose">
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceRND_FirstDose.FB_init">
+      <LineId Id="10" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="111" Count="0" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="97" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceRND_FirstDose.populateSteps">
+      <LineId Id="472" Count="41" />
+      <LineId Id="530" Count="14" />
+      <LineId Id="521" Count="0" />
+      <LineId Id="545" Count="6" />
+      <LineId Id="522" Count="3" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_SequenceManager_POP" Id="{07b1b4c8-7a26-4b15-8542-e2e3ddecc6a6}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_SequenceManager_POP:
+STRUCT
+	
+	Sequence_Previous: E_SequenceList_RND_DM; // used for resuming previous sequence after calibrartion
+	Sequence_Selected: E_SequenceList_RND_DM;
+	Sequence_Command: E_SequenceState;
+	Sequence_Ack_Interlock: BOOL;
+	
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_HealthMonitoring" Id="{6fa2d26e-1468-4c00-aeab-e60ade9f2b08}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_HealthMonitoring EXTENDS FB_BaseDevice
+VAR_INPUT
+	fbTON_On_OFF: TON := (PT:= T#1S);
+	
+	{attribute 'OPC.UA.DA' := '1'}
+	bHeartBeat: BOOL := FALSE;
+	
+	bResetTimer: BOOL := TRUE;
+	
+	nQtyCardStatus: INT := 40;
+	
+	aCardStatus: ARRAY[1..1000] OF BOOL;
+	
+	
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF bResetTimer THEN
+	fbTON_On_OFF(IN := TRUE);
+END_IF
+
+IF fbTON_On_OFF.Q THEN
+	bHeartBeat := (NOT bHeartBeat);
+	fbTON_On_OFF(IN := FALSE);
+	bResetTimer := TRUE;
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FB_HealthMonitoring">
+      <LineId Id="35" Count="7" />
+      <LineId Id="21" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

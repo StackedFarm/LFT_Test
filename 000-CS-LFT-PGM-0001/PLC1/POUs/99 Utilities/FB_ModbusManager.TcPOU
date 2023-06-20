@@ -1,0 +1,676 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ModbusManager" Id="{197225b7-6417-4dce-9715-cf55ccd92fa5}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ModbusManager
+
+VAR PERSISTENT
+	tReadVaisala: 				TIME := T#1.2S;
+	tDelay:						TIME := T#75MS;
+	tDelayBetweenMsg_Normal:	TIME := T#75MS;
+	tDelayBetweenMsg_Slow:		TIME := T#1.2S;	
+
+END_VAR
+
+VAR
+	fbModbusMaster: FB_ModbusMaster_R2;
+	
+	bFirstRun: BOOL := TRUE;
+	
+	// Regular modbus requests
+	aRequests_Read: 			ARRAY[0..(GVL.Max_Modbus_Requests_Read - 1)] OF POINTER TO ST_Modbus_ReadRequest;
+	nIterator_Read_Insert: 		INT := 0;
+	nIterator_Read_Action: 		INT := 0;
+	nTotalRequests_Read: 		INT := 0;
+	
+	aRequests_Write: 			ARRAY[0..(GVL.Max_Modbus_Requests_Write - 1)] OF POINTER TO ST_Modbus_WriteRequest;
+	nIterator_Write_Insert: 	INT := 0;
+	nIterator_Write_Action:		INT := 0;
+	nTotalRequests_Write: 		INT := 0;
+	
+	nNumRetries: 				INT := 0;
+	bRead_or_Write_0_1:			BOOL := FALSE;
+	bRequestAccepted: 			BOOL := FALSE;
+	
+	eSMState: (WAIT, REQUEST_READ, READING, READ, REQUEST_WRITE, WRITING, WRITTEN, REQUEST_READ_PRIORITY, READING_PRIORITY, READ_PRIORITY, REQUEST_WRITE_PRIORITY, WRITING_PRIORITY, WRITTEN_PRIORITY,REQUEST_READ_2, READING_2, READ_2, ERROR) := WAIT;
+	
+	fbTON_RequestTimeout: TON := (PT := GVL.ModbusTimeout);
+
+	fbTON_DelayBetweenMSG: TON := (PT := tDelay, IN := FALSE);
+	
+	
+	// These two buffers are for priority messages and will be serviced before requests in the other buffers (similar to QoS)
+	aRequests_Read_Priority: 			ARRAY[0..(GVL.Max_Modbus_Requests_Read_Priority - 1)] OF POINTER TO ST_Modbus_ReadRequest;
+	nIterator_Read_Insert_Priority: 	INT := 0;
+	nIterator_Read_Action_Priority: 	INT := 0;
+	nTotalRequests_Read_Priority: 		INT := 0;
+	
+	aRequests_Write_Priority: 			ARRAY[0..(GVL.Max_Modbus_Requests_Write_Priority - 1)] OF POINTER TO ST_Modbus_WriteRequest;
+	nIterator_Write_Insert_Priority: 	INT := 0;
+	nIterator_Write_Action_Priority:	INT := 0;
+	nTotalRequests_Write_Priority: 		INT := 0;
+	
+	bRead_or_Write_0_1_Priority:		BOOL := FALSE;
+	
+	
+	
+	fbTON_ReadVaisala: TON := (PT := tReadVaisala, IN := FALSE);
+	
+	// Vaisala Sensor Requests - different modbus card settings
+	aRequests_Read_2: 				ARRAY[0..(GVL.Max_Modbus_Requests_Read - 1)] OF POINTER TO ST_Modbus_ReadRequest;
+	nIterator_Read_Insert_2: 		INT := 0;
+	nIterator_Read_Action_2: 		INT := 0;
+	nTotalRequests_Read_2: 			INT := 0;
+	
+	aRequests_Write_2: 				ARRAY[0..(GVL.Max_Modbus_Requests_Write - 1)] OF POINTER TO ST_Modbus_WriteRequest;
+	nIterator_Write_Insert_2: 		INT := 0;
+	nIterator_Write_Action_2:		INT := 0;
+	nTotalRequests_Write_2: 		INT := 0;
+	
+	bRead_or_Write_0_1_Priority_2:		BOOL := FALSE;
+	
+	
+END_VAR
+
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbModbusMaster();
+fbTON_RequestTimeout(PT := GVL.ModbusTimeout);
+
+IF bFirstRun THEN
+	fbTON_ReadVaisala(IN := TRUE);
+	bFirstRun := FALSE;
+END_IF
+
+
+CASE eSMState OF
+	
+	WAIT:
+		// Wait for a message to be received in either the Rx or Tx buffers
+		nNumRetries := 0;
+		
+		fbTON_DelayBetweenMSG(PT := tDelay, IN := TRUE);
+		
+		IF fbTON_DelayBetweenMSG.Q THEN
+			// Service priority writes first
+			IF nTotalRequests_Write_Priority > 0 THEN
+				eSMState := REQUEST_WRITE_PRIORITY;
+			// Service priority reads second
+			ELSIF nTotalRequests_Read_Priority > 0 THEN
+				eSMState := REQUEST_READ_PRIORITY;
+			// Else toggle betwweenm read and write
+			ELSIF nTotalRequests_Write > 0 THEN   // If there are no priority messages then serve the non-critical requests
+				eSMState := REQUEST_WRITE;
+			ELSIF nTotalRequests_Read > 0 THEN
+					eSMState := REQUEST_READ;	
+			ELSIF nTotalRequests_Read_2 > 0 THEN
+					eSMState := REQUEST_READ_2;	
+			END_IF
+			fbTON_DelayBetweenMSG(IN := FALSE);
+		END_IF
+		
+		bRead_or_Write_0_1 := NOT bRead_or_Write_0_1;
+
+		
+	REQUEST_READ:
+		fbModbusMaster.readRegs(ReadRequest := aRequests_Read[nIterator_Read_Action], bRequestAccepted => bRequestAccepted);
+		IF bRequestAccepted THEN
+			eSMState := READING;
+			bRequestAccepted := FALSE;
+			fbTON_RequestTimeout.IN := TRUE; 
+		END_IF
+		// Send a read request to the modbus master, progress to READING if modbus master accepts
+		
+	READING:
+	
+		IF aRequests_Read[nIterator_Read_Action]^.bRequestCompleted = TRUE THEN
+			eSMState := READ;
+			fbTON_RequestTimeout.IN := FALSE;
+		END_IF
+		
+		IF fbTON_RequestTimeout.Q THEN
+			eSMState := REQUEST_READ; 
+			nNumRetries := nNumRetries + 1;
+			IF nNumRetries > GVL.ModbusMaxRetires THEN
+				// ADD CODE HERE - Raise an error - and proceed to the next request - attach info about the request to the error so we can troubleshoot it
+				eSMState := READ;
+			END_IF
+		END_IF
+		
+		// Stay in this state until the boolean pointer of job completed is set to true
+		// Monitor the timeout timer and retry request if necessary
+		
+	READ:
+		// Set the position in the ring buffer to 0 and iterate to the next, return to wait where the decision will be made to read or write
+		aRequests_Read[nIterator_Read_Action] := 0;
+		nIterator_Read_Action := nIterator_Read_Action + 1;
+		
+		IF nIterator_Read_Action > (GVL.Max_Modbus_Requests_Read - 1) THEN // return to 0 index if we are at the end of the buffer
+			nIterator_Read_Action := 0;
+		END_IF
+		nTotalRequests_Read := nTotalRequests_Read - 1;
+		eSMState := WAIT;
+		tDelay := tDelayBetweenMsg_Normal;
+		
+	
+		
+	REQUEST_WRITE:
+		// Send a read request to the modbus master, progress to WRITING if modbus master accepts
+		fbModbusMaster.writeRegs(WriteRequest := aRequests_Write[nIterator_Write_Action], bRequestAccepted => bRequestAccepted);
+		IF bRequestAccepted THEN
+			eSMState := WRITING;
+			bRequestAccepted := FALSE;
+			fbTON_RequestTimeout.IN := TRUE;
+		END_IF
+		
+	WRITING:
+		// Stay in this state until the boolean pointer of job completed is set to true
+		IF aRequests_Write[nIterator_Write_Action]^.bRequestCompleted = TRUE THEN
+			eSMState := WRITTEN;
+			fbTON_RequestTimeout.IN := FALSE;
+		END_IF
+		
+		IF fbTON_RequestTimeout.Q THEN
+			eSMState := REQUEST_WRITE; 
+			nNumRetries := nNumRetries + 1;
+			IF nNumRetries > GVL.ModbusMaxRetires THEN
+				// ADD CODE HERE - Raise an error - and proceed to the next request - attach info about the request to the error so we can troubleshoot it
+				eSMState := WRITTEN;
+			END_IF
+		END_IF
+		
+		
+	WRITTEN:
+		// Set the position in the ring buffer to 0 and iterate to the next, return to wait where the decision will be made to read or write
+		aRequests_Write[nIterator_Write_Action] := 0;
+		nIterator_Write_Action := nIterator_Write_Action + 1;
+		
+		IF nIterator_Write_Action > (GVL.Max_Modbus_Requests_Write - 1) THEN
+			nIterator_Write_Action := 0;
+		END_IF
+		
+		nTotalRequests_Write := nTotalRequests_Write - 1;
+		eSMState := WAIT;
+		tDelay := tDelayBetweenMsg_Normal;
+		
+		
+	REQUEST_READ_PRIORITY:
+		fbModbusMaster.readRegs(ReadRequest := aRequests_Read_Priority[nIterator_Read_Action_Priority], bRequestAccepted => bRequestAccepted);
+		IF bRequestAccepted THEN
+			eSMState := READING_PRIORITY;
+			bRequestAccepted := FALSE;
+			fbTON_RequestTimeout.IN := TRUE;
+		END_IF
+		// Send a read request to the modbus master, progress to READING if modbus master accepts
+		
+	READING_PRIORITY:
+	
+		IF aRequests_Read_Priority[nIterator_Read_Action_Priority]^.bRequestCompleted = TRUE THEN
+			eSMState := READ_PRIORITY;
+			fbTON_RequestTimeout.IN := FALSE;
+		END_IF
+		
+		IF fbTON_RequestTimeout.Q THEN
+			eSMState := REQUEST_READ_PRIORITY; 
+			nNumRetries := nNumRetries + 1;
+			IF nNumRetries > GVL.ModbusMaxRetires THEN
+				// ADD CODE HERE - Raise an error - and proceed to the next request - attach info about the request to the error so we can troubleshoot it
+				eSMState := READ_PRIORITY;
+			END_IF
+		END_IF
+		
+		// Stay in this state until the boolean pointer of job completed is set to true
+		// Monitor the timeout timer and retry request if necessary
+		
+	READ_PRIORITY:
+		// Set the position in the ring buffer to 0 and iterate to the next, return to wait where the decision will be made to read or write
+		aRequests_Read_Priority[nIterator_Read_Action_Priority] := 0;
+		nIterator_Read_Action_Priority := nIterator_Read_Action_Priority + 1;
+		
+		IF nIterator_Read_Action_Priority > (GVL.Max_Modbus_Requests_Read_Priority - 1) THEN // return to 0 index if we are at the end of the buffer
+			nIterator_Read_Action_Priority := 0;
+		END_IF
+		nTotalRequests_Read_Priority := nTotalRequests_Read_Priority - 1;
+		eSMState := WAIT;
+		tDelay := tDelayBetweenMsg_Normal;
+	
+		
+	REQUEST_WRITE_PRIORITY:
+		// Send a read request to the modbus master, progress to WRITING if modbus master accepts
+		fbModbusMaster.writeRegs(WriteRequest := aRequests_Write_Priority[nIterator_Write_Action_Priority], bRequestAccepted => bRequestAccepted);
+		IF bRequestAccepted THEN
+			eSMState := WRITING_PRIORITY;
+			bRequestAccepted := FALSE;
+			fbTON_RequestTimeout.IN := TRUE;
+		END_IF
+		
+	WRITING_PRIORITY:
+		// Stay in this state until the boolean pointer of job completed is set to true
+		IF aRequests_Write_Priority[nIterator_Write_Action_Priority]^.bRequestCompleted = TRUE THEN
+			eSMState := WRITTEN_PRIORITY;
+			fbTON_RequestTimeout.IN := FALSE;
+		END_IF
+		
+		IF fbTON_RequestTimeout.Q THEN
+			eSMState := REQUEST_WRITE_PRIORITY; 
+			nNumRetries := nNumRetries + 1;
+			IF nNumRetries > GVL.ModbusMaxRetires THEN
+				// ADD CODE HERE - Raise an error - and proceed to the next request - attach info about the request to the error so we can troubleshoot it
+				eSMState := WRITTEN_PRIORITY;
+			END_IF
+		END_IF
+		
+		
+	WRITTEN_PRIORITY:
+		// Set the position in the ring buffer to 0 and iterate to the next, return to wait where the decision will be made to read or write
+		aRequests_Write_Priority[nIterator_Write_Action_Priority] := 0;
+		nIterator_Write_Action_Priority := nIterator_Write_Action_Priority + 1;
+		
+		IF nIterator_Write_Action_Priority > (GVL.Max_Modbus_Requests_Write_Priority - 1) THEN
+			nIterator_Write_Action_Priority := 0;
+		END_IF
+		
+		nTotalRequests_Write_Priority := nTotalRequests_Write_Priority - 1;
+		eSMState := WAIT;
+		tDelay := tDelayBetweenMsg_Normal;
+		
+		
+	REQUEST_READ_2:
+	
+	
+		// Change the card settings here
+		
+		fbModbusMaster.readRegs(ReadRequest := aRequests_Read_2[nIterator_Read_Action_2], bRequestAccepted => bRequestAccepted);
+		IF bRequestAccepted THEN
+			eSMState := READING_2;
+			bRequestAccepted := FALSE;
+			fbTON_RequestTimeout.IN := TRUE;
+		END_IF
+		// Send a read request to the modbus master, progress to READING if modbus master accepts
+		
+	READING_2:
+	
+		IF aRequests_Read_2[nIterator_Read_Action_2]^.bRequestCompleted = TRUE THEN
+			eSMState := READ_2;
+			fbTON_RequestTimeout.IN := FALSE;
+		END_IF
+		
+		IF fbTON_RequestTimeout.Q THEN
+			eSMState := REQUEST_READ_2; 
+			nNumRetries := nNumRetries + 1;
+			IF nNumRetries > GVL.ModbusMaxRetires THEN
+				// ADD CODE HERE - Raise an error - and proceed to the next request - attach info about the request to the error so we can troubleshoot it
+				eSMState := READ_2;
+			END_IF
+		END_IF
+		
+		// Stay in this state until the boolean pointer of job completed is set to true
+		// Monitor the timeout timer and retry request if necessary
+		
+	READ_2:
+		// Set the position in the ring buffer to 0 and iterate to the next, return to wait where the decision will be made to read or write
+		aRequests_Read_2[nIterator_Read_Action_2] := 0;
+		nIterator_Read_Action_2 := nIterator_Read_Action_2 + 1;
+		
+		IF nIterator_Read_Action_2 > (GVL.Max_Modbus_Requests_Read - 1) THEN // return to 0 index if we are at the end of the buffer
+			nIterator_Read_Action_2 := 0;
+		END_IF
+		nTotalRequests_Read_2 := nTotalRequests_Read_2 - 1;
+		
+
+		eSMState := WAIT;
+				// Set the position in the ring buffer to 0 and iterate to the next, return to wait where the decision will be made to read or write
+		tDelay := tDelayBetweenMsg_Slow;
+
+		
+	ERROR:
+		//
+		
+END_CASE
+
+
+]]></ST>
+    </Implementation>
+    <Method Name="addRequest_Read" Id="{0dfc98b5-9444-4d9a-9638-3bdac98f44bf}">
+      <Declaration><![CDATA[METHOD addRequest_Read : BOOL
+VAR_INPUT
+	ReadRequest: POINTER TO ST_Modbus_ReadRequest;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF aRequests_Read[nIterator_Read_Insert] = 0 THEN
+	
+	aRequests_Read[nIterator_Read_Insert] := ReadRequest;
+	aRequests_Read[nIterator_Read_Insert]^.bRequestAccepted := FALSE;
+	aRequests_Read[nIterator_Read_Insert]^.bRequestCompleted := FALSE;
+	nIterator_Read_Insert := nIterator_Read_Insert + 1;
+	
+	IF nIterator_Read_Insert > (GVL.Max_Modbus_Requests_Read -1) THEN
+		nIterator_Read_Insert := 0;
+	END_IF
+	
+	nTotalRequests_Read := nTotalRequests_Read + 1;
+	
+	
+	addRequest_Read := TRUE;
+ELSE
+	addRequest_Read := FALSE;	// A buffer overflow has occured here, add some error raising code here
+END_IF
+
+	
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="addRequest_Read_Priority" Id="{45a61a30-a767-4f3f-9846-fe749faccdbb}">
+      <Declaration><![CDATA[METHOD addRequest_Read_Priority : BOOL
+VAR_INPUT
+	ReadRequest: POINTER TO ST_Modbus_ReadRequest;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF aRequests_Read_Priority[nIterator_Read_Insert_Priority] = 0 THEN
+	
+	aRequests_Read_Priority[nIterator_Read_Insert_Priority] := ReadRequest;
+	aRequests_Read_Priority[nIterator_Read_Insert_Priority]^.bRequestAccepted := FALSE;
+	aRequests_Read_Priority[nIterator_Read_Insert_Priority]^.bRequestCompleted := FALSE;
+	nIterator_Read_Insert_Priority := nIterator_Read_Insert_Priority + 1;
+	
+	IF nIterator_Read_Insert_Priority > (GVL.Max_Modbus_Requests_Read_Priority -1) THEN
+		nIterator_Read_Insert_Priority := 0;
+	END_IF
+	
+	nTotalRequests_Read_Priority := nTotalRequests_Read_Priority + 1;
+	
+	
+	addRequest_Read_Priority := TRUE;
+ELSE
+	addRequest_Read_Priority := FALSE;	// A buffer overflow has occured here, add some error raising code here
+END_IF
+
+	
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="addRequest_Read_Vaisala" Id="{86b8b5a4-c428-4eef-a2b5-a194dc7c0470}">
+      <Declaration><![CDATA[METHOD addRequest_Read_Vaisala : BOOL
+VAR_INPUT
+	ReadRequest: POINTER TO ST_Modbus_ReadRequest;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF aRequests_Read_2[nIterator_Read_Insert_2] = 0 THEN
+	
+	aRequests_Read_2[nIterator_Read_Insert_2] := ReadRequest;
+	aRequests_Read_2[nIterator_Read_Insert_2]^.bRequestAccepted := FALSE;
+	aRequests_Read_2[nIterator_Read_Insert_2]^.bRequestCompleted := FALSE;
+	nIterator_Read_Insert_2 := nIterator_Read_Insert_2 + 1;
+	
+	IF nIterator_Read_Insert_2 > (GVL.Max_Modbus_Requests_Read -1) THEN
+		nIterator_Read_Insert_2 := 0;
+	END_IF
+	
+	nTotalRequests_Read_2 := nTotalRequests_Read_2 + 1;
+	
+	
+	addRequest_Read_Vaisala := TRUE;
+ELSE
+	addRequest_Read_Vaisala := FALSE;	// A buffer overflow has occured here, add some error raising code here
+END_IF
+
+	
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="addRequest_Write" Id="{8e0a8511-8995-4c46-9008-d2e344fb217f}">
+      <Declaration><![CDATA[METHOD addRequest_Write : BOOL
+VAR_INPUT
+	WriteRequest: POINTER TO ST_Modbus_WriteRequest;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF aRequests_Write[nIterator_Write_Action] = 0 THEN
+	aRequests_Write[nIterator_Write_Action] := WriteRequest;
+	aRequests_Write[nIterator_Write_Action]^.bRequestAccepted := FALSE;
+	aRequests_Write[nIterator_Write_Action]^.bRequestCompleted := FALSE;
+	nIterator_Write_Insert := nIterator_Write_Insert + 1;
+	
+	IF nIterator_Write_Insert > (GVL.Max_Modbus_Requests_Write - 1) THEN
+		nIterator_Write_Insert := 0;
+	END_IF
+	
+	nTotalRequests_Write := nTotalRequests_Write + 1;
+	
+ELSE
+	addRequest_Write := FALSE; // A buffer overflow has occured here, add some error raising code here
+END_IF
+
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="addRequest_Write_Priority" Id="{81a23568-83d7-4802-bc49-e8859e9fb82c}">
+      <Declaration><![CDATA[METHOD addRequest_Write_Priority : BOOL
+VAR_INPUT
+	WriteRequest: POINTER TO ST_Modbus_WriteRequest;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF aRequests_Write_Priority[nIterator_Write_Insert_Priority] = 0 THEN
+	
+	aRequests_Write_Priority[nIterator_Write_Insert_Priority] := WriteRequest;
+	aRequests_Write_Priority[nIterator_Write_Insert_Priority]^.bRequestAccepted := FALSE;
+	aRequests_Write_Priority[nIterator_Write_Insert_Priority]^.bRequestCompleted := FALSE;
+	nIterator_Write_Insert_Priority := nIterator_Write_Insert_Priority + 1;
+	
+	IF nIterator_Write_Insert_Priority > (GVL.Max_Modbus_Requests_Write_Priority - 1) THEN
+		nIterator_Write_Insert_Priority := 0;
+	END_IF
+	
+	nTotalRequests_Write_Priority := nTotalRequests_Write_Priority + 1;
+	
+ELSE
+	addRequest_Write_Priority := FALSE; // A buffer overflow has occured here, add some error raising code here
+END_IF
+
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{4ed4a87e-e568-467d-9e98-3a12c6436485}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+END_VAR
+
+VAR
+	i: INT := 0;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[WHILE i < GVL.Max_Modbus_Requests_Read DO
+	aRequests_Read[i] := 0;
+	i := i + 1;
+END_WHILE
+
+i := 0;
+
+WHILE i < GVL.Max_Modbus_Requests_Write DO
+	aRequests_Write[i] := 0;
+	i := i + 1;
+END_WHILE]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ModbusManager">
+      <LineId Id="1306" Count="0" />
+      <LineId Id="1308" Count="0" />
+      <LineId Id="1618" Count="0" />
+      <LineId Id="1717" Count="0" />
+      <LineId Id="1719" Count="0" />
+      <LineId Id="1721" Count="0" />
+      <LineId Id="1720" Count="0" />
+      <LineId Id="1718" Count="0" />
+      <LineId Id="1310" Count="4" />
+      <LineId Id="1316" Count="0" />
+      <LineId Id="1903" Count="0" />
+      <LineId Id="1619" Count="0" />
+      <LineId Id="1639" Count="0" />
+      <LineId Id="1622" Count="0" />
+      <LineId Id="1640" Count="0" />
+      <LineId Id="1625" Count="1" />
+      <LineId Id="1641" Count="0" />
+      <LineId Id="1627" Count="1" />
+      <LineId Id="1642" Count="0" />
+      <LineId Id="1629" Count="0" />
+      <LineId Id="1723" Count="0" />
+      <LineId Id="1634" Count="0" />
+      <LineId Id="1637" Count="0" />
+      <LineId Id="1623" Count="0" />
+      <LineId Id="1724" Count="1" />
+      <LineId Id="1838" Count="0" />
+      <LineId Id="1624" Count="0" />
+      <LineId Id="1722" Count="0" />
+      <LineId Id="1446" Count="0" />
+      <LineId Id="1322" Count="19" />
+      <LineId Id="1384" Count="0" />
+      <LineId Id="1386" Count="1" />
+      <LineId Id="1389" Count="0" />
+      <LineId Id="1388" Count="0" />
+      <LineId Id="1342" Count="8" />
+      <LineId Id="1433" Count="0" />
+      <LineId Id="1430" Count="2" />
+      <LineId Id="1426" Count="0" />
+      <LineId Id="1428" Count="0" />
+      <LineId Id="1905" Count="0" />
+      <LineId Id="1837" Count="0" />
+      <LineId Id="1351" Count="17" />
+      <LineId Id="1392" Count="6" />
+      <LineId Id="1371" Count="1" />
+      <LineId Id="1456" Count="0" />
+      <LineId Id="1373" Count="3" />
+      <LineId Id="1434" Count="4" />
+      <LineId Id="1427" Count="0" />
+      <LineId Id="1429" Count="0" />
+      <LineId Id="1906" Count="0" />
+      <LineId Id="1377" Count="0" />
+      <LineId Id="1488" Count="0" />
+      <LineId Id="1490" Count="37" />
+      <LineId Id="1907" Count="0" />
+      <LineId Id="1528" Count="38" />
+      <LineId Id="1908" Count="0" />
+      <LineId Id="1726" Count="1" />
+      <LineId Id="1729" Count="0" />
+      <LineId Id="1766" Count="3" />
+      <LineId Id="1730" Count="35" />
+      <LineId Id="1770" Count="0" />
+      <LineId Id="1773" Count="0" />
+      <LineId Id="1728" Count="0" />
+      <LineId Id="1910" Count="0" />
+      <LineId Id="1909" Count="0" />
+      <LineId Id="1774" Count="0" />
+      <LineId Id="1489" Count="0" />
+      <LineId Id="1378" Count="5" />
+      <LineId Id="1088" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModbusManager.addRequest_Read">
+      <LineId Id="12" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="34" Count="1" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="19" Count="1" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="31" Count="2" />
+      <LineId Id="25" Count="1" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModbusManager.addRequest_Read_Priority">
+      <LineId Id="12" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="34" Count="1" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="19" Count="1" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="31" Count="2" />
+      <LineId Id="25" Count="1" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModbusManager.addRequest_Read_Vaisala">
+      <LineId Id="12" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="34" Count="1" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="19" Count="1" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="31" Count="2" />
+      <LineId Id="25" Count="1" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModbusManager.addRequest_Write">
+      <LineId Id="10" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="30" Count="1" />
+      <LineId Id="15" Count="2" />
+      <LineId Id="19" Count="1" />
+      <LineId Id="28" Count="1" />
+      <LineId Id="21" Count="2" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="11" Count="1" />
+      <LineId Id="8" Count="1" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModbusManager.addRequest_Write_Priority">
+      <LineId Id="10" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="30" Count="1" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="19" Count="1" />
+      <LineId Id="28" Count="1" />
+      <LineId Id="21" Count="2" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="11" Count="1" />
+      <LineId Id="8" Count="1" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModbusManager.FB_init">
+      <LineId Id="7" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="24" Count="1" />
+      <LineId Id="20" Count="3" />
+      <LineId Id="19" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

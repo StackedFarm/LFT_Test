@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_ModbusRegister" Id="{89f224b5-0136-4cd5-8fe4-b1eb3c939a54}">
+    <Declaration><![CDATA[TYPE ST_ModbusRegister :
+STRUCT
+	Reg_Adress: UDINT;
+	Num_Bytes: INT;
+	Value_Type: E_ModbusDataType;
+	Description: STRING;
+	AccessType: E_AccessType;
+	Value: ARRAY[1..4] OF WORD;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

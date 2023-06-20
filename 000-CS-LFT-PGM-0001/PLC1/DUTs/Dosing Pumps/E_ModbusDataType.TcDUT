@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_ModbusDataType" Id="{3876068c-9938-4252-8736-fc9a7d2498a3}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_ModbusDataType :
+(
+	uint16,
+	uint32,
+	uint64
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

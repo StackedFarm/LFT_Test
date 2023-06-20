@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_Interlock" Id="{bad7c59b-6d7c-43fe-8156-c396aaae7290}">
+    <Declaration><![CDATA[TYPE ST_Interlock :
+STRUCT
+	Active:			BOOL := FALSE;
+	Bridge:			BOOL := FALSE;
+	
+	SubjectDevice:		POINTER TO FB_BaseDevice;
+	SubjectVarID: 		STRING;
+	SubjectState:		E_DeviceState;
+	
+	Signal:			BOOL := FALSE;
+	Description: 	STRING;
+	
+	HoldSeq:		BOOL := FALSE; // set to TRUE if the interlock should put sequence into HOLD for operator acknowledgement
+	InterlockType:	E_InterlockType;
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

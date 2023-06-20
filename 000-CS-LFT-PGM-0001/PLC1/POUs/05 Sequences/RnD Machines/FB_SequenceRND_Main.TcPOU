@@ -1,0 +1,122 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SequenceRND_Main" Id="{2eb97da0-a0fd-4fd7-8045-cbcfad936f03}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_SequenceRND_Main EXTENDS FB_SequenceBase
+
+VAR
+	bUseMainPump_A: BOOL := TRUE;  // this boolean is used to keep track of which of the two redudant pumps we should use
+END_VAR
+
+VAR_IN_OUT
+	devices: ST_RNDDMComponents;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="FB_init" Id="{46dbbab3-1c94-48e9-8a11-e08ea54a6185}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+		Here we set the order of things to command, what the commands should be, and also how much time to allow during and between steps
+		Every component listed below becomes 'Enabled' at each step
+*)
+sSequenceName:= 'RND-DM Main Sequence';
+sSequenceDescription := 'Main sequence for R&D dosing machine with pH and Nutrient dosing active';
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="populateSteps" Id="{d393f55d-3d5f-4ff4-8843-9a2843a729e2}">
+      <Declaration><![CDATA[METHOD populateSteps : ST_SequenceStep
+VAR_INPUT
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+		Here we set the order of things to command, what the commands should be, and also how much time to allow during and between steps
+		Every component listed below becomes 'Enabled' at each step
+*)
+
+Step1.Device := devices.fbPump_MainPumpA;
+Step1.Command := E_DeviceState.RUNNING;
+Step1.StepMinDuration := T#5S; 
+Step1.DelayUntilNextStep := T#5S;
+Step1.WaitForAction := TRUE;
+aSequenceSteps[1] :=   Step1;
+
+Step2.Device := devices.fbUVFilter1;
+Step2.Command := E_DeviceState.ON;
+Step2.StepMinDuration := T#5S;
+Step2.DelayUntilNextStep := T#5S;
+Step2.WaitForAction := TRUE;
+aSequenceSteps[2] :=   Step2;
+
+Step3.Device := devices.fbControlLoop_TankLevel;
+Step3.Command := E_DeviceState.ON;
+Step3.DelayUntilNextStep := T#5S;
+Step3.StepMinDuration := T#5S;
+Step3.DelayUntilNextStep := T#5S;
+Step3.WaitForAction := TRUE;
+aSequenceSteps[3] :=   Step3;
+
+Step4.Device := devices.fbControlLoop_Dosing;
+Step4.Command := E_DeviceState.ON;
+Step4.DelayUntilNextStep := T#5S;
+Step4.StepMinDuration := T#5S;
+Step4.DelayUntilNextStep := T#5S;
+Step4.WaitForAction := TRUE;
+aSequenceSteps[4] :=   Step4;
+
+Step5.Device := devices.fbControlLoop_DissOx;
+Step5.Command := E_DeviceState.ON;
+Step5.DelayUntilNextStep := T#5S;
+Step5.StepMinDuration := T#5S;
+Step5.DelayUntilNextStep := T#5S;
+Step5.WaitForAction := TRUE;
+aSequenceSteps[5] :=   Step5;
+
+Step6.Device := devices.fbValve_Drain;
+Step6.Command := E_DeviceState.CLOSED;
+Step6.DelayUntilNextStep := T#5S;
+Step6.StepMinDuration := T#5S;
+Step6.DelayUntilNextStep := T#5S;
+Step6.WaitForAction := TRUE;
+aSequenceSteps[6] :=   Step6;
+
+
+nNumberSequenceSteps := 6;  // use this number to limit the number of operations
+updateVarIDs();
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_SequenceRND_Main">
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceRND_Main.FB_init">
+      <LineId Id="10" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="111" Count="0" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="97" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceRND_Main.populateSteps">
+      <LineId Id="472" Count="53" />
+      <LineId Id="530" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

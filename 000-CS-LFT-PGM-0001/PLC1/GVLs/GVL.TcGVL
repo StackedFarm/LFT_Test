@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <GVL Name="GVL" Id="{6c1a17c4-af56-4542-8e23-6870f4f7dbaf}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL
+	
+	LinActPOP_Stroke: INT 					:= 350;
+	LinActPOP_Lead: INT 					:= 5;
+	LinActPOP_AccelMax: INT 				:= 150;
+	LinActPOP_VelocityMax: INT 				:= 300;
+	LinActPOP_VelocityJog: INT 				:= 75;
+	LinActPOP_TimeExtend: TIME 				:= T#2S;
+	LinActPOP_TimeRetract: TIME 			:= T#2S;
+
+	
+	StaticConvPOP_IntervalDistance: INT 	:= 4000; 
+	StaticConvPOP_GearRatio: INT 			:= 12; 
+	StaticConvPOP_AccelMax: INT 			:= 150; 
+	StaticConvPOP_VelocityMax: INT 			:= 300; 
+	StaticConvPOP_VelocityJog: INT 			:= 100; 
+	StaticConvPOP_IntervalTimeFWD: TIME		:= T#5S; 
+	StaticConvPOP_IntervalTimeREV: TIME		:= T#5S;
+	
+	TrayCentrePOP_Stroke: INT 				:= 70; 
+	TrayCentrePOP_TimeExtend: TIME 			:= T#5S; 
+	TrayCentrePOP_TimeRetract: TIME			:= T#5S;
+	
+	bEnableInterlocks: BOOL 				:= TRUE;
+	
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

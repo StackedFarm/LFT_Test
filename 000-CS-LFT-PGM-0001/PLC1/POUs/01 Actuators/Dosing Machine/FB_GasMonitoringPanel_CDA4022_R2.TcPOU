@@ -1,0 +1,235 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_GasMonitoringPanel_CDA4022_R2" Id="{1847ed02-16fe-4e0a-b2f0-be7d20bc131b}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_GasMonitoringPanel_CDA4022_R2 EXTENDS FB_BaseDevice 
+
+VAR_IN_OUT
+	{attribute 'OPC.UA.DA' := '0'}
+	fbModbusManager: FB_ModbusManager;
+END_VAR
+
+VAR
+	// CDA Panel 4022 V3.0 Variables (https://drive.google.com/file/d/1dn1Ot7nd1VML-1RxFooYWTdx5gniYgca/view?usp=sharing)
+	(*
+	       CO2
+		   References - https://iceblast.com.au/wp-content/uploads/2021/03/ABCB-Handbook-Indoor-Air-Quality-2018.pdf   
+	*)
+	nConcentration_CO2: 	UINT; // reading is value x 10, units are configurable - set to ppm
+	nThreshold_CO2_Level1: 	DINT := 800; //ppm (Upper limit of AS 1668.2 recommendation (for CO2 controlled ventilation))
+	nAlarm_CO2_Level1: 		UINT; 
+	nThreshold_CO2_Level2: 	DINT := 1000; //ppm (ASHRAE 62.1 recommendation (occupant comfort))
+	nAlarm_CO2_Level2: 		UINT; 
+	nThreshold_CO2_Level3: 	DINT := 5000; //ppm (Australian occupational exposure limit (SWA 2011b) )
+	nAlarm_CO2_Level3: 		UINT; 
+	
+	(*
+	       O2
+		   References - https://www.cacgas.com.au/blog/bid/378107/oxygen-o2-occupational-health-exposure-standards 
+	*)
+	nConcentration_O2: 		UINT; // reading is value x 10, units are configurable - set to ppm
+	nThreshold_O2_Level1: 	DINT := 195000; //ppm (Minimum "Safe Level")
+	nAlarm_O2_Level1: 		UINT; 
+	nThreshold_O2_Level2: 	DINT := 160000; //ppm (First signs of anoxia (dizziness, light-headedness))
+	nAlarm_O2_Level2: 		UINT; 
+	nThreshold_O2_Level3: 	DINT := 235000; //ppm (oxygen levels that exceed 23.5% present a serious fire danger.  At levels of 25%+ items such as clothing can spontaneously combust.  )
+	nAlarm_O2_Level3: 		UINT; 	
+
+	// Modbus Variables
+	nModbusUnitID: UINT; 
+	bFirtRun: BOOL := TRUE;
+	bResetTimer: BOOL := TRUE;
+	
+	// Async Statemachine Variables
+	{attribute 'OPC.UA.DA' := '0'}
+	eSMState: (WAIT, READ_TRIG, READ, WRITE_TRIG, WRITE, ERROR);
+	{attribute 'OPC.UA.DA' := '0'} 
+	
+	fbTON_DataRefresh: TON := (PT := T#15S, IN := FALSE);
+	
+	stModRequest_Read_CO2_Actual: ST_Modbus_ReadRequest;
+	stModRequest_Read_CO2_AL1: ST_Modbus_ReadRequest;
+	stModRequest_Read_CO2_AL2: ST_Modbus_ReadRequest;
+	stModRequest_Read_CO2_AL3: ST_Modbus_ReadRequest;
+	
+	stModRequest_Read_O2_Actual: ST_Modbus_ReadRequest;
+	stModRequest_Read_O2_AL1: ST_Modbus_ReadRequest;
+	stModRequest_Read_O2_AL2: ST_Modbus_ReadRequest;
+	stModRequest_Read_O2_AL3: ST_Modbus_ReadRequest;
+	
+	
+	eOpType: (READ_OP, WRITE_OP);
+	{attribute 'OPC.UA.DA' := '0'} 
+	bRequestFinished: POINTER TO BOOL;
+	{attribute 'OPC.UA.DA' := '0'} 
+	bRequestSentToMaster: BOOL 	:= FALSE;
+	{attribute 'OPC.UA.DA' := '0'} 
+	bRequestCompleted: BOOL 	:= FALSE;
+	
+
+	
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbTON_DataRefresh();
+
+IF GVL.bAutoUpdateDeviceState THEN
+	eState := eStateTarget;	
+END_IF
+
+IF bFirtRun THEN
+	init_ModbusRequests();
+	bFirtRun := FALSE;
+END_IF
+
+IF bResetTimer THEN
+	fbTON_DataRefresh.IN := TRUE;
+	bResetTimer := FALSE;
+END_IF
+
+
+IF fbTON_DataRefresh.Q THEN
+	fbModbusManager.addRequest_Read(ReadRequest := ADR(stModRequest_Read_CO2_Actual));
+	fbModbusManager.addRequest_Read(ReadRequest := ADR(stModRequest_Read_CO2_AL1));
+	fbModbusManager.addRequest_Read(ReadRequest := ADR(stModRequest_Read_CO2_AL2));
+	fbModbusManager.addRequest_Read(ReadRequest := ADR(stModRequest_Read_CO2_AL3));
+	fbModbusManager.addRequest_Read(ReadRequest := ADR(stModRequest_Read_O2_Actual));
+	fbModbusManager.addRequest_Read(ReadRequest := ADR(stModRequest_Read_O2_AL1));
+	fbModbusManager.addRequest_Read(ReadRequest := ADR(stModRequest_Read_O2_AL2));
+	fbModbusManager.addRequest_Read(ReadRequest := ADR(stModRequest_Read_O2_AL3));
+	
+	fbTON_DataRefresh.IN := FALSE;
+	bResetTimer := TRUE;
+END_IF
+
+nConcentration_CO2 := WORD_TO_UINT(stModRequest_Read_CO2_Actual.ReadRegsVals[1]);
+nAlarm_CO2_Level1 := WORD_TO_UINT(stModRequest_Read_CO2_AL1.ReadRegsVals[1]);
+nAlarm_CO2_Level2 := WORD_TO_UINT(stModRequest_Read_CO2_AL2.ReadRegsVals[1]);
+nAlarm_CO2_Level3 := WORD_TO_UINT(stModRequest_Read_CO2_AL3.ReadRegsVals[1]);
+
+nConcentration_O2 := WORD_TO_UINT(stModRequest_Read_O2_Actual.ReadRegsVals[1]);
+nAlarm_O2_Level1 := WORD_TO_UINT(stModRequest_Read_O2_AL1.ReadRegsVals[1]);
+nAlarm_O2_Level2 := WORD_TO_UINT(stModRequest_Read_O2_AL2.ReadRegsVals[1]);
+nAlarm_O2_Level3 := WORD_TO_UINT(stModRequest_Read_O2_AL3.ReadRegsVals[1]);
+	]]></ST>
+    </Implementation>
+    <Method Name="FB_init" Id="{bf7737e0-d3a7-46fc-b19f-bb2d92341c1c}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	ModbusID: UINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nModbusUnitID := ModbusID;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="init_ModbusRequests" Id="{996ac414-4593-4260-a069-fbb7ff5a9acf}">
+      <Declaration><![CDATA[METHOD init_ModbusRequests : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[stModRequest_Read_CO2_Actual.SlaveAddress := nModbusUnitID;			
+stModRequest_Read_CO2_Actual.AdrFirstSlaveRegisterRead := 1;
+stModRequest_Read_CO2_Actual.QtyWordsToRead := 1;				// The value is a 16-bit word
+stModRequest_Read_CO2_Actual.bRequestAccepted := FALSE;
+stModRequest_Read_CO2_Actual.bRequestCompleted := FALSE;
+stModRequest_Read_CO2_Actual.ReadRegsVals := GVL.ModbusEmptyBuffer;
+
+stModRequest_Read_CO2_AL1.SlaveAddress := nModbusUnitID;			
+stModRequest_Read_CO2_AL1.AdrFirstSlaveRegisterRead := 101;
+stModRequest_Read_CO2_AL1.QtyWordsToRead := 1;				// The value is a 32-bit word
+stModRequest_Read_CO2_AL1.bRequestAccepted := FALSE;
+stModRequest_Read_CO2_AL1.bRequestCompleted := FALSE;
+stModRequest_Read_CO2_AL1.ReadRegsVals := GVL.ModbusEmptyBuffer;
+
+stModRequest_Read_CO2_AL2.SlaveAddress := nModbusUnitID;			
+stModRequest_Read_CO2_AL2.AdrFirstSlaveRegisterRead := 201;
+stModRequest_Read_CO2_AL2.QtyWordsToRead := 1;				// The value is a 32-bit word
+stModRequest_Read_CO2_AL2.bRequestAccepted := FALSE;
+stModRequest_Read_CO2_AL2.bRequestCompleted := FALSE;
+stModRequest_Read_CO2_AL2.ReadRegsVals := GVL.ModbusEmptyBuffer;
+
+stModRequest_Read_CO2_AL3.SlaveAddress := nModbusUnitID;			
+stModRequest_Read_CO2_AL3.AdrFirstSlaveRegisterRead := 301;
+stModRequest_Read_CO2_AL3.QtyWordsToRead := 1;				// The value is a 32-bit word
+stModRequest_Read_CO2_AL3.bRequestAccepted := FALSE;
+stModRequest_Read_CO2_AL3.bRequestCompleted := FALSE;
+stModRequest_Read_CO2_AL3.ReadRegsVals := GVL.ModbusEmptyBuffer;
+
+stModRequest_Read_O2_Actual.SlaveAddress := nModbusUnitID;			
+stModRequest_Read_O2_Actual.AdrFirstSlaveRegisterRead := 0;
+stModRequest_Read_O2_Actual.QtyWordsToRead := 1;				// The value is a 16-bit word
+stModRequest_Read_O2_Actual.bRequestAccepted := FALSE;
+stModRequest_Read_O2_Actual.bRequestCompleted := FALSE;
+stModRequest_Read_O2_Actual.ReadRegsVals := GVL.ModbusEmptyBuffer;
+
+stModRequest_Read_O2_AL1.SlaveAddress := nModbusUnitID;			
+stModRequest_Read_O2_AL1.AdrFirstSlaveRegisterRead := 100;
+stModRequest_Read_O2_AL1.QtyWordsToRead := 1;				// The value is a 32-bit word
+stModRequest_Read_O2_AL1.bRequestAccepted := FALSE;
+stModRequest_Read_O2_AL1.bRequestCompleted := FALSE;
+stModRequest_Read_O2_AL1.ReadRegsVals := GVL.ModbusEmptyBuffer;
+
+stModRequest_Read_O2_AL1.SlaveAddress := nModbusUnitID;			
+stModRequest_Read_O2_AL1.AdrFirstSlaveRegisterRead := 200;
+stModRequest_Read_O2_AL1.QtyWordsToRead := 1;				// The value is a 32-bit word
+stModRequest_Read_O2_AL1.bRequestAccepted := FALSE;
+stModRequest_Read_O2_AL1.bRequestCompleted := FALSE;
+stModRequest_Read_O2_AL1.ReadRegsVals := GVL.ModbusEmptyBuffer;
+
+stModRequest_Read_O2_AL3.SlaveAddress := nModbusUnitID;			
+stModRequest_Read_O2_AL3.AdrFirstSlaveRegisterRead := 300;
+stModRequest_Read_O2_AL3.QtyWordsToRead := 1;				// The value is a 32-bit word
+stModRequest_Read_O2_AL3.bRequestAccepted := FALSE;
+stModRequest_Read_O2_AL3.bRequestCompleted := FALSE;
+stModRequest_Read_O2_AL3.ReadRegsVals := GVL.ModbusEmptyBuffer;
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_GasMonitoringPanel_CDA4022_R2">
+      <LineId Id="888" Count="0" />
+      <LineId Id="374" Count="3" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="895" Count="7" />
+      <LineId Id="891" Count="0" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="912" Count="0" />
+      <LineId Id="158" Count="0" />
+      <LineId Id="913" Count="0" />
+      <LineId Id="915" Count="2" />
+      <LineId Id="919" Count="2" />
+      <LineId Id="918" Count="0" />
+      <LineId Id="930" Count="2" />
+      <LineId Id="914" Count="0" />
+      <LineId Id="922" Count="0" />
+      <LineId Id="159" Count="0" />
+      <LineId Id="923" Count="2" />
+      <LineId Id="929" Count="0" />
+      <LineId Id="926" Count="2" />
+      <LineId Id="161" Count="0" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_GasMonitoringPanel_CDA4022_R2.FB_init">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_GasMonitoringPanel_CDA4022_R2.init_ModbusRequests">
+      <LineId Id="6" Count="11" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="32" Count="4" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="38" Count="5" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="45" Count="26" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="20" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

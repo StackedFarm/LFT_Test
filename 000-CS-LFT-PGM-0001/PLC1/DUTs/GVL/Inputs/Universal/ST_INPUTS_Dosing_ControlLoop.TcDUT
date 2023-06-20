@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_Dosing_ControlLoop" Id="{7c97557d-882e-4e0a-802a-4a97372d67fa}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_Dosing_ControlLoop :
+STRUCT
+	
+	Setpoint:     	REAL;
+	SetpointBand:   REAL;
+	ManSyncVal:     REAL;
+	Sync:     		BOOL;
+	Hold:     		BOOL;
+	Mode:     		E_CTRL_MODE;
+	ARWactive:     	BOOL;
+	
+	CtrlCycleTime:  UINT;
+	TaskCycleTime:  UINT;
+	Kp:     		REAL;
+	Tn:     		UINT;
+	Tv:     		UINT;
+	Td:     		UINT;
+	OutMaxLimit:    REAL;
+	OutMinLimit:    REAL;
+	PInTheFeedbackPath:     BOOL;
+	DInTheFeedbackPath:     BOOL;
+	ARWOnIPartOnly:     	BOOL;
+	
+	MaxDoseRate:   		UINT;
+	MinDoseRate:    	UINT;
+	TimeBetweenDoses:   UINT;
+
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

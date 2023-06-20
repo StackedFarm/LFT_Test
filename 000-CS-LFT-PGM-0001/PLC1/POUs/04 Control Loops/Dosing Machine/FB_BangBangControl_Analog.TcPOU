@@ -1,0 +1,172 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_BangBangControl_Analog" Id="{0d66fff2-b416-4a31-af59-59956e6c5d2e}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Function Block which performs a bang-bang control loop.
+*)
+{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_BangBangControl_Analog EXTENDS FB_BaseDevice
+VAR_INPUT PERSISTENT
+	{attribute 'OPC.UA.DA' := '1'}
+	rAlarmHigh : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	rAlarmLow : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	rLimitHigh : REAL; // the upper limit of the desirable range (when the downward adjustment is activated)
+	{attribute 'OPC.UA.DA' := '1'}
+	rLimitLow : REAL; // lower limit of the desirable range (when the upward adjustment is activated)
+	{attribute 'OPC.UA.DA' := '1'}
+	nAdjustDelay : INT := 30; // min time in seconds between adjustments
+	{attribute 'OPC.UA.DA' := '1'}
+	nAdjustDownIncrement : REAL := 0.5;
+	{attribute 'OPC.UA.DA' := '1'}
+	nAdjustUpIncrement : REAL := 0.5; 
+	{attribute 'OPC.UA.DA' := '1'}
+	rCurrentValue : REAL; 
+	{attribute 'OPC.UA.DA' := '1'}
+	bEnabled : BOOL; 
+	{attribute 'OPC.UA.DA' := '1'}
+	sParameterName : STRING;
+	
+	{attribute 'OPC.UA.DA' := '1'}
+	nControlValue: POINTER TO REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	nControlValueCopy: REAL;
+	
+	{attribute 'OPC.UA.DA' := '1'}
+	Mode:    E_CTRL_MODE;
+END_VAR
+
+VAR_OUTPUT
+
+	{attribute 'OPC.UA.DA' := '1'}
+	bAlarmHigh : BOOL;
+	{attribute 'OPC.UA.DA' := '1'}
+	bAlarmLow : BOOL;
+END_VAR
+
+VAR
+	tAdjustDownTimer : TON;
+	tAdjustUpTimer : TON;
+	tAdjustDelayTimer : TON;
+	bAdjustDownActive : BOOL;
+	bAdjustUpActive : BOOL;
+	bDelayActive : BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF eState = E_DeviceState.RUNNING THEN
+	timers();
+	// output signals
+	IF bAdjustUpActive THEN
+		IF NOT (nControlValue^ > ((rLimitHigh + rLimitLow)/2.0)) THEN
+			nControlValue^ := nControlValue^ + nAdjustUpIncrement;
+		END_IF
+		bAdjustUpActive := FALSE;	
+	END_IF
+	
+	IF bAdjustDownActive THEN
+		IF NOT (nControlValue^ <= 16) THEN
+			nControlValue^ := nControlValue^ - nAdjustDownIncrement;
+		END_IF
+		bAdjustDownActive := FALSE;	
+	END_IF
+	
+	// alarms
+	bAlarmHigh := (rCurrentValue >= rAlarmHigh);
+	bAlarmLow := (rCurrentValue <= rAlarmLow);
+ELSE
+	bAlarmHigh := FALSE;
+	bAlarmLow := FALSE;
+	// clear the delay timer 
+	tAdjustDelayTimer.PT := INT_TO_TIME(0);
+END_IF
+
+nControlValueCopy := nControlValue^;
+
+]]></ST>
+    </Implementation>
+    <Method Name="setState" Id="{8817253c-2009-4706-a0ca-1319c20a4e0e}">
+      <Declaration><![CDATA[METHOD setState : BOOL
+VAR_INPUT
+	state : E_DeviceState;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+eState := state;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="timers" Id="{b9d7fc3d-e24c-4267-8bd9-0f92d0c9cf43}">
+      <Declaration><![CDATA[
+(*
+	Run the timers for delay, adjust up and adjust down
+*)
+METHOD timers : BOOL
+VAR_INPUT
+END_VAR
+
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[tAdjustDelayTimer(IN := bDelayActive, PT := INT_TO_TIME(nAdjustDelay) * 1000);
+
+
+IF tAdjustDelayTimer.Q THEN
+	// the delay timer is finished so check if we need to activate an adjustment
+	
+	//bAdjustDownActive := (rCurrentValue > rLimitHigh);
+	//bAdjustUpActive := (rCurrentValue < rLimitLow);
+	
+	bAdjustDownActive := (rCurrentValue > ((rLimitHigh + rLimitLow)/2.0)+0.6);
+	bAdjustUpActive := (rCurrentValue < ((rLimitHigh + rLimitLow)/2.0)-0.6);
+	
+END_IF
+
+// run the delay timer whenever we are not activating an output
+bDelayActive := NOT bAdjustDownActive AND NOT bAdjustUpActive;
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_BangBangControl_Analog">
+      <LineId Id="6" Count="2" />
+      <LineId Id="165" Count="0" />
+      <LineId Id="227" Count="0" />
+      <LineId Id="166" Count="0" />
+      <LineId Id="228" Count="0" />
+      <LineId Id="168" Count="0" />
+      <LineId Id="167" Count="0" />
+      <LineId Id="170" Count="0" />
+      <LineId Id="172" Count="0" />
+      <LineId Id="229" Count="0" />
+      <LineId Id="173" Count="0" />
+      <LineId Id="230" Count="0" />
+      <LineId Id="174" Count="1" />
+      <LineId Id="171" Count="0" />
+      <LineId Id="11" Count="3" />
+      <LineId Id="17" Count="1" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="284" Count="0" />
+      <LineId Id="283" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BangBangControl_Analog.setState">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BangBangControl_Analog.timers">
+      <LineId Id="4" Count="0" />
+      <LineId Id="6" Count="6" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="13" Count="4" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

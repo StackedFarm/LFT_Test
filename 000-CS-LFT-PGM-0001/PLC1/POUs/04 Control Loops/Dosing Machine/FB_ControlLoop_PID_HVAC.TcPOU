@@ -1,0 +1,463 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ControlLoop_PID_HVAC" Id="{b561d700-16fe-4eb8-8b8a-b25114230edc}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ControlLoop_PID_HVAC EXTENDS FB_BaseDevice
+
+
+VAR_INPUT
+	{attribute 'OPC.UA.DA' := '1'}
+	rAlarmHigh : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	rAlarmLow : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	rLimitHigh : REAL; // the upper limit of the desirable range (when the downward adjustment is activated)
+	{attribute 'OPC.UA.DA' := '1'}
+	rLimitLow : REAL; // lower limit of the desirable range (when the upward adjustment is activated)
+	{attribute 'OPC.UA.DA' := '1'}
+	nAdjustDelay : REAL; // min time in seconds between adjustments
+	{attribute 'OPC.UA.DA' := '1'}
+	nProcessValue : REAL; 
+	{attribute 'OPC.UA.DA' := '1'}
+	bEnabled : BOOL; 
+	{attribute 'OPC.UA.DA' := '1'}
+	rCurrentValue : REAL; 
+	{attribute 'OPC.UA.DA' := '1'}
+	sParameterName : STRING;
+	{attribute 'OPC.UA.DA' := '1'}
+	rSetpoint: REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	Mode:    E_CTRL_MODE;
+END_VAR
+
+
+VAR PERSISTENT
+
+	n_ProcessValue: FLOAT;
+	
+	{attribute 'OPC.UA.DA' := '1'} 
+	tPIDLoopTime: TIME := T#1M;	// how often the PID loop should be executed
+	
+	// PID loop variables below
+	nPID_Setpoint:			REAL; 
+	nPID_SetpointBand:		REAL; // 
+	nPID_ManSyncVal:		REAL;
+	bPID_Sync: 				BOOL;
+	nPID_Error:				REAL;
+	nPID_ErrorPerc:			REAL;  
+	nPID_Output: 			LREAL; 
+	bPID_Hold: 				BOOL;
+	ePID_Mode: 				E_CTRL_MODE;
+	stPID_Parameters: 		ST_CTRL_PID_PARAMS;
+	ePID_ErrorId: 			E_CTRL_ERRORCODES;
+	bPID_Error: 			BOOL;
+	bPID_ARWactive: 		BOOL;
+	
+	//stPIDParams values
+	tPID_CtrlCycleTime: 		TIME := tPIDLoopTime;
+	tPID_TaskCycleTime:			TIME := T#10MS;
+	nPID_Kp:  					REAL := 1.0;
+	nPID_Compensator:  			REAL := 1.0/1000.0;
+	tPID_Tn: 					TIME := T#0S;
+	tPID_Tv:					TIME := T#0S;
+	tPID_Td:					TIME := T#200S; 
+	nPID_OutMaxLimit: 			REAL := 300; 		// this is set in the cyclic routine, the error band moves with the setpoint
+	nPID_OutMinLimit:			REAL := 0;
+	bPID_PInTheFeedbackPath: 	BOOL := FALSE;
+	bPID_DInTheFeedbackPath: 	BOOL := FALSE;
+	bPID_ARWOnIPartOnly:		BOOL := FALSE;
+	
+	n_Output: LREAL := 0;
+	
+END_VAR
+
+VAR
+	bFirstRun: BOOL := TRUE;
+	bResetTimer: BOOL := FALSE;
+	
+	eSMState: 	(WAIT, CALCULATE, TRIG_UP, TRIG_DOWN) := WAIT;
+
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbTON_PIDLoop: TON := (PT := tPIDLoopTime, IN := FALSE);
+	
+	{attribute 'OPC.UA.DA' := '0'}
+	PID: FB_CTRL_PID;
+	
+END_VAR
+
+
+VAR_OUTPUT
+	{attribute 'OPC.UA.DA' := '1'}
+	bAdjustDownOutput 		AT %Q*: BOOL;
+	{attribute 'OPC.UA.DA' := '1'}
+	bAdjustUpOutput 		AT %Q*: BOOL;
+	{attribute 'OPC.UA.DA' := '1'}
+	bAlarmHigh : 			BOOL;
+	{attribute 'OPC.UA.DA' := '1'}
+	bAlarmLow : 			BOOL;
+	{attribute 'OPC.UA.DA' := '1'}
+	nControlValue:			REAL;
+END_VAR
+
+
+VAR
+	fbTON_AdjustDown : 		TON;
+	fbTON_AdjustUp : 		TON;
+	tAdjustUp : 			TIME;
+	tAdjustDown : 			TIME;
+	
+	{attribute 'OPC.UA.DA' := '1'}
+	nControlValue: POINTER TO REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	nControlValueCopy: REAL;
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF bFirstRun THEN
+	fbTON_PIDLoop(PT := tPIDLoopTime, IN := TRUE);
+	bFirstRun := FALSE;
+END_IF
+
+//eState := eStateTarget;
+
+IF (NOT bEnable) OR (eState = E_DeviceState.IDLE) THEN
+	eState := E_DeviceState.IDLE;
+	eStateTarget := E_DeviceState.IDLE;
+	PID.eMode := E_CTRL_MODE.eCTRL_MODE_RESET;
+END_IF
+
+IF bEnable AND (eState = E_DeviceState.RUNNING) THEN
+	PID.eMode := E_CTRL_MODE.eCTRL_MODE_ACTIVE;
+END_IF 
+
+
+
+// Execute timers
+fbTON_PIDLoop(PT := tPIDLoopTime);
+fbTON_AdjustUp();
+fbTON_AdjustDown();
+
+updatePIDParams();
+
+nPID_Error 	:= nPID_Setpoint - nProcessValue; // calcuate error
+
+nPID_Setpoint := (rLimitHigh + rLimitLow) / 2.0;
+
+// nPID_Setpoint := 67;
+
+rCurrentValue := nProcessValue;
+
+(*
+IF fbTON_AdjustDown.Q THEN
+	bAdjustDownOutput := FALSE;
+	fbTON_AdjustDown.IN := FALSE;
+END_IF
+*)
+
+IF eState = E_DeviceState.RUNNING THEN
+	PID( fSetpointValue := nPID_Setpoint, fActualValue := nProcessValue, stParams := stPID_Parameters);
+END_IF
+
+
+// IF control loop is ON and the loop timer has elapsed then enter the calculate / action state machine below
+IF fbTON_PIDLoop.Q AND (eState = E_DeviceState.RUNNING) THEN
+	fbTON_PIDLoop.IN := FALSE;
+	eSMState := CALCULATE;		// This is the entry point to start PID calculations and dosing
+END_IF
+
+
+
+CASE eSMState OF
+
+	WAIT:
+		// Do nothing and wait for timer to trigger
+		fbTON_PIDLoop(IN := TRUE);
+	
+	CALCULATE:
+	
+		nControlValue := nControlValue + PID.fOut;
+		fbTON_PIDLoop(IN := FALSE);
+		
+		eSMState := WAIT;
+		
+
+		
+	TRIG_UP:
+		fbTON_AdjustUp(PT := tAdjustUp, IN := TRUE);  // start the timer for the duration set at PID output
+		bAdjustUpOutput := TRUE; // set output to high
+		eSMState := WAIT; // go back to wait for the next timer trigger
+		fbTON_PIDLoop(IN := TRUE);	// restart the PID loop timer
+
+		
+		
+	TRIG_DOWN:
+		fbTON_AdjustDown(PT := tAdjustDown, IN := TRUE); // start the timer for the duration set at PID output
+		bAdjustDownOutput := TRUE; // set output to high
+		eSMState := WAIT; // go back to wait for the next timer trigger
+		fbTON_PIDLoop(IN := TRUE);			
+		
+		
+END_CASE
+
+
+]]></ST>
+    </Implementation>
+    <Method Name="FB_init" Id="{8f4bd3b9-aeab-4c43-aadc-e90addef32b0}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setParams" Id="{6d1a053c-4953-4ed3-9e40-0e2b2a1d4554}">
+      <Declaration><![CDATA[METHOD setParams : BOOL
+VAR_INPUT
+	(*
+	NutrientMaxDoseRate: UINT;
+	NutrientMinDoseRate: UINT;
+	NutrientTimeBetweenDoses: TIME;
+	PHMaxDoseRate: UINT;
+	PHMinDoseRate: UINT;
+	PHTimeBetweenDoses: TIME;
+
+
+	// PID loop variables below
+	*)
+	Setpoint:		REAL; 
+	(*
+	NutrientSetpointBand:	REAL;
+	NutrientManSyncVal:		REAL;
+	NutrientSync: 			BOOL; 
+	NutrientHold: 			BOOL;
+	NutrientMode: 			E_CTRL_MODE;
+	NutrientCtrlCycleTime: 	TIME;
+	NutrientTaskCycleTime:	TIME;
+	
+	//stPIDParams values
+	NutrientKp:  				REAL;
+	NutrientTn: 				TIME; 
+	NutrientTv:					TIME; 
+	NutrientTd:					TIME; 
+	NutrientOutMaxLimit: 		REAL;
+	NutrientOutMinLimit:		REAL;
+	NutrientPInTheFeedbackPath: BOOL;
+	NutrientDInTheFeedbackPath: BOOL;
+	NutrientARWOnIPartOnly:		BOOL;
+	
+	*)
+	PHSetpoint:			REAL; 
+	(*
+	PHSetpointBand:		REAL;
+	PHManSyncVal:		REAL;
+	PHSync: 			BOOL;
+	PHHold: 			BOOL;
+	PHMode: 			E_CTRL_MODE;
+	PHCtrlCycleTime: 		TIME;
+	PHTaskCycleTime:		TIME;
+	
+	
+	//stPIDParams values
+	PHKp:  					REAL;
+	PHTn: 					TIME;
+	PHTv:					TIME;
+	PHTd:					TIME; 
+	PHOutMaxLimit: 			REAL; 		
+	PHOutMinLimit:			REAL;
+	PHPInTheFeedbackPath: 	BOOL;
+	PHDInTheFeedbackPath:	BOOL;
+	PHARWOnIPartOnly:		BOOL;
+	*)
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+nPIDNutrientMaxDoseRate := 				NutrientMaxDoseRate;
+nPIDNutrientMinDoseRate := 				NutrientMinDoseRate;
+tPIDNutrientTimeBetweenDoses := 		NutrientTimeBetweenDoses;
+
+nPIDPHMaxDoseRate := 					PHMaxDoseRate;
+nPIDPHMinDoseRate := 					PHMinDoseRate;
+tPIDPHTimeBetweenDoses := 				PHTimeBetweenDoses;
+
+*)
+nPID_Setpoint := 						Setpoint;
+(*
+nPIDNutrientSetpointBand := 			NutrientSetpointBand;
+nPIDNutrientManSyncVal := 				NutrientManSyncVal;
+bPIDNutrientSync := 					NutrientSync;
+bPIDNutrientHold := 					NutrientHold;
+ePIDNutrientMode := 					NutrientMode;
+tPIDNutrientCtrlCycleTime := 			NutrientCtrlCycleTime;
+tPIDNutrientTaskCycleTime := 			NutrientTaskCycleTime;
+
+nPIDNutrientKp := 						NutrientKp;
+tPIDNutrientTn := 						NutrientTn;
+tPIDNutrientTv := 						NutrientTv;
+tPIDNutrientTd := 						NutrientTd;
+nPIDNutrientOutMaxLimit := 				NutrientOutMaxLimit;
+nPIDNutrientOutMinLimit := 				NutrientOutMinLimit;
+bPIDNutrientPInTheFeedbackPath := 		NutrientPInTheFeedbackPath;
+bPIDNutrientDInTheFeedbackPath := 		NutrientDInTheFeedbackPath;
+bPIDNutrientARWactive := 				NutrientARWOnIPartOnly;
+*)
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setState" Id="{a27442fe-0c05-420f-b3b0-729e7f960167}">
+      <Declaration><![CDATA[METHOD setState : BOOL
+VAR_INPUT
+	state : E_DeviceState;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+eState := state;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="updatePIDParams" Id="{7a181f1d-c74e-42ef-930e-ef79c666ca1f}">
+      <Declaration><![CDATA[METHOD updatePIDParams : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+
+stPID_Parameters.tCtrlCycleTime := 		tPID_CtrlCycleTime;
+stPID_Parameters.tTaskCycleTime := 		tPID_TaskCycleTime;
+stPID_Parameters.fKp := 				nPID_Kp;
+stPID_Parameters.tTn := 				tPID_Tn;
+stPID_Parameters.tTv := 				tPID_Tv;
+stPID_Parameters.tTd := 				tPID_Td;
+stPID_Parameters.fOutMaxLimit := 		nPID_OutMaxLimit;
+stPID_Parameters.fOutMinLimit := 		nPID_OutMinLimit;
+stPID_Parameters.bPInTheFeedbackPath := bPID_PInTheFeedbackPath;
+stPID_Parameters.bDInTheFeedbackPath := bPID_DInTheFeedbackPath;
+stPID_Parameters.bARWOnIPartOnly := 	bPID_ARWOnIPartOnly;
+
+*)
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ControlLoop_PID_HVAC">
+      <LineId Id="1088" Count="0" />
+      <LineId Id="1090" Count="0" />
+      <LineId Id="1332" Count="0" />
+      <LineId Id="1091" Count="0" />
+      <LineId Id="2180" Count="0" />
+      <LineId Id="1890" Count="0" />
+      <LineId Id="3227" Count="0" />
+      <LineId Id="3226" Count="0" />
+      <LineId Id="3228" Count="0" />
+      <LineId Id="3230" Count="0" />
+      <LineId Id="3287" Count="0" />
+      <LineId Id="3229" Count="0" />
+      <LineId Id="3402" Count="0" />
+      <LineId Id="3401" Count="0" />
+      <LineId Id="3404" Count="1" />
+      <LineId Id="3289" Count="0" />
+      <LineId Id="3288" Count="0" />
+      <LineId Id="3275" Count="0" />
+      <LineId Id="1505" Count="0" />
+      <LineId Id="1089" Count="0" />
+      <LineId Id="3272" Count="0" />
+      <LineId Id="3274" Count="0" />
+      <LineId Id="3273" Count="0" />
+      <LineId Id="1463" Count="0" />
+      <LineId Id="3225" Count="0" />
+      <LineId Id="2333" Count="0" />
+      <LineId Id="3278" Count="0" />
+      <LineId Id="3277" Count="0" />
+      <LineId Id="3396" Count="0" />
+      <LineId Id="3395" Count="0" />
+      <LineId Id="3285" Count="0" />
+      <LineId Id="3284" Count="0" />
+      <LineId Id="3510" Count="0" />
+      <LineId Id="3268" Count="3" />
+      <LineId Id="3267" Count="0" />
+      <LineId Id="3511" Count="0" />
+      <LineId Id="2185" Count="0" />
+      <LineId Id="1709" Count="0" />
+      <LineId Id="2189" Count="0" />
+      <LineId Id="2187" Count="0" />
+      <LineId Id="3259" Count="1" />
+      <LineId Id="2184" Count="0" />
+      <LineId Id="3231" Count="2" />
+      <LineId Id="2661" Count="0" />
+      <LineId Id="2663" Count="0" />
+      <LineId Id="2182" Count="0" />
+      <LineId Id="1478" Count="0" />
+      <LineId Id="1486" Count="0" />
+      <LineId Id="1479" Count="1" />
+      <LineId Id="1491" Count="0" />
+      <LineId Id="3286" Count="0" />
+      <LineId Id="1492" Count="1" />
+      <LineId Id="3723" Count="1" />
+      <LineId Id="2040" Count="0" />
+      <LineId Id="3400" Count="0" />
+      <LineId Id="3280" Count="0" />
+      <LineId Id="3726" Count="0" />
+      <LineId Id="1498" Count="0" />
+      <LineId Id="3256" Count="0" />
+      <LineId Id="1499" Count="0" />
+      <LineId Id="3249" Count="0" />
+      <LineId Id="3257" Count="0" />
+      <LineId Id="1702" Count="0" />
+      <LineId Id="1705" Count="0" />
+      <LineId Id="3254" Count="0" />
+      <LineId Id="3246" Count="0" />
+      <LineId Id="3255" Count="0" />
+      <LineId Id="3247" Count="0" />
+      <LineId Id="3252" Count="1" />
+      <LineId Id="3248" Count="0" />
+      <LineId Id="3245" Count="0" />
+      <LineId Id="1704" Count="0" />
+      <LineId Id="1515" Count="0" />
+      <LineId Id="1497" Count="0" />
+      <LineId Id="1462" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="46" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlLoop_PID_HVAC.FB_init">
+      <LineId Id="37" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlLoop_PID_HVAC.setParams">
+      <LineId Id="187" Count="0" />
+      <LineId Id="115" Count="0" />
+      <LineId Id="118" Count="1" />
+      <LineId Id="125" Count="2" />
+      <LineId Id="116" Count="1" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="188" Count="0" />
+      <LineId Id="71" Count="6" />
+      <LineId Id="79" Count="0" />
+      <LineId Id="78" Count="0" />
+      <LineId Id="80" Count="7" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="88" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlLoop_PID_HVAC.setState">
+      <LineId Id="7" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlLoop_PID_HVAC.updatePIDParams">
+      <LineId Id="6" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="7" Count="9" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

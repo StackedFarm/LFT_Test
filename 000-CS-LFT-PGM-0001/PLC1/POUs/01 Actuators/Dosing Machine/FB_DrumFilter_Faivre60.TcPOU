@@ -1,0 +1,213 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_DrumFilter_Faivre60" Id="{2b952392-68b6-4b09-8ed2-09c5e64dd6ef}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_DrumFilter_Faivre60 EXTENDS FB_BaseDevice IMPLEMENTS I_Device
+
+VAR
+
+	{attribute 'OPC.UA.DA' := '1'}   
+	bInContactor AT %I*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'}   
+	bOutContactor AT %Q*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'}   
+	bInMCCB AT %I*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'}   
+	bInRunning AT %I*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'}   
+	bInFault_Motors AT %I*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'}   
+	bInFault_Overflow AT %I*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '0'}   
+	eSMState: (WAIT, TURNING_ON, ON, TURNING_OFF, OFF);
+	{attribute 'OPC.UA.DA' := '0'}   
+	tActionTimeout: TIME := T#5S;
+	{attribute 'OPC.UA.DA' := '0'}   
+	fbTON_timeout: TON := (PT := tActionTimeout, IN := FALSE);
+	{attribute 'OPC.UA.DA' := '0'}
+	fbTON_simulation_delay: TON := (PT := T#1S, IN := FALSE);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbTONstartTime();
+fbTONstopTime();
+
+IF GVL.bAutoUpdateDeviceState THEN
+	eState := eStateTarget;	
+END_IF
+
+IF eMode <> E_DeviceMode.SIMULATION THEN
+	
+	
+	
+	
+	IF bEnable THEN
+		IF eStateTarget = E_DeviceState.ON AND eState <> E_DeviceState.ON THEN
+			eSMState := TURNING_ON;
+		END_IF
+	END_IF
+	
+	IF eStateTarget = E_DeviceState.OFF AND eState <> E_DeviceState.OFF THEN
+			eSMState := TURNING_OFF;
+	END_IF
+	
+	
+	CASE eSMState OF
+		
+		WAIT:
+			//Wait for method call to change ESMState
+			
+		TURNING_ON: 
+			eState := E_DeviceState.TURNING_ON;
+	
+			bOutContactor := TRUE;
+		
+			IF fbTONstartTime.Q THEN
+				eSMState := WAIT;
+				raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Failed to Start', Enabled := TRUE, DeviceAlarmID := 1);
+			END_IF
+			
+			IF bInContactor  THEN
+				eSMState := ON;
+				eState := E_DeviceState.ON;
+			END_IF
+			
+		ON:
+			IF bInContactor <> TRUE THEN
+				raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Power Lost', Enabled := TRUE, DeviceAlarmID := 2);
+				eState := E_DeviceState.OFF;
+				eSMState := WAIT;
+			END_IF
+			
+	
+			
+		TURNING_OFF:
+			eState := E_DeviceState.TURNING_OFF;
+			bOutContactor := FALSE;
+	
+					
+			IF fbTONstopTime.Q THEN
+				eSMState := WAIT;
+				raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Failed to Stop', Enabled := TRUE, DeviceAlarmID := 3);
+			END_IF 
+			
+			IF bInContactor = FALSE THEN
+				eSMState := OFF;	
+			END_IF
+			
+	
+		OFF:
+			eState := E_DeviceState.OFF;
+			eSMState := WAIT;
+			
+			
+	END_CASE
+	
+(*
+				SIMULATION CODE 
+				This code forces the contactor feedback ON or OFF depending on whether the device has been told to turn on or off
+*)
+
+ELSIF eMode = E_DeviceMode.SIMULATION THEN
+	
+fbTON_simulation_delay();
+	
+	IF eSMState = TURNING_ON THEN  					
+		fbTON_simulation_delay.IN := TRUE;
+		IF fbTON_simulation_delay.Q THEN
+			bInContactor := TRUE;
+			fbTON_simulation_delay.IN := FALSE;	
+		END_IF
+		
+	ELSIF eSMState = TURNING_OFF THEN
+		fbTON_simulation_delay.IN := TRUE;
+		IF fbTON_simulation_delay.Q THEN
+			bInContactor := FALSE;
+			fbTON_simulation_delay.IN := FALSE;	
+		END_IF
+	END_IF
+END_IF]]></ST>
+    </Implementation>
+    <Method Name="disable" Id="{89e4216c-2075-45aa-a4ba-d57a42bb35ab}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{0ac04c60-41d9-4d99-946e-a918e8c13c24}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{07185893-0681-4587-9831-966ecd3b3deb}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	FilterID: STRING(80);
+	FIlterDescr: STRING(255);
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := FilterID;
+sDescr := FIlterDescr;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOff" Id="{f4c1bb91-3bf4-450c-8642-75e5c8614755}">
+      <Declaration><![CDATA[METHOD setOff : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eSMState := TURNING_OFF;
+bBusy := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOn" Id="{9c28e36b-0375-4d90-b05d-d3196267fe6e}">
+      <Declaration><![CDATA[METHOD setOn : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eSMState := TURNING_ON;
+bBusy := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_DrumFilter_Faivre60">
+      <LineId Id="152" Count="1" />
+      <LineId Id="239" Count="0" />
+      <LineId Id="241" Count="2" />
+      <LineId Id="269" Count="0" />
+      <LineId Id="268" Count="0" />
+      <LineId Id="270" Count="1" />
+      <LineId Id="240" Count="0" />
+      <LineId Id="154" Count="60" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="319" Count="0" />
+      <LineId Id="296" Count="22" />
+      <LineId Id="272" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DrumFilter_Faivre60.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DrumFilter_Faivre60.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DrumFilter_Faivre60.FB_init">
+      <LineId Id="16" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DrumFilter_Faivre60.setOff">
+      <LineId Id="5" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_DrumFilter_Faivre60.setOn">
+      <LineId Id="5" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

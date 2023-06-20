@@ -1,0 +1,218 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Unit_RO_PW30_1" Id="{83f55630-35da-4827-a34e-80f23b0d6314}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_Unit_RO_PW30_1 EXTENDS FB_BaseDevice IMPLEMENTS I_Device
+
+VAR
+	{attribute 'OPC.UA.DA' := '1'} 
+	bInContactor AT %I*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	bInRun AT %I*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	bInAlarm AT %I*: BOOL := FALSE;
+	
+	{attribute 'OPC.UA.DA' := '1'} 
+	bOutContactor AT %Q*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	bOutON AT %Q*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	bOutEnable AT %Q*: BOOL := FALSE;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSMState: (WAIT, TURNING_ON, ON, TURNING_OFF, OFF);
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	tActionTimeout: TIME := T#5S;
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbTON_timeout: TON := (PT := tActionTimeout, IN := FALSE);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbTONstartTime();
+fbTONstopTime();
+
+IF GVL.bAutoUpdateDeviceState THEN
+	eState := eStateTarget;	
+END_IF
+
+
+IF bEnable THEN
+	IF eStateTarget = E_DeviceState.ON AND eState <> E_DeviceState.ON THEN
+		eSMState := TURNING_ON;
+	END_IF
+END_IF
+
+IF eStateTarget = E_DeviceState.OFF AND eState <> E_DeviceState.OFF THEN
+		eSMState := TURNING_OFF;
+END_IF
+
+IF bInAlarm THEN
+	raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Unit Alarm Active', Enabled := TRUE, DeviceAlarmID := 1);
+END_IF
+
+
+CASE eSMState OF
+	
+	WAIT:
+		//Wait for method call to change ESMState
+		
+	TURNING_ON: 
+		eState := E_DeviceState.TURNING_ON;
+		
+		bOutContactor := TRUE;
+		bOutEnable := TRUE;
+		bOutON := TRUE;
+	
+		
+		IF fbTONstartTime.Q THEN
+			eSMState := WAIT;
+			raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Failed to Start', Enabled := TRUE, DeviceAlarmID := 2);
+		END_IF
+		
+		IF bInContactor AND bInRun THEN
+			eSMState := ON;
+			eState := E_DeviceState.ON;
+		END_IF
+		
+	ON:
+		IF bInContactor <> TRUE THEN
+			raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Power Lost', Enabled := TRUE, DeviceAlarmID := 1);
+			eState := E_DeviceState.OFF;
+			eSMState := WAIT;
+		END_IF
+		
+		IF bInRun <> TRUE THEN
+			raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Unit Stopped Running', Enabled := TRUE, DeviceAlarmID := 2);
+			eState := E_DeviceState.OFF;
+			eSMState := WAIT;
+		END_IF
+			
+		
+	TURNING_OFF:
+		eState := E_DeviceState.TURNING_OFF;
+		bOutContactor := FALSE;
+		bOutON := FALSE;
+		bOutEnable := FALSE;
+				
+		IF fbTONstopTime.Q THEN
+			eSMState := WAIT;
+			raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Failed to Stop', Enabled := TRUE, DeviceAlarmID := 3);
+		END_IF 
+		
+		IF bInRun = FALSE AND bInContactor = FALSE THEN
+			eSMState := OFF;	
+		END_IF
+		
+
+	OFF:
+		eState := E_DeviceState.OFF;
+		eSMState := WAIT;
+		
+		
+END_CASE]]></ST>
+    </Implementation>
+    <Method Name="disable" Id="{de9b2d5e-8374-44c3-9afa-d4f1a13118e6}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{95c83e89-77dc-486f-b190-f06a1328fe43}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{4c919149-38b0-43f4-8c9e-3b5f7939d240}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	UnitID: STRING(80);
+	UnitDescr: STRING(255); 
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := UnitID;
+sDescr := UnitDescr;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOff" Id="{2bf024f8-ee2e-4156-8032-230eeb4b46a6}">
+      <Declaration><![CDATA[METHOD setOff : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eSMState := TURNING_OFF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOn" Id="{5171bf36-8220-402d-b2c7-b945102013e4}">
+      <Declaration><![CDATA[METHOD setOn : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eSMState := TURNING_ON;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Unit_RO_PW30_1">
+      <LineId Id="100" Count="1" />
+      <LineId Id="225" Count="0" />
+      <LineId Id="227" Count="2" />
+      <LineId Id="226" Count="0" />
+      <LineId Id="102" Count="10" />
+      <LineId Id="114" Count="0" />
+      <LineId Id="184" Count="1" />
+      <LineId Id="183" Count="0" />
+      <LineId Id="115" Count="7" />
+      <LineId Id="164" Count="0" />
+      <LineId Id="163" Count="0" />
+      <LineId Id="157" Count="2" />
+      <LineId Id="125" Count="4" />
+      <LineId Id="174" Count="0" />
+      <LineId Id="176" Count="2" />
+      <LineId Id="175" Count="0" />
+      <LineId Id="130" Count="0" />
+      <LineId Id="132" Count="1" />
+      <LineId Id="165" Count="0" />
+      <LineId Id="171" Count="1" />
+      <LineId Id="168" Count="2" />
+      <LineId Id="180" Count="2" />
+      <LineId Id="179" Count="0" />
+      <LineId Id="166" Count="0" />
+      <LineId Id="139" Count="2" />
+      <LineId Id="189" Count="0" />
+      <LineId Id="186" Count="2" />
+      <LineId Id="145" Count="3" />
+      <LineId Id="193" Count="0" />
+      <LineId Id="195" Count="1" />
+      <LineId Id="194" Count="0" />
+      <LineId Id="149" Count="2" />
+      <LineId Id="153" Count="2" />
+      <LineId Id="198" Count="0" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Unit_RO_PW30_1.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Unit_RO_PW30_1.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Unit_RO_PW30_1.FB_init">
+      <LineId Id="7" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Unit_RO_PW30_1.setOff">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Unit_RO_PW30_1.setOn">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

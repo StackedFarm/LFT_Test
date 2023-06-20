@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_InterlockType" Id="{8fed1186-f6a6-434d-905f-4c89e3f7a7d1}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_InterlockType :
+(
+	RunInterlock,
+	StartPermissive,
+	StopPermissive
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_Sensor" Id="{091f14a3-93ec-4bba-8433-48983e049f55}">
+    <Declaration><![CDATA[INTERFACE I_Sensor
+]]></Declaration>
+    <Method Name="FB_init" Id="{13c512f1-32ca-49fd-b7a8-0b601564e391}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	SensorID: STRING(80);
+	SensorDescr: STRING(255); 
+	SensorType: E_SensorType;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="getType" Id="{20d0cc55-2208-4a40-9e2d-9d5ab4518ccd}">
+      <Declaration><![CDATA[METHOD getType : E_SensorType
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="getValue" Id="{9d023e79-5a89-4560-ac9e-c271454aaea4}">
+      <Declaration><![CDATA[METHOD getValue : REAL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="write" Id="{556eeee0-d0e6-4673-ac47-8c1388fdffc2}">
+      <Declaration><![CDATA[METHOD write : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

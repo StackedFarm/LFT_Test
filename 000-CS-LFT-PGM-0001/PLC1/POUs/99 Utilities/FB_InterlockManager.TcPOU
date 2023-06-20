@@ -1,0 +1,161 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_InterlockManager" Id="{35055f59-c3c2-4ffb-ab07-3737f8dd7c90}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_InterlockManager
+
+VAR
+	aInterlocks: ARRAY[1..50] OF ST_Interlock;
+	nIterator: INT := 1;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="execute" Id="{229a8784-5db6-49d7-805c-74440ccef9e2}">
+      <Declaration><![CDATA[METHOD execute : BOOL
+VAR_INPUT
+END_VAR
+
+VAR
+	iterator: INT;
+
+	
+	Active:			BOOL;
+	Bridge:			BOOL;
+	SubjectDevice:	POINTER TO FB_BaseDevice;
+	SubjectState:	E_DeviceState;
+	Signal:			BOOL;
+	Description: 	STRING(255);
+	HoldSeq:		BOOL;
+	InterlockType:	E_InterlockType;
+	
+	
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+FOR iterator:=1 TO nIterator BY 1 DO
+	
+	// Update local variable on each loop iteration
+	
+	Active := aInterlocks[iterator].Active;
+	Bridge := aInterlocks[iterator].Bridge;
+	SubjectDevice := aInterlocks[iterator].SubjectDevice;
+	SubjectState  := aInterlocks[iterator].SubjectState;
+	Signal := aInterlocks[iterator].Signal;
+	HoldSeq := aInterlocks[iterator].HoldSeq;
+	InterlockType := aInterlocks[iterator].InterlockType;
+	
+	
+	IF Signal = TRUE THEN
+		
+		// Interlock causes the sequence to go into hold (by disabling device)
+		// Sequence hold requires operator acknowledgement to resume
+		IF  SubjectDevice^.isEnabled() AND HoldSeq AND Bridge <> TRUE THEN
+			
+			SubjectDevice^.setCommand(StateTarget := SubjectState);
+			SubjectDevice^.disable();
+			aInterlocks[iterator].Active := TRUE;
+		
+			
+		// Interlock causes device to change state only
+		// No operator acknowledgement required 
+		ELSIF  SubjectDevice^.isEnabled() AND HoldSeq =FALSE AND Bridge <> TRUE THEN
+			
+			SubjectDevice^.setCommand(StateTarget := SubjectState);
+			aInterlocks[iterator].Active := TRUE;
+			
+		ELSE
+			aInterlocks[iterator].Active := FALSE;
+		END_IF
+		
+	ELSE
+		aInterlocks[iterator].Active := FALSE;
+	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="init" Id="{9dea35ec-0113-4e40-b16f-f7a26be06aa2}">
+      <Declaration><![CDATA[METHOD init : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Reset the iterator on each cycle of the machine
+nIterator := 1;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="update" Id="{85cfdc67-9c27-4e30-8986-d02f1c1b0c01}">
+      <Declaration><![CDATA[METHOD update : BOOL
+VAR_INPUT
+	Description:	STRING;
+	InterlockType: 	E_InterlockType;
+	Subject_Device: POINTER TO FB_BaseDevice;
+	Subject_State:	E_DeviceState;
+	Signal: 		BOOL;
+	HoldSequence: 	BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[aInterlocks[nIterator].HoldSeq := HoldSequence;
+aInterlocks[nIterator].InterlockType := InterlockType;
+aInterlocks[nIterator].Signal := Signal;
+aInterlocks[nIterator].Description := Description;
+aInterlocks[nIterator].SubjectDevice := Subject_Device;
+aInterlocks[nIterator].SubjectVarID := Subject_Device^.getVarID();
+aInterlocks[nIterator].SubjectState := Subject_State;
+
+nIterator := nIterator + 1;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_InterlockManager">
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_InterlockManager.execute">
+      <LineId Id="6" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="40" Count="1" />
+      <LineId Id="34" Count="1" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="36" Count="3" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="54" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="101" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="102" Count="0" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="78" Count="2" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="13" Count="1" />
+      <LineId Id="122" Count="1" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_InterlockManager.init">
+      <LineId Id="6" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_InterlockManager.update">
+      <LineId Id="17" Count="2" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="23" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

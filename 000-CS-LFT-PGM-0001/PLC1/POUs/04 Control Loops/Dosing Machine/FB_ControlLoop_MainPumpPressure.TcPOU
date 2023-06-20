@@ -1,0 +1,181 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ControlLoop_MainPumpPressure" Id="{4831c561-1bc0-41da-9721-e76b34f47b04}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ControlLoop_MainPumpPressure
+
+VAR
+	{attribute 'OPC.UA.DA' := '0'}
+	fbMainPump:  		I_PumpVSD;
+	
+	eSMState: 					(INIT, WAIT_TRIG, WAIT, CALCULATE) := INIT;
+	
+	eState_MaxHeadofOpenValve:  	(RECIRC, L1, L2, L3, L4, L5, L6, L7, L8, L9 , L10, L11, L12, L13, L14, L15, L16, L17, L18, L19, L20) := L1;
+	bEnabled: BOOL := TRUE;
+	bError: BOOL := FALSE;
+	
+	{attribute 'OPC.UA.DA' := '0'}
+	fbTON_LoopTime: TON := (PT := T#1S);
+	
+END_VAR
+
+VAR_IN_OUT
+	setPointPressure: UINT := 0; // kPa 
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbTON_LoopTime();
+
+CASE eSmstate OF
+	
+	INIT:
+
+		eSMState := WAIT_TRIG;
+
+	WAIT_TRIG:
+	
+		eSMState := WAIT;
+	
+	WAIT:
+		IF fbTON_LoopTime.Q THEN
+			fbTON_LoopTime(IN := FALSE);
+			eSMState := CALCULATE;
+		END_IF
+
+	CALCULATE:
+	
+		IF eState_MaxHeadofOpenValve = RECIRC THEN
+			setPointPressure := 200;
+		ELSE
+			CASE eState_MaxHeadofOpenValve OF
+				L1: 
+					setPointPressure := 270;
+				L2: 
+					setPointPressure := 340;
+				L3: 
+					setPointPressure := 410;
+				L4: 
+					setPointPressure := 480;
+				L5: 
+					setPointPressure := 550;
+				L6: 
+					setPointPressure := 620;
+				L7: 
+					setPointPressure := 690;
+				L8: 
+					setPointPressure := 760;
+				L9: 
+					setPointPressure := 830;
+				L10: 
+					setPointPressure := 900;
+				L11: 
+					setPointPressure := 970;
+				L12: 
+					setPointPressure := 1040;
+				L13: 
+					setPointPressure := 1100;
+				L14: 
+					setPointPressure := 1180;
+				L15: 
+					setPointPressure := 1250;
+				L16: 
+					setPointPressure := 1320;
+				L17: 
+					setPointPressure := 1390;
+				L18: 
+					setPointPressure := 1460;
+				L19: 
+					setPointPressure := 1530;
+				L20: 
+					setPointPressure := 1600;
+				
+			END_CASE
+		END_IF
+						
+
+		eSMState := WAIT_TRIG;
+END_CASE
+						
+		
+						
+		
+
+]]></ST>
+    </Implementation>
+    <Method Name="FB_init" Id="{d9a5effe-f158-4c3c-b566-c35dfefbe8e4}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	MainPump:  		I_PumpVSD;
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbMainPump := MainPump;
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setCurrentLevel" Id="{07362376-a9ff-451c-b800-ed7f3c8f70d4}">
+      <Declaration><![CDATA[METHOD setCurrentLevel : BOOL
+VAR_INPUT
+	HighestLevel: UINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+eState_MaxHeadofOpenValve := HighestLevel;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ControlLoop_MainPumpPressure">
+      <LineId Id="946" Count="1" />
+      <LineId Id="83" Count="0" />
+      <LineId Id="305" Count="0" />
+      <LineId Id="308" Count="0" />
+      <LineId Id="360" Count="0" />
+      <LineId Id="339" Count="0" />
+      <LineId Id="306" Count="0" />
+      <LineId Id="85" Count="0" />
+      <LineId Id="366" Count="0" />
+      <LineId Id="378" Count="0" />
+      <LineId Id="344" Count="0" />
+      <LineId Id="377" Count="0" />
+      <LineId Id="348" Count="1" />
+      <LineId Id="362" Count="0" />
+      <LineId Id="350" Count="0" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="1073" Count="2" />
+      <LineId Id="1077" Count="2" />
+      <LineId Id="1081" Count="0" />
+      <LineId Id="1083" Count="11" />
+      <LineId Id="1097" Count="12" />
+      <LineId Id="1096" Count="0" />
+      <LineId Id="1111" Count="10" />
+      <LineId Id="1110" Count="0" />
+      <LineId Id="1082" Count="0" />
+      <LineId Id="1080" Count="0" />
+      <LineId Id="1076" Count="0" />
+      <LineId Id="249" Count="0" />
+      <LineId Id="421" Count="0" />
+      <LineId Id="839" Count="0" />
+      <LineId Id="414" Count="1" />
+      <LineId Id="402" Count="0" />
+      <LineId Id="374" Count="0" />
+      <LineId Id="379" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="46" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlLoop_MainPumpPressure.FB_init">
+      <LineId Id="61" Count="0" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="37" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlLoop_MainPumpPressure.setCurrentLevel">
+      <LineId Id="7" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,360 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_GasMonitoringPanel_CDA4022" Id="{b1239e5e-7fe4-4aa0-bef1-48cedfe8a074}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_GasMonitoringPanel_CDA4022 EXTENDS FB_BaseDevice 
+
+VAR_IN_OUT
+	{attribute 'OPC.UA.DA' := '0'}
+	fbModbusMaster: FB_ModbusMaster;
+END_VAR
+
+VAR
+	// CDA Panel 4022 V3.0 Variables (https://drive.google.com/file/d/1dn1Ot7nd1VML-1RxFooYWTdx5gniYgca/view?usp=sharing)
+	(*
+	       CO2
+		   References - https://iceblast.com.au/wp-content/uploads/2021/03/ABCB-Handbook-Indoor-Air-Quality-2018.pdf   
+	*)
+	nConcentration_CO2: 	UINT; // reading is value x 10, units are configurable - set to ppm
+	nThreshold_CO2_Level1: 	DINT := 800; //ppm (Upper limit of AS 1668.2 recommendation (for CO2 controlled ventilation))
+	nAlarm_CO2_Level1: 		UINT; 
+	nThreshold_CO2_Level2: 	DINT := 1000; //ppm (ASHRAE 62.1 recommendation (occupant comfort))
+	nAlarm_CO2_Level2: 		UINT; 
+	nThreshold_CO2_Level3: 	DINT := 5000; //ppm (Australian occupational exposure limit (SWA 2011b) )
+	nAlarm_CO2_Level3: 		UINT; 
+	
+	(*
+	       O2
+		   References - https://www.cacgas.com.au/blog/bid/378107/oxygen-o2-occupational-health-exposure-standards 
+	*)
+	nConcentration_O2: 		UINT; // reading is value x 10, units are configurable - set to ppm
+	nThreshold_O2_Level1: 	DINT := 195000; //ppm (Minimum "Safe Level")
+	nAlarm_O2_Level1: 		UINT; 
+	nThreshold_O2_Level2: 	DINT := 160000; //ppm (First signs of anoxia (dizziness, light-headedness))
+	nAlarm_O2_Level2: 		UINT; 
+	nThreshold_O2_Level3: 	DINT := 235000; //ppm (oxygen levels that exceed 23.5% present a serious fire danger.  At levels of 25%+ items such as clothing can spontaneously combust.  )
+	nAlarm_O2_Level3: 		UINT; 	
+
+
+	// Modbus Variables
+	nModbusUnitID: UINT; 
+	
+	nPointerInt: POINTER TO INT;  // used to 
+	
+	{attribute 'OPC.UA.DA' := '0'}
+	nReadRegsVals: ARRAY[1..10] OF WORD;
+	{attribute 'OPC.UA.DA' := '0'}
+	nWriteRegsVals: ARRAY[1..10] OF WORD;
+	{attribute 'OPC.UA.DA' := '0'}
+	nQtyWordsWrite: UINT;
+	{attribute 'OPC.UA.DA' := '0'}
+	nAddrWrite: UINT;
+	{attribute 'OPC.UA.DA' := '0'}
+	nRegisterWordstoRead: UINT;
+	{attribute 'OPC.UA.DA' := '0'}
+	nAddrRead: UINT;
+	
+	// Async Statemachine Variables
+	{attribute 'OPC.UA.DA' := '0'}
+	eSMState: (WAIT, READ_TRIG, READ, WRITE_TRIG, WRITE, ERROR);
+	{attribute 'OPC.UA.DA' := '0'} 
+	eOpType: (READ_OP, WRITE_OP);
+	{attribute 'OPC.UA.DA' := '0'} 
+	bRequestFinished: POINTER TO BOOL;
+	{attribute 'OPC.UA.DA' := '0'} 
+	bRequestSentToMaster: BOOL 	:= FALSE;
+	{attribute 'OPC.UA.DA' := '0'} 
+	bRequestCompleted: BOOL 	:= FALSE;
+	
+
+
+	
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+IF GVL.bAutoUpdateDeviceState THEN
+	eState := eStateTarget;	
+END_IF
+
+
+CASE eSMState OF
+	
+	WAIT :
+	//Do nothing and wait for eState to be changed by a called method
+
+	READ_TRIG : 
+	
+		fbModbusMaster.readRegs(
+			ReadRegsVals:= ADR(nPointerInt^), 
+			SlaveAddress:= nModbusUnitID, 
+			QtyWordsToRead:= nRegisterWordstoRead, 
+			AdrFirstSlaveRegisterRead:= nAddrRead, 
+			bRequestCompleted:= ADR(bRequestCompleted), 
+			bRequestAccepted=> bRequestSentToMaster);
+				
+		IF bRequestSentToMaster THEN
+			eSMState := READ;				
+		END_IF
+	
+	READ:
+		IF bRequestCompleted THEN	
+			eSMState := WAIT; 			
+			bRequestSentToMaster := FALSE;
+			bRequestCompleted := FALSE;
+			bBusy := FALSE;
+		END_IF
+		
+
+	WRITE_TRIG :
+		
+		fbModbusMaster.writeReg(
+			WriteRegVal := nWriteRegsVals[1],
+			SlaveAddress := nModbusUnitID,
+			AdrFirstSlaveRegisterWrite := nAddrWrite,
+			bRequestCompleted := ADR(bRequestCompleted),
+			bRequestAccepted => bRequestSentToMaster);
+			
+		IF bRequestSentToMaster THEN
+			eSMState := WRITE;           
+		END_IF
+		
+	WRITE:
+		IF bRequestCompleted THEN
+			eSMState := WAIT;
+			bRequestCompleted := FALSE;
+			bRequestSentToMaster := FALSE;
+			bBusy := FALSE;
+		END_IF
+END_CASE
+		
+		
+	
+	]]></ST>
+    </Implementation>
+    <Method Name="FB_init" Id="{74d36492-9ff8-4417-9ee9-406c9514caad}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	ModbusID: UINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nModbusUnitID := ModbusID;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="read_Alarm_CO2_Lvl1" Id="{27524776-0989-4458-a74d-0e57e02990e1}">
+      <Declaration><![CDATA[METHOD read_Alarm_CO2_Lvl1 : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bBusy AND bEnable THEN
+	nPointerInt := ADR(nAlarm_CO2_Level1);
+	nRegisterWordstoRead := 1;
+	nAddrRead:= 101;
+	eSMState := READ_TRIG;
+	bBusy := TRUE;		
+	read_Alarm_CO2_Lvl1 := TRUE;		
+ELSE
+	read_Alarm_CO2_Lvl1 := FALSE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="read_Alarm_CO2_Lvl2" Id="{de8310d0-450f-4579-ad0a-7c8e93a9efe1}">
+      <Declaration><![CDATA[METHOD read_Alarm_CO2_Lvl2 : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bBusy AND bEnable THEN
+	nPointerInt := ADR(nAlarm_CO2_Level2);
+	nRegisterWordstoRead := 1;
+	nAddrRead:= 201;
+	eSMState := READ_TRIG;
+	bBusy := TRUE;		
+	read_Alarm_CO2_Lvl2 := TRUE;		
+ELSE
+	read_Alarm_CO2_Lvl2 := FALSE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="read_Alarm_CO2_Lvl3" Id="{0fbfaec5-04de-4c5e-bdcc-fbeb0a7c68de}">
+      <Declaration><![CDATA[METHOD read_Alarm_CO2_Lvl3 : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bBusy AND bEnable THEN
+	nPointerInt := ADR(nAlarm_CO2_Level3);
+	nRegisterWordstoRead := 1;
+	nAddrRead:= 301;
+	eSMState := READ_TRIG;
+	bBusy := TRUE;		
+	read_Alarm_CO2_Lvl3 := TRUE;		
+ELSE
+	read_Alarm_CO2_Lvl3 := FALSE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="read_Alarm_O2_Lvl1" Id="{c4ff1ccb-8b88-46b3-b66e-2766e9d88cfb}">
+      <Declaration><![CDATA[METHOD read_Alarm_O2_Lvl1 : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bBusy AND bEnable THEN
+	nPointerInt := ADR(nAlarm_O2_Level1);
+	nRegisterWordstoRead := 1;
+	nAddrRead:= 100;
+	eSMState := READ_TRIG;
+	bBusy := TRUE;		
+	read_Alarm_O2_Lvl1 := TRUE;		
+ELSE
+	read_Alarm_O2_Lvl1 := FALSE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="read_Alarm_O2_Lvl2" Id="{2d176d4d-13c8-4b1d-8ca6-4be593421806}">
+      <Declaration><![CDATA[METHOD read_Alarm_O2_Lvl2 : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bBusy AND bEnable THEN
+	nPointerInt := ADR(nAlarm_O2_Level2);
+	nRegisterWordstoRead := 1;
+	nAddrRead:= 200;
+	eSMState := READ_TRIG;
+	bBusy := TRUE;		
+	read_Alarm_O2_Lvl2 := TRUE;		
+ELSE
+	read_Alarm_O2_Lvl2 := FALSE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="read_Alarm_O2_Lvl3" Id="{a448ec98-592f-4423-8b67-f51d1ec6aed7}">
+      <Declaration><![CDATA[METHOD read_Alarm_O2_Lvl3 : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bBusy AND bEnable THEN
+	nPointerInt := ADR(nAlarm_O2_Level3);
+	nRegisterWordstoRead := 1;
+	nAddrRead:= 300;
+	eSMState := READ_TRIG;
+	bBusy := TRUE;		
+	read_Alarm_O2_Lvl3 := TRUE;		
+ELSE
+	read_Alarm_O2_Lvl3 := FALSE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="read_Concentration_CO2" Id="{784259af-192a-43be-9752-1da7da3d7a82}">
+      <Declaration><![CDATA[METHOD read_Concentration_CO2 : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bBusy AND bEnable THEN
+	nPointerInt := ADR(nConcentration_CO2);
+	nRegisterWordstoRead := 1;
+	nAddrRead:= 1;
+	eSMState := READ_TRIG;
+	bBusy := TRUE;		
+	read_Concentration_CO2 := TRUE;		
+ELSE
+	read_Concentration_CO2 := FALSE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="read_Concentration_O2" Id="{6ce3c22e-1753-488e-b0b4-9c6012ed09a4}">
+      <Declaration><![CDATA[METHOD read_Concentration_O2 : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bBusy AND bEnable THEN
+	nPointerInt := ADR(nConcentration_O2);
+	nRegisterWordstoRead := 1;
+	nAddrRead:= 0;
+	eSMState := READ_TRIG;
+	bBusy := TRUE;		
+	read_Concentration_O2 := TRUE;		
+ELSE
+	read_Concentration_O2 := FALSE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_GasMonitoringPanel_CDA4022">
+      <LineId Id="374" Count="3" />
+      <LineId Id="63" Count="5" />
+      <LineId Id="78" Count="1" />
+      <LineId Id="432" Count="0" />
+      <LineId Id="80" Count="7" />
+      <LineId Id="89" Count="2" />
+      <LineId Id="93" Count="5" />
+      <LineId Id="101" Count="0" />
+      <LineId Id="105" Count="0" />
+      <LineId Id="504" Count="0" />
+      <LineId Id="132" Count="2" />
+      <LineId Id="560" Count="0" />
+      <LineId Id="495" Count="0" />
+      <LineId Id="497" Count="3" />
+      <LineId Id="561" Count="0" />
+      <LineId Id="143" Count="1" />
+      <LineId Id="146" Count="1" />
+      <LineId Id="149" Count="5" />
+      <LineId Id="157" Count="0" />
+      <LineId Id="746" Count="0" />
+      <LineId Id="158" Count="1" />
+      <LineId Id="161" Count="0" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_GasMonitoringPanel_CDA4022.FB_init">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_GasMonitoringPanel_CDA4022.read_Alarm_CO2_Lvl1">
+      <LineId Id="6" Count="9" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_GasMonitoringPanel_CDA4022.read_Alarm_CO2_Lvl2">
+      <LineId Id="6" Count="9" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_GasMonitoringPanel_CDA4022.read_Alarm_CO2_Lvl3">
+      <LineId Id="6" Count="9" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_GasMonitoringPanel_CDA4022.read_Alarm_O2_Lvl1">
+      <LineId Id="6" Count="9" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_GasMonitoringPanel_CDA4022.read_Alarm_O2_Lvl2">
+      <LineId Id="6" Count="9" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_GasMonitoringPanel_CDA4022.read_Alarm_O2_Lvl3">
+      <LineId Id="6" Count="9" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_GasMonitoringPanel_CDA4022.read_Concentration_CO2">
+      <LineId Id="7" Count="9" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_GasMonitoringPanel_CDA4022.read_Concentration_O2">
+      <LineId Id="7" Count="9" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_SequenceList_POP" Id="{bd950c7e-0da1-40d5-94ac-925ab9809291}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_SequenceList_POP :
+(
+	SEQ_EXTEND_CONVEY := 1,
+	SEQ_CONVEY_EXTEND := 2,
+	SEQ_RETRACT_CONVEY := 3,
+	SEQ_CONVEY_RETRACT := 4,
+	SEQ_EXTEND := 5,
+	SEQ_RETRACT := 6
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

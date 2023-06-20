@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_DosingMachine_Water" Id="{0c3960ad-71b1-40a9-82c8-7c2a213d9711}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_DosingMachine_Water :
+STRUCT
+	EC_Alarm_HIGH:	REAL;
+	EC_Alarm_LOW:	REAL;
+	EC_LOW_Limit:    UINT; // short
+	EC_HIGH_Limit:    UINT; // float
+	EC_SetPoint:    UINT; // double
+	EC_Selection:    UINT;
+	
+	PH_Alarm_HIGH:	REAL;
+	PH_Alarm_LOW:	REAL;
+	PH_LOW_Limit:    REAL;
+	PH_HIGH_Limit:    REAL;
+	PH_SetPoint:    REAL;
+	PH_Selection:    REAL;
+	
+	DO_Alarm_HIGH:	REAL;
+	DO_Alarm_LOW:	REAL;
+	DO_LOW_Limit:    REAL;
+	DO_HIGH_Limit:    REAL;
+	DO_SetPoint:    REAL;
+	DO_Selection:    REAL;
+	
+	ORP_Alarm_HIGH:	REAL;
+	ORP_Alarm_LOW:	REAL;
+	ORP_LOW_Limit:    REAL;
+	ORP_HIGH_Limit:    REAL;
+	ORP_SetPoint:    REAL;
+	ORP_Selection:    REAL;
+	
+	Temp_Alarm_HIGH:	REAL;
+	Temp_Alarm_LOW:	REAL;
+	Temp_LOW_Limit:    REAL;
+	Temp_HIGH_Limit:    REAL;
+	Temp_SetPoint:    REAL;
+	Temp_Selection:    REAL;
+	
+	Calibrate_PH: BOOL;
+	Calibrate_EC: BOOL;
+	Calibrate_DO: BOOL;
+	Calibrate_ORP: BOOL;
+	Calibrate_TEMP: BOOL;
+
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

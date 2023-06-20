@@ -1,0 +1,374 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SequenceBase" Id="{8533912b-b96a-40d2-ab5d-71a1ccef5fa3}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+		This function block serves as a template for all machine sequences
+		Each sequence step is a structure (ST_SequenceStep) which is defined in the FB_Init
+		method of machine sequence function blocks that extend this FB.
+		After the steps are defined, the STs are packed into the array 'aSequenceSteps'
+		which is used by the Sequence Manager whom iterates over this array to co-ordinate 
+		the execution of steps and/or detection of where sequences are interruped by interlock
+		conditions
+*)
+
+FUNCTION_BLOCK FB_SequenceBase
+
+(*
+VAR_IN_OUT
+	{attribute 'OPC.UA.DA' := '0'} 
+	devices: ST_DMComponents;
+END_VAR
+*)
+
+
+VAR
+	sSequenceName: STRING;
+	sSequenceDescription: STRING(245);
+	nNumberSequenceSteps: INT;
+	
+	
+	bSequentional_1_Flood_0: BOOL := FALSE; // default to flood and set to TRUE using setSequential() method
+	
+	aSequenceSteps: ARRAY[1..20] OF ST_SequenceStep;
+	//aSequenceSteps: ARRAY[1..20] OF ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step1: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step2: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step3: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step4: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step5: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step6: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step7: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step8: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step9: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step10: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step11: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step12: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step13: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step14: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step15: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step16: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step17: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step18: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step19: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step20: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step21: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step22: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step23: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step24: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step25: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step26: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step27: ST_SequenceStep;
+	{attribute 'OPC.UA.DA' := '0'} 
+	Step28: ST_SequenceStep;
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(*
+	Use the text below in the FBs that extend this to build the sequence
+	
+			Step1.Component := devices.
+			Step1.Command := E_DeviceState.
+			Step1.StepMinDuration := T#5S; 
+			Step1.DelayUntilNextStep := T#5S;
+			Step1.WaitForAction := TRUE;
+			aSequenceSteps[1] :=   Step1;
+			
+			
+			Step2.Component := devices.
+			Step2.Command := E_DeviceState.
+			Step2.StepMinDuration := T#5S; 
+			Step2.DelayUntilNextStep := T#5S;
+			Step2.WaitForAction := TRUE;
+			aSequenceSteps[2] :=   Step2;
+			
+			
+			Step3.Component := devices.
+			Step3.Command := E_DeviceState.
+			Step3.StepMinDuration := T#5S; 
+			Step3.DelayUntilNextStep := T#5S;
+			Step3.WaitForAction := TRUE;
+			aSequenceSteps[3] :=   Step3;
+			
+			
+			Step4.Component := devices.
+			Step4.Command := E_DeviceState.
+			Step4.StepMinDuration := T#5S; 
+			Step4.DelayUntilNextStep := T#5S;
+			Step4.WaitForAction := TRUE;
+			aSequenceSteps[4] :=   Step4;
+			
+			
+			Step5.Component := devices.
+			Step5.Command := E_DeviceState.
+			Step5.StepMinDuration := T#5S; 
+			Step5.DelayUntilNextStep := T#5S;
+			Step5.WaitForAction := TRUE;
+			aSequenceSteps[5] :=   Step5;
+			
+			
+			Step6.Component := devices.
+			Step6.Command := E_DeviceState.
+			Step6.StepMinDuration := T#5S; 
+			Step6.DelayUntilNextStep := T#5S;
+			Step6.WaitForAction := TRUE;
+			aSequenceSteps[6] :=   Step6;
+			
+			
+			Step7.Component := devices.
+			Step7.Command := E_DeviceState.
+			Step7.StepMinDuration := T#5S; 
+			Step7.DelayUntilNextStep := T#5S;
+			Step7.WaitForAction := TRUE;
+			aSequenceSteps[7] :=   Step7;
+			
+			
+			Step8.Component := devices.
+			Step8.Command := E_DeviceState.
+			Step8.StepMinDuration := T#5S; 
+			Step8.DelayUntilNextStep := T#5S;
+			Step8.WaitForAction := TRUE;
+			aSequenceSteps[8] :=   Step8;
+			
+			
+			Step9.Component := devices.
+			Step9.Command := E_DeviceState.
+			Step9.StepMinDuration := T#5S; 
+			Step9.DelayUntilNextStep := T#5S;
+			Step9.WaitForAction := TRUE;
+			aSequenceSteps[9] :=   Step9;
+			
+			
+			Step10.Component := devices.
+			Step10.Command := E_DeviceState.
+			Step10.StepMinDuration := T#5S; 
+			Step10.DelayUntilNextStep := T#5S;
+			Step10.WaitForAction := TRUE;
+			aSequenceSteps[10] :=   Step10;
+			
+			
+			Step11.Component := devices.
+			Step11.Command := E_DeviceState.
+			Step11.StepMinDuration := T#5S; 
+			Step11.DelayUntilNextStep := T#5S;
+			Step11.WaitForAction := TRUE;
+			aSequenceSteps[11] :=   Step11;
+			
+			
+			Step12.Component := devices.
+			Step12.Command := E_DeviceState.
+			Step12.StepMinDuration := T#5S; 
+			Step12.DelayUntilNextStep := T#5S;
+			Step12.WaitForAction := TRUE;
+			aSequenceSteps[12] :=   Step12;
+			
+			
+			Step13.Component := devices.
+			Step13.Command := E_DeviceState.
+			Step13.StepMinDuration := T#5S; 
+			Step13.DelayUntilNextStep := T#5S;
+			Step13.WaitForAction := TRUE;
+			aSequenceSteps[13] :=   Step13;
+			
+			
+			Step14.Component := devices.
+			Step14.Command := E_DeviceState.
+			Step14.StepMinDuration := T#5S; 
+			Step14.DelayUntilNextStep := T#5S;
+			Step14.WaitForAction := TRUE;
+			aSequenceSteps[14] :=   Step14;
+			
+			
+			Step15.Component := devices.
+			Step15.Command := E_DeviceState.
+			Step15.StepMinDuration := T#5S; 
+			Step15.DelayUntilNextStep := T#5S;
+			Step15.WaitForAction := TRUE;
+			aSequenceSteps[15] :=   Step15;
+			
+			
+			Step16.Component := devices.
+			Step16.Command := E_DeviceState.
+			Step16.StepMinDuration := T#5S; 
+			Step16.DelayUntilNextStep := T#5S;
+			Step16.WaitForAction := TRUE;
+			aSequenceSteps[16] :=   Step16;
+			
+			
+			Step17.Component := devices.
+			Step17.Command := E_DeviceState.
+			Step17.StepMinDuration := T#5S; 
+			Step17.DelayUntilNextStep := T#5S;
+			Step17.WaitForAction := TRUE;
+			aSequenceSteps[17] :=   Step17;
+			
+			
+			Step18.Component := devices.
+			Step18.Command := E_DeviceState.
+			Step18.StepMinDuration := T#5S; 
+			Step18.DelayUntilNextStep := T#5S;
+			Step18.WaitForAction := TRUE;
+			aSequenceSteps[18] :=   Step18;
+			
+			
+			Step19.Component := devices.
+			Step19.Command := E_DeviceState.
+			Step19.StepMinDuration := T#5S; 
+			Step19.DelayUntilNextStep := T#5S;
+			Step19.WaitForAction := TRUE;
+			aSequenceSteps[19] :=   Step19;
+			
+			
+			Step20.Component := devices.
+			Step20.Command := E_DeviceState.
+			Step20.StepMinDuration := T#5S; 
+			Step20.DelayUntilNextStep := T#5S;
+			Step20.WaitForAction := TRUE;
+			aSequenceSteps[20] :=   Step20;
+
+
+
+*)]]></ST>
+    </Implementation>
+    <Method Name="getSeqType" Id="{7fc32b0f-a0bf-4668-9bac-3477319530be}">
+      <Declaration><![CDATA[METHOD getSeqType : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getSeqType := bSequentional_1_Flood_0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setSeqType" Id="{01812e84-09a3-4ded-91b7-d52c169868a0}">
+      <Declaration><![CDATA[METHOD setSeqType : BOOL
+VAR_INPUT
+	Sequential_1_Flood_0: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bSequentional_1_Flood_0 := Sequential_1_Flood_0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="step" Id="{eca105f4-3267-41db-b540-03d94fde72ea}">
+      <Declaration><![CDATA[METHOD step : POINTER TO ST_SequenceStep
+VAR_INPUT
+	StepNum: INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[step := ADR(aSequenceSteps[StepNum]);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="stepCommand" Id="{7b035901-8a9a-4610-b2a0-c1e375163f55}">
+      <Declaration><![CDATA[METHOD stepCommand : E_DeviceState
+VAR_INPUT
+	StepNumber: INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[stepCommand := aSequenceSteps[StepNumber].Command;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="steps" Id="{89843de5-72c0-4f8b-91c9-44b642a6c3bb}">
+      <Declaration><![CDATA[METHOD steps : ARRAY[1..20] OF ST_SequenceStep
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[steps := aSequenceSteps;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="stepState" Id="{a67e6331-166f-4dd4-a03d-b6b367a11e60}">
+      <Declaration><![CDATA[METHOD stepState : E_DeviceState
+VAR_INPUT
+	StepNumber: INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[stepState := aSequenceSteps[StepNumber].Device^.getState();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="stepsTotal" Id="{e0144cd0-d1a7-4cca-8ff2-347dacd54fcf}">
+      <Declaration><![CDATA[METHOD stepsTotal : INT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[stepsTotal := nNumberSequenceSteps;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="updateVarIDs" Id="{435f074b-04ce-4c07-9e97-05ec7956eca8}">
+      <Declaration><![CDATA[METHOD updateVarIDs : BOOL
+VAR
+	iterator: INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR iterator := 1 TO nNumberSequenceSteps BY 1 DO
+	aSequenceSteps[iterator].DeviceVarID := aSequenceSteps[iterator].Device^.getVarID();
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_SequenceBase">
+      <LineId Id="9" Count="0" />
+      <LineId Id="61" Count="1" />
+      <LineId Id="346" Count="157" />
+      <LineId Id="257" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="55" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceBase.getSeqType">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceBase.setSeqType">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceBase.step">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceBase.stepCommand">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceBase.steps">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceBase.stepState">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceBase.stepsTotal">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceBase.updateVarIDs">
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

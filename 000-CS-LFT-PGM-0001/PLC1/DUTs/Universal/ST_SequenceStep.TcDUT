@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_SequenceStep" Id="{ea81bfe9-8cfb-413a-989c-1ad63d6522a0}">
+    <Declaration><![CDATA[TYPE ST_SequenceStep :
+STRUCT
+	
+	Device:	POINTER TO FB_BaseDevice;
+	DeviceVarID: STRING;
+	Command:	E_DeviceState;
+	StepMinDuration: TIME;
+	DelayUntilNextStep: TIME;
+	WaitForAction: BOOL;
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,278 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_BaseDevice" Id="{828692ff-2d6e-4df3-89c5-ba3b5a7c076d}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_BaseDevice
+
+VAR
+	{attribute 'OPC.UA.DA' := '1'} 
+	sID: STRING; // as per P&IDs
+	{attribute 'OPC.UA.DA' := '1'} 
+	sDescr: STRING;
+	{attribute 'OPC.UA.DA' := '1'} 
+	sVarID: STRING;
+	{attribute 'OPC.UA.DA' := '0'} 
+	bBusy: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	bError: BOOL := FALSE;
+	bEnable: BOOL := TRUE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	eMode: E_DeviceMode := E_DeviceMode.AUTO;
+	{attribute 'OPC.UA.DA' := '1'} 
+	eState: E_DeviceState := E_DeviceState.IDLE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	eStateTarget: E_DeviceState := E_DeviceState.IDLE;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbTONstartTime: TON;
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbTONstopTime: TON;
+	{attribute 'OPC.UA.DA' := '0'} 
+	tMaxStartTime: TIME := T#5S;
+	{attribute 'OPC.UA.DA' := '0'} 
+	tMaxStopTime: TIME := T#5S;
+	
+	
+	
+	{attribute 'OPC.UA.DA' := '1'} 
+	aErrors: ARRAY[1..10] OF ST_Alarm;	// raiseEvent() method updates Error1 / aErrors[1] only at the moment, must implement a ring buffer with error active checking for full functionality
+	
+
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// This is the base class for all devices (actuators and sensors)
+// Provides common variables to all instances 
+// Note that the I_Device interface provides the common methods for all devices
+
+]]></ST>
+    </Implementation>
+    <Method Name="disable" Id="{8dc51106-416a-411a-abe7-5933e106639b}">
+      <Declaration><![CDATA[METHOD disable : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{fcf77402-d69c-4488-a625-0cd278dc8441}">
+      <Declaration><![CDATA[METHOD enable : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getCommand" Id="{920e52e3-1202-46c5-a1c3-29e09b900eeb}">
+      <Declaration><![CDATA[METHOD getCommand : E_DeviceState
+VAR
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getCommand := eStateTarget;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getDescription" Id="{2bc7f28a-2e61-45e7-bb68-995101606cf0}">
+      <Declaration><![CDATA[METHOD getDescription : STRING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getDescription := sDescr;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getID" Id="{b64b9aca-ecb1-4a07-997e-f0ba8a4ea0e9}">
+      <Declaration><![CDATA[METHOD getID : STRING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getID := sID;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getMode" Id="{8867d135-ce61-4e0a-ae23-dc2884cb083e}">
+      <Declaration><![CDATA[METHOD getMode : E_DeviceMode
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getState" Id="{69dd0898-ee7b-481f-a8d8-8ec9c6401a9b}">
+      <Declaration><![CDATA[METHOD getState : E_DeviceState
+VAR
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getState := eState;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getVarID" Id="{8497824c-f8dd-4aaf-b44c-cc8085f70182}">
+      <Declaration><![CDATA[METHOD getVarID : STRING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getVarID := sVarID;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="inManual" Id="{27c96841-69c7-4008-8e78-8fd85be25f33}">
+      <Declaration><![CDATA[METHOD inManual : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eMode = E_DeviceMode.MANUAL THEN
+	inManual := TRUE;
+ELSE
+	inManual := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isEnabled" Id="{4256b052-3861-45c1-b91b-8bf8a6fd6216}">
+      <Declaration><![CDATA[METHOD isEnabled : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bEnable = TRUE THEN
+	isEnabled := TRUE;
+ELSE
+	isEnabled := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="raiseAlarm" Id="{b7a7b830-55b5-4494-901e-92a142632bc8}">
+      <Declaration><![CDATA[METHOD raiseAlarm : POINTER TO ST_Alarm
+VAR_INPUT
+	Priority: E_AlarmPriority; 
+	Label: STRING(255);
+	Enabled: BOOL := FALSE;
+	DeviceAlarmID: INT; // from 1 to 10
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[aErrors[DeviceAlarmID].bEnabled := TRUE;
+aErrors[DeviceAlarmID].ePriority := Priority;
+aErrors[DeviceAlarmID].sLabel := Label;
+ ]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="runSimulation" Id="{bd4de552-44f1-4903-8e42-47eb9d2b2af3}">
+      <Declaration><![CDATA[METHOD runSimulation : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eState := eStateTarget;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setCommand" Id="{0accf221-0fb0-46a4-96c6-e8053fbf478d}">
+      <Declaration><![CDATA[METHOD setCommand : BOOL
+VAR_INPUT
+	StateTarget: E_DeviceState;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eStateTarget := StateTarget; ]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setID" Id="{67563d9f-305a-465c-9c60-8fd98e275a28}">
+      <Declaration><![CDATA[METHOD setID : BOOL
+VAR_INPUT
+	ID: STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := ID;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setMode" Id="{f27b77c6-0822-44de-ae6b-8acd5d43f693}">
+      <Declaration><![CDATA[METHOD setMode : BOOL
+VAR_INPUT
+	Mode: E_DeviceMode;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+eMode := Mode;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setVarID" Id="{07fa29d5-9a78-4f2c-82a2-e73442a7c4ca}">
+      <Declaration><![CDATA[METHOD setVarID : BOOL
+VAR_INPUT
+	VarID: STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sVarID := VarID;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_BaseDevice">
+      <LineId Id="9" Count="0" />
+      <LineId Id="18" Count="1" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="36" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseDevice.disable">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseDevice.enable">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseDevice.getCommand">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseDevice.getDescription">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseDevice.getID">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseDevice.getMode">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseDevice.getState">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseDevice.getVarID">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseDevice.inManual">
+      <LineId Id="5" Count="1" />
+      <LineId Id="8" Count="1" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseDevice.isEnabled">
+      <LineId Id="5" Count="1" />
+      <LineId Id="8" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_BaseDevice.raiseAlarm">
+      <LineId Id="5" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="15" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseDevice.runSimulation">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseDevice.setCommand">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseDevice.setID">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseDevice.setMode">
+      <LineId Id="6" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseDevice.setVarID">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

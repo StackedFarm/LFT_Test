@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Sensor_OMRON_E3AS" Id="{dba06728-3d94-4547-8c6c-4e315caf6db6}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Sensor_OMRON_E3AS EXTENDS FB_BaseDevice
+VAR
+	bRawInputNO AT %I*: BOOL;
+	bRawInputNC AT %I*: BOOL;
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF bRawInputNO AND (NOT bRawInputNC) THEN			// add some cross-checking with timers in here to detect failure of contacts
+	eState := E_DeviceState.ON;
+ELSIF (NOT bRawInputNO) AND bRawInputNC THEN
+	eState := E_DeviceState.OFF;
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FB_Sensor_OMRON_E3AS">
+      <LineId Id="9" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="15" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

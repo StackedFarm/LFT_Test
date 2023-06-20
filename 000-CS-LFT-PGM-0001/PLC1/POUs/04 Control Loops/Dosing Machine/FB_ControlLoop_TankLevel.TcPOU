@@ -1,0 +1,134 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ControlLoop_TankLevel" Id="{db0d32de-a332-48a3-bd7f-a1e6c48c9c88}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Function Block which performs a level control using a DOL pump and a high level switch
+*)
+{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_ControlLoop_TankLevel EXTENDS FB_BaseDevice
+VAR_IN_OUT
+	fbValve: 	FB_Valve_ONOFF_woMonitoring;
+	fbSensorH: 	FB_Sensor_SICKLevelSwitch_GRF18S;
+END_VAR
+
+
+VAR PERSISTENT
+	tDebounce: TIME := T#1M; 
+	tDebonce_Sensor: TIME := T#1.5S;
+END_VAR
+
+VAR
+	bFirstRun: BOOL := TRUE;
+	eSMState: (WAIT, FILLING, FULL, STOPPING);
+	fbTON_Debouce: TON := (PT := tDebounce, IN := FALSE);
+	
+	
+	fbTON_Debounce_Sensor: TON := (PT := tDebonce_Sensor, IN := FALSE);
+
+END_VAR
+
+
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF bFirstRun THEN
+	
+	bFirstRun := FALSE;
+END_IF
+
+fbTON_Debounce_Sensor();
+fbTON_Debouce();
+
+IF GVL.bAutoUpdateDeviceState THEN
+	eState := eStateTarget;	
+END_IF
+
+IF bEnable THEN
+	fbValve.enable();
+END_IF
+
+IF eMode = E_DeviceMode.MANUAL THEN
+	bEnable := TRUE;
+END_IF
+
+IF bEnable AND (eStateTarget = E_DeviceState.ON) AND eSMState <> FULL THEN
+		eSMState := FILLING;
+END_IF
+
+
+IF (bEnable = FALSE OR eStateTarget = E_DeviceState.OFF) AND eSMState <> WAIT THEN
+		eSMState := STOPPING;
+END_IF
+
+
+IF bEnable THEN
+	CASE eSMState OF
+		WAIT:
+			// Do nothing
+			eState := E_DeviceState.OFF;
+		FILLING:
+			fbTON_Debouce(IN := FALSE);
+			eState := E_DeviceState.ON;
+			fbValve.setCommand(StateTarget := E_DeviceState.OPEN);
+			IF (fbSensorH.getValue() = 0) THEN
+				eSMState := FULL;
+				fbTON_Debounce_Sensor(IN := TRUE);
+				IF fbTON_Debounce_Sensor.Q THEN
+					eSMState := FULL;
+					fbTON_Debounce_Sensor(IN := FALSE);
+				END_IF
+			END_IF
+			
+		FULL:
+			fbTON_Debouce(PT := tDebounce, IN := TRUE);
+			eState := E_DeviceState.ON;
+			// Stop the pump
+			fbValve.setCommand(StateTarget := E_DeviceState.CLOSED);
+			IF (fbSensorH.getValue() = 1) AND (fbTON_Debouce.Q) THEN
+				eSMState := FILLING;
+			END_IF
+			
+		STOPPING:
+			fbValve.setCommand(StateTarget := E_DeviceState.IDLE);
+			eState := E_DeviceState.TURNING_OFF;
+			eSMState := WAIT;	
+	END_CASE
+END_IF
+]]></ST>
+    </Implementation>
+    <Method Name="setState" Id="{cd601852-b016-49e5-b946-b40a171d06a3}">
+      <Declaration><![CDATA[METHOD setState : BOOL
+VAR_INPUT
+	state : E_DeviceState;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+eState := state;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ControlLoop_TankLevel">
+      <LineId Id="272" Count="3" />
+      <LineId Id="353" Count="0" />
+      <LineId Id="276" Count="1" />
+      <LineId Id="354" Count="0" />
+      <LineId Id="278" Count="2" />
+      <LineId Id="416" Count="0" />
+      <LineId Id="281" Count="0" />
+      <LineId Id="417" Count="1" />
+      <LineId Id="282" Count="25" />
+      <LineId Id="352" Count="0" />
+      <LineId Id="355" Count="1" />
+      <LineId Id="358" Count="0" />
+      <LineId Id="357" Count="0" />
+      <LineId Id="308" Count="13" />
+      <LineId Id="387" Count="0" />
+      <LineId Id="323" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlLoop_TankLevel.setState">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

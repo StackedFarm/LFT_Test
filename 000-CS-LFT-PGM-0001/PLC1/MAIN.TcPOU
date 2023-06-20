@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="MAIN" Id="{9f57afae-ad28-41cd-80ff-e125142449c1}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR
+	fbLiftServo: 	FB_SEW_MovidriveB;
+	fbLiftArmServo:	FB_SEW_MovidriveB;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[devicesUpdate();
+]]></ST>
+    </Implementation>
+    <Method Name="devicesUpdate" Id="{3ccdbb5b-b4c7-426e-bb3f-41280683a070}">
+      <Declaration><![CDATA[METHOD devicesUpdate : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbLiftServo();
+fbLiftArmServo();]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="MAIN">
+      <LineId Id="2" Count="0" />
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="MAIN.devicesUpdate">
+      <LineId Id="5" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

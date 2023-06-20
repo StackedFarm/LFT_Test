@@ -1,0 +1,76 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SigCond_MovingAverage" Id="{3bb2ebc7-4f34-432f-ba5d-d27d2db361ff}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_SigCond_MovingAverage
+VAR_INPUT
+	fIn:					FLOAT;
+	nSamplesToFilter:		UINT; // Maximum of 500
+	tCtrlCycleTime:			TIME;
+	tTaskCycleTime:			TIME;
+
+	fManSyncValue:	FLOAT;
+	bSync:			BOOL;
+	eMode:			E_CTRL_MODE;
+	bHold:			BOOL;
+END_VAR
+
+VAR
+	
+	fbCtr_MovAvg:	FB_CTRL_MOVING_AVERAGE;
+	stParams:		ST_CTRL_MOVING_AVERAGE_PARAMS;
+	aInternalData:	ARRAY[1..500] OF FLOAT;
+END_VAR
+
+
+VAR_OUTPUT
+	fOut:			FLOAT;
+	eState:			E_CTRL_STATE;
+	eErrorID:		E_CTRL_ERRORCODES;
+	bError:			BOOL;	
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+
+// Read inputs and put into params structure
+stParams.nSamplesToFilter 	:= nSamplesToFilter;
+stParams.tCtrlCycleTime 	:= tCtrlCycleTime;
+stParams.tTaskCycleTime		:= tTaskCycleTime;
+stParams.pWorkArray_ADR		:= ADR(aInternalData);
+stParams.nWorkArray_SIZEOF	:= SIZEOF(aInternalData);
+
+eMode := E_CTRL_MODE.eCTRL_MODE_ACTIVE;
+
+// Execute filter
+fbCtr_MovAvg(fIn := fIn, fManSyncValue := fManSyncValue, bSync := bSync, eMode := eMode, bHold := bHold, stParams := stParams);
+
+
+// Update outputs
+fOut 		:= fbCtr_MovAvg.fOut;
+eState 		:= fbCtr_MovAvg.eState;
+eErrorID 	:= fbCtr_MovAvg.eErrorId;
+bError 		:= fbCtr_MovAvg.bError;
+
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_SigCond_MovingAverage">
+      <LineId Id="56" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="57" Count="3" />
+      <LineId Id="76" Count="0" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="72" Count="1" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="66" Count="2" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="63" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

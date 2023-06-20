@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_MovidriveB_OpMode" Id="{7bfb3327-9688-4b0c-9bf0-e14cfce38cec}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_MovidriveB_OpMode :
+(
+	JOG_MODE,
+	REFERENCING_MODE,
+	AUTOMATIC_MODE
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

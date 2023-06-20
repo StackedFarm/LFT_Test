@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_TrayCentre" Id="{51c78a2c-c20f-45f5-b703-4adb4faec499}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_TrayCentre:
+STRUCT
+	
+	Mode:     	E_DeviceMode;
+	Command:    E_DeviceState;
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,142 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Sensor_OceanControlsPressureTx_BVS006NA" Id="{5eeff715-444e-40ae-8558-5ddf7f8fb826}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_Sensor_OceanControlsPressureTx_BVS006NA EXTENDS FB_BaseDevice IMPLEMENTS I_Device, I_Sensor
+// This is a 0 to 6BAR pressure sensor from 4mA to 20mA
+
+VAR
+
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSensorType: E_SensorType;
+	{attribute 'OPC.UA.DA' := '0'} 
+	nRawInput AT %I*: INT;
+	{attribute 'OPC.UA.DA' := '1'} 
+	nCurrentValue: REAL;
+	
+	{attribute 'OPC.UA.DA' := '1'} 
+	nVal4mA: REAL := 0; //kPA
+	{attribute 'OPC.UA.DA' := '1'} 
+	nVal20mA: REAL := 600; //kPA
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[calculate();]]></ST>
+    </Implementation>
+    <Method Name="calculate" Id="{918b74fa-5657-4007-8a25-d97f94782e14}">
+      <Declaration><![CDATA[METHOD calculate : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nCurrentValue := nVal4mA + (INT_TO_REAL(nRawInput) / GVL.nMaxADCOutput) * (nVal20mA - nVal4mA) ;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="disable" Id="{ce35d87c-e1ce-4ef0-86a5-ef8420d2fd64}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{9e67d969-ab93-4658-99b0-833b5b915c82}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{06d31db5-7880-4457-8fe8-d151c58862c3}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD FB_init : BOOL
+VAR_INPUT
+	(* if TRUE, the retain variables are initialized (warm start / cold start)*)
+	bInitRetains	: BOOL;
+	(* if TRUE, the instance afterwards gets moved into the copy code (online change)*)
+	bInCopyCode	: BOOL;
+	SensorID	: STRING(80);
+	SensorDescr	: STRING(255);
+	SensorType	: E_SensorType;
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := SensorID;
+sDescr := SensorDescr;
+eSensorType := SensorType;
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getType" Id="{8c43849d-c927-41d0-96cf-6c16fc0815a9}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getType : E_SensorType
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getType := eSensorType;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getValue" Id="{5afbf4bb-e15b-4277-b764-b2e869e90722}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getValue : REAL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getValue := nCurrentValue;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setLimits" Id="{c3022aee-f44f-486f-8fc7-f52de379b09c}">
+      <Declaration><![CDATA[METHOD setLimits : BOOL
+VAR_INPUT
+	Val_4mA: 	REAL;
+	Val_20mA: 	REAL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nVal4mA := Val_4mA;
+nVal20mA := Val_20mA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="write" Id="{1e5211c2-b798-47e5-a6d4-8903204343ba}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD write : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Sensor_OceanControlsPressureTx_BVS006NA">
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_OceanControlsPressureTx_BVS006NA.calculate">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_OceanControlsPressureTx_BVS006NA.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_OceanControlsPressureTx_BVS006NA.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_OceanControlsPressureTx_BVS006NA.FB_init">
+      <LineId Id="32" Count="0" />
+      <LineId Id="34" Count="1" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="17" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_OceanControlsPressureTx_BVS006NA.getType">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_OceanControlsPressureTx_BVS006NA.getValue">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_OceanControlsPressureTx_BVS006NA.setLimits">
+      <LineId Id="11" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_OceanControlsPressureTx_BVS006NA.write">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

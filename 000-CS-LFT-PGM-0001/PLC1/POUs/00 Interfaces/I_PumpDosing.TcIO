@@ -1,0 +1,60 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_PumpDosing" Id="{8cdfb737-b7ae-4795-b384-e050981bde6f}">
+    <Declaration><![CDATA[INTERFACE I_PumpDosing
+(*
+	This interface standardises the interface to the 2 x types of dosing pumps being used at ARU installation
+	If and when other dosing pumps are used in SF installations they shall implement this interface for the program to function correctly 
+	Note: the Agrowtek pumps are supplied in a combined unit (i.e. 5 pumps in 1). 
+			IN this case, we shall create 5 instances of the relevant dosing pump FB, not 1 instance for the 5 combined pumps.
+*)
+
+
+]]></Declaration>
+    <Method Name="disable" Id="{b7bba125-62c3-4b79-a87c-cee8382c7493}">
+      <Declaration><![CDATA[METHOD disable : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="enable" Id="{18c04004-b84c-43e6-9edc-5dc9efc71715}">
+      <Declaration><![CDATA[METHOD enable : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="executeDose" Id="{14f59e93-8328-488f-9bf7-3dc9be3a73a6}">
+      <Declaration><![CDATA[METHOD executeDose : BOOL
+VAR_INPUT
+	DoseQtyMls: LREAL;
+	DoseRateMlph: UINT;
+	RequestComplete: 	POINTER TO BOOL;
+END_VAR
+VAR_OUTPUT
+	RequestAccepted: BOOL;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="setOFF" Id="{a1ff0273-b811-4f0a-af2f-a589d97b5e97}">
+      <Declaration><![CDATA[METHOD setOFF : BOOL
+VAR_INPUT
+	RequestComplete: 	POINTER TO BOOL;
+END_VAR
+VAR_OUTPUT
+	RequestAccepted: 	BOOL;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="setON" Id="{72fe84bd-7100-4243-b8f5-81d4b212cfca}">
+      <Declaration><![CDATA[METHOD setON : BOOL
+VAR_INPUT
+	RateMlph	 : 		UINT;
+	RequestComplete: 	POINTER TO BOOL;
+END_VAR
+
+VAR_OUTPUT
+	RequestAccepted: 	BOOL;
+END_VAR]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

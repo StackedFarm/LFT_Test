@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_LinAct" Id="{f846fe6c-db61-4b1e-a671-5a94e2802e28}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_LinAct:
+STRUCT
+	
+	Mode:     	E_DeviceMode;
+	Command:    E_DeviceState;
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

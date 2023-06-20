@@ -1,0 +1,271 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ControlLoop_pH" Id="{533cc2b2-543d-46de-9660-0f99a5d35bf8}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ControlLoop_pH
+
+VAR
+	fbDosingPump_phUp:  		I_PumpDosing;
+	fbDosingPump_phDOwn:  		I_PumpDosing;	
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbSensor_PH:	I_Sensor(SensorID := '', SensorDescr := '' , SensorType := E_SensorType.Analogue);
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbSensor_TEMP:	I_Sensor(SensorID := '', SensorDescr := '' , SensorType := E_SensorType.Analogue);	
+	
+	eSMState: 					(INIT, WAIT_TRIG, WAIT, CALCULATE) := INIT;
+	eCurrentNutrient: 			(PH) := PH;
+
+	bEnabled: BOOL := TRUE;
+	bError: BOOL := FALSE;
+	
+	bDoseRequestSent:		BOOL := FALSE;
+	bDoseRequestComplete: 	BOOL := FALSE;
+	
+	{attribute 'OPC.UA.DA' := '0'}
+	fbTON_PIDLoop: TON;
+	tPIDLoopTime: TIME := T#5S;			//5 second PID calculation
+	
+	nPIDPHMaxDoseRate: UINT;
+	nPIDPHMinDoseRate: UINT;
+	tPIDPHTimeBetweenDoses: TIME;
+	
+		
+	nPIDPHSetpoint:			REAL; 
+	nPIDPHSetpointBand:		REAL := 0.05; // %
+	nPIDPHManSyncVal:		REAL;
+	bPIDPHSync: 			BOOL;
+	nPIDPHError:			REAL;
+	nPIDPHOutput: 			LREAL;
+	bPIDPHHold: 			BOOL;
+	ePIDPHMode: 			E_CTRL_MODE;
+	stPIDPHParameters: 		ST_CTRL_PID_PARAMS;
+	ePIDPHErrorId: 			E_CTRL_ERRORCODES;
+	bPIDPHError: 			BOOL;
+	bPIDPHARWactive: 		BOOL;
+		
+	//stPIDParams values
+	tPIDPHCtrlCycleTime: 		TIME := T#5000MS;
+	tPIDPHTaskCycleTime:		TIME := T#10MS;
+	nPIDPHKp:  					REAL := 500.0;
+	tPIDPHTn: 					TIME := T#0MS; 
+	tPIDPHTv:					TIME := T#0MS; 
+	tPIDPHTd:					TIME := T#0MS; 
+	nPIDPHOutMaxLimit: 			REAL := 1E38; 		
+	nPIDPHOutMinLimit:			REAL := -1E38;
+	bPIDPHPInTheFeedbackPath: 	BOOL := FALSE;
+	bPIDPHDInTheFeedbackPath:	BOOL := FALSE;
+	bPIDPHARWOnIPartOnly:		BOOL := FALSE;
+	
+	{attribute 'OPC.UA.DA' := '0'}
+	PID_PH: FB_CTRL_PID;
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+
+CASE eSMState OF
+	
+	INIT:
+		initPIDLoops();
+		eSMState := WAIT_TRIG;
+
+	WAIT_TRIG:
+	
+		fbTON_PIDLoop(IN:= TRUE, PT := tPIDLoopTime); // this controls the PID control loop cycle time
+		nPIDPHError:= nPIDPHSetpoint - fbSensor_PH.getValue();
+		eSMState := WAIT;
+	
+	WAIT:
+		IF fbTON_PIDLoop.Q THEN
+			fbTON_PIDLoop(IN := FALSE);
+			eSMState := CALCULATE;
+		END_IF
+
+	CALCULATE:
+						
+		PID_PH(			fSetpointValue		:= nPIDPHSetpoint,
+						fActualValue		:= fbSensor_PH.getValue(),
+						fManSyncValue		:= nPIDPHManSyncVal,
+						bSync				:= bPIDPHSync,
+						eMode				:= ePIDPHMode,
+						bHold				:= bPIDPHHold,
+						stParams			:= stPIDPHParameters,
+						fOut				=> nPIDPHOutput,
+						bARWactive			=> bPIDPHARWactive,
+						eErrorId			=> ePIDPHErrorId,
+						bError				=> bPIDPHError );
+
+		IF nPIDPHError > 0 AND bDoseRequestSent = FALSE THEN
+			fbDosingPump_phUp.executeDose(DoseQtyMls := LREAL_TO_UINT(nPIDPHOutput), DoseRateMlph := 40, RequestComplete := ADR(bDoseRequestComplete), RequestAccepted => bDoseRequestSent); // change arbitrary 40 lph to a variable based on dose amount
+		ELSIF nPIDPHError < 0 AND bDoseRequestSent = FALSE THEN
+			fbDosingPump_phDown.executeDose(DoseQtyMls := LREAL_TO_UINT(nPIDPHOutput), DoseRateMlph := 40, RequestComplete := ADR(bDoseRequestComplete), RequestAccepted => bDoseRequestSent); // change arbitrary 40 lph to a variable based on dose amount
+		ELSIF bDoseRequestSent = TRUE AND bDoseRequestComplete = TRUE THEN
+			bDoseRequestSent 	:= FALSE;
+			bDoseRequestComplete:= FALSE;
+		END_IF
+		eSMState := WAIT_TRIG;
+END_CASE
+						
+		
+						
+		
+
+]]></ST>
+    </Implementation>
+    <Method Name="FB_init" Id="{15c0db63-e55e-450e-bf15-67eeb9324b8b}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	DosingPump_phUp:  			I_PumpDosing;
+	DosingPump_phDOwn:  		I_PumpDosing;
+
+	Sensor_PH:				I_Sensor(SensorID := '', SensorDescr := '' , SensorType := E_SensorType.Analogue);
+	Sensor_TEMP:			I_Sensor(SensorID := '', SensorDescr := '' , SensorType := E_SensorType.Analogue);
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbDosingPump_phUp := DosingPump_phUp;
+fbDosingPump_phDOwn := DosingPump_phDOwn;
+
+fbSensor_PH := Sensor_PH;
+fbSensor_TEMP := Sensor_TEMP;	
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="initPIDLoops" Id="{b40b0fc7-46a0-4d27-a067-e2aafb0fb160}">
+      <Declaration><![CDATA[METHOD initPIDLoops : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[stPIDPHParameters.tCtrlCycleTime := tPIDPHCtrlCycleTime;
+stPIDPHParameters.tTaskCycleTime := tPIDPHTaskCycleTime;
+stPIDPHParameters.fKp := nPIDPHKp;
+stPIDPHParameters.tTn := tPIDPHTn;
+stPIDPHParameters.tTv := tPIDPHTv;
+stPIDPHParameters.tTd := tPIDPHTd;
+stPIDPHParameters.fOutMaxLimit := nPIDPHOutMaxLimit;
+stPIDPHParameters.fOutMinLimit := nPIDPHOutMinLimit;
+stPIDPHParameters.bPInTheFeedbackPath := bPIDPHPInTheFeedbackPath;
+stPIDPHParameters.bDInTheFeedbackPath := bPIDPHDInTheFeedbackPath;
+stPIDPHParameters.bARWOnIPartOnly := bPIDPHARWOnIPartOnly;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setParams" Id="{c81f8886-8fbc-4820-b30f-f7cc2e8afc4a}">
+      <Declaration><![CDATA[METHOD setParams : BOOL
+VAR_INPUT
+	
+	PHMaxDoseRate: UINT;
+	PHMinDoseRate: UINT;
+	PHTimeBetweenDoses: TIME;
+	
+	PHSetpoint:				REAL; 
+	PHSetpointBand:			REAL;
+	PHManSyncVal:			REAL;
+	PHSync: 				BOOL;
+	PHHold: 				BOOL;
+	PHMode: 				E_CTRL_MODE;
+	PHCtrlCycleTime: 		TIME;
+	PHTaskCycleTime:		TIME;
+	
+	
+	//stPIDParams values
+	PHKp:  					REAL;
+	PHTn: 					TIME;
+	PHTv:					TIME;
+	PHTd:					TIME; 
+	PHOutMaxLimit: 			REAL; 		
+	PHOutMinLimit:			REAL;
+	PHPInTheFeedbackPath: 	BOOL;
+	PHDInTheFeedbackPath:	BOOL;
+	PHARWOnIPartOnly:		BOOL;
+
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+nPIDPHMaxDoseRate := PHMaxDoseRate;
+nPIDPHMinDoseRate := PHMinDoseRate;
+tPIDPHTimeBetweenDoses := PHTimeBetweenDoses;
+
+
+nPIDPHSetpoint := PHSetpoint;
+nPIDPHSetpointBand := PHSetpointBand;
+nPIDPHManSyncVal := PHManSyncVal;
+bPIDPHSync := PHSync;
+bPIDPHHold := PHHold;
+ePIDPHMode := PHMode;
+tPIDPHCtrlCycleTime := PHCtrlCycleTime;
+tPIDPHTaskCycleTime := PHTaskCycleTime;
+
+nPIDPHKp := PHKp;
+tPIDPHTn := PHTn;
+tPIDPHTv := PHTv;
+tPIDPHTd := PHTd;
+nPIDPHOutMaxLimit := PHOutMaxLimit;
+nPIDPHOutMinLimit := PHOutMinLimit;
+bPIDPHPInTheFeedbackPath := PHPInTheFeedbackPath;
+bPIDPHDInTheFeedbackPath := PHDInTheFeedbackPath;
+bPIDPHARWactive := PHARWOnIPartOnly;
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ControlLoop_pH">
+      <LineId Id="946" Count="1" />
+      <LineId Id="83" Count="0" />
+      <LineId Id="305" Count="0" />
+      <LineId Id="308" Count="0" />
+      <LineId Id="360" Count="0" />
+      <LineId Id="339" Count="0" />
+      <LineId Id="306" Count="0" />
+      <LineId Id="85" Count="0" />
+      <LineId Id="366" Count="0" />
+      <LineId Id="342" Count="0" />
+      <LineId Id="569" Count="0" />
+      <LineId Id="378" Count="0" />
+      <LineId Id="344" Count="0" />
+      <LineId Id="377" Count="0" />
+      <LineId Id="348" Count="1" />
+      <LineId Id="362" Count="0" />
+      <LineId Id="350" Count="0" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="249" Count="0" />
+      <LineId Id="251" Count="9" />
+      <LineId Id="250" Count="0" />
+      <LineId Id="416" Count="0" />
+      <LineId Id="419" Count="1" />
+      <LineId Id="422" Count="1" />
+      <LineId Id="481" Count="0" />
+      <LineId Id="483" Count="0" />
+      <LineId Id="480" Count="0" />
+      <LineId Id="421" Count="0" />
+      <LineId Id="839" Count="0" />
+      <LineId Id="414" Count="1" />
+      <LineId Id="402" Count="0" />
+      <LineId Id="374" Count="0" />
+      <LineId Id="379" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="46" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlLoop_pH.FB_init">
+      <LineId Id="61" Count="1" />
+      <LineId Id="69" Count="2" />
+      <LineId Id="37" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlLoop_pH.initPIDLoops">
+      <LineId Id="31" Count="9" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlLoop_pH.setParams">
+      <LineId Id="54" Count="2" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="52" Count="1" />
+      <LineId Id="6" Count="17" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

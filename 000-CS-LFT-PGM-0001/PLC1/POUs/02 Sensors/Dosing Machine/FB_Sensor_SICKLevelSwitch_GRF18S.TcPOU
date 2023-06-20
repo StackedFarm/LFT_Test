@@ -1,0 +1,119 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Sensor_SICKLevelSwitch_GRF18S" Id="{f45d52d0-7769-4b43-a8f0-30f5a7d78fca}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_Sensor_SICKLevelSwitch_GRF18S EXTENDS FB_BaseDevice IMPLEMENTS I_Device, I_Sensor
+
+VAR
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSensorType: E_SensorType;
+	{attribute 'OPC.UA.DA' := '0'} 
+	nRawInput AT %I*: BOOL;
+	{attribute 'OPC.UA.DA' := '1'} 
+	nCurrentValue: REAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[calculate();]]></ST>
+    </Implementation>
+    <Method Name="calculate" Id="{76eb7f5f-8eaf-4d43-8455-8a226267a653}">
+      <Declaration><![CDATA[METHOD calculate : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF nRawInput THEN
+	nCurrentValue := 1;
+ELSE
+	nCurrentValue := 0;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="disable" Id="{50a73936-121d-4bfe-ac2d-b27e10298248}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{b92a0c8a-823c-4a4a-9bc0-6aad587f43ed}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{c4d13cd2-22f7-4061-9d38-a14bc3138985}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD FB_init : BOOL
+VAR_INPUT
+	(* if TRUE, the retain variables are initialized (warm start / cold start)*)
+	bInitRetains	: BOOL;
+	(* if TRUE, the instance afterwards gets moved into the copy code (online change)*)
+	bInCopyCode	: BOOL;
+	SensorID	: STRING(80);
+	SensorDescr	: STRING(255);
+	SensorType	: E_SensorType;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := SensorID;
+sDescr := SensorDescr;
+eSensorType := SensorType;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getType" Id="{baff93f6-135b-432a-bc7b-20b74e67413b}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getType : E_SensorType
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getType := eSensorType;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getValue" Id="{9cf098c1-ea0d-4a0e-8879-4322ce9f5bca}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getValue : REAL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getValue := nCurrentValue;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="write" Id="{fc9cb89d-fa06-4e94-bf0c-4d28f9b52e59}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD write : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[calculate();]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Sensor_SICKLevelSwitch_GRF18S">
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_SICKLevelSwitch_GRF18S.calculate">
+      <LineId Id="5" Count="1" />
+      <LineId Id="8" Count="1" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_SICKLevelSwitch_GRF18S.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_SICKLevelSwitch_GRF18S.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_SICKLevelSwitch_GRF18S.FB_init">
+      <LineId Id="13" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_SICKLevelSwitch_GRF18S.getType">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_SICKLevelSwitch_GRF18S.getValue">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_SICKLevelSwitch_GRF18S.write">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

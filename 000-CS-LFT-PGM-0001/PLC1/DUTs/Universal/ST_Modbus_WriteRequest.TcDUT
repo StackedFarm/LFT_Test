@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_Modbus_WriteRequest" Id="{ed34aa93-193d-4c86-97f1-12574307e791}">
+    <Declaration><![CDATA[TYPE ST_Modbus_WriteRequest :
+STRUCT
+
+	WriteRegVals: 					ARRAY[1..10] OF WORD;
+	SlaveAddress : 					UINT;
+	QtyWordsToWrite : 				UINT;
+	AdrFirstSlaveRegisterWrite : 	UINT;
+	bRequestCompleted: 				BOOL;
+	bRequestAccepted: 				BOOL;
+
+END_STRUCT
+END_TYPE
+
+
+
+
+
+
+
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,443 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_LinearActuator_Elec" Id="{3fda4893-0e43-4dfb-8700-ebc77a7dc92b}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LinearActuator_Elec EXTENDS FB_BaseDevice IMPLEMENTS I_Device
+
+VAR
+	// Instantiation config variables
+	nStroke: INT;
+	nLead: INT;
+	nAccelMax: INT;			// mm/s2
+	nVelocityMax: INT; 		// mm/s
+	nVelocityJog: INT;		// mm/s
+	tExtend: TIME;			// Target time for extend action
+	tRetract: TIME;			// Target timef ro retract action
+	
+	// Motion control variables
+	nVelocityExtend: INT;
+	nVelocityRetract: INT := 1500;
+	
+	// Calibration position variables
+	nPosExtend: DINT := 75;
+	nPosRetract: DINT := 0; 	// (write a fuinction to determine these position limits)
+	
+	// Motion control function blocks
+	mcAxis: 			AXIS_REF;
+	//eSMState:			eMoveState;
+	
+	//eSMState:			eMoveState;
+	eSMState: (INIT, ENABLE, EXTEND, EXTEND_SLOW, RETRACT, RETRACT_SLOW, STOP, ERROR, RESET) := INIT;
+	
+	mcPower: 			MC_Power;
+	mcPower_Outputs:	ST_McOutputs;
+	
+	mcReset: 			MC_Reset;
+	mcReset_Outputs:	ST_McOutputs;
+	
+	mcStop:				MC_Stop;
+	mcStop_Outputs:		ST_McOutputs;
+	
+	mcMoveAbs: 			MC_MoveAbsolute;
+	mcMoveAbs_Outputs: 	ST_McOutputs;
+	
+	mcMoveRel: 			MC_MoveRelative;
+	mcMoveRel_Outputs: 	ST_McOutputs;
+	
+	mcHome:				MC_Home;
+	mcHome_Outputs:		ST_McOutputs;
+	
+	
+	tgExecute: R_TRIG;
+	tTimeout:	TIME := T#5S;
+	fbTON_Timeout: TON := (PT := tTimeout, IN := FALSE);
+END_VAR
+
+
+VAR_INPUT
+	bExecute: BOOL := FALSE;
+	eMoveType: E_LinActuatorMoveType;
+	fbSwitchExtend_1:  FB_AutoSwitch;
+	fbSwitchRetract_1: FB_AutoSwitch;
+	fbSwitchExtend_2:  FB_AutoSwitch;
+	fbSwitchRetract_2: FB_AutoSwitch;
+END_VAR
+
+VAR_OUTPUT
+	nErrorID: INT;
+	bDone: BOOL := FALSE;
+END_VAR
+
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(* update the axis status at the beginning of each cycle *)
+mcAxis();
+tgExecute(CLK := bExecute);
+fbTON_Timeout(PT := tTimeout);
+
+// IF eStateTarget <> eState AND (((NOT bExecute) AND bEnable) OR eMode = E_DeviceMode.MANUAL) THEN
+IF eStateTarget <> eState AND bEnable OR eMode = E_DeviceMode.MANUAL THEN
+	bExecute := TRUE;  // be execute is set to false during movements (allowing a midway change), this behaviour can be stopped if we set bExecite to false after the move is finished
+	CASE eStateTarget OF 
+		E_DeviceState.EXTENDED:
+			eMoveType := E_LinActuatorMoveType.EXTEND;
+		E_DeviceState.RETRACTED:
+			eMoveType := E_LinActuatorMoveType.RETRACT;
+		E_DeviceState.IDLE:
+			eMoveType := E_LinActuatorMoveType.STOP;
+	END_CASE
+END_IF
+
+
+
+
+(* move axis using a state machine *)
+CASE eSMState OF
+
+	INIT :	(* initialisation *)
+		(* initialize all function blocks *)
+		mcMoveAbs.Execute := FALSE;
+		mcReset.Execute := FALSE;
+		eSMState := ENABLE;
+
+	ENABLE :
+		mcPower.Enable := TRUE;
+		mcPower.Enable_Positive := TRUE;
+		mcPower.Enable_Negative := TRUE;
+		IF tgExecute.Q THEN
+			fbTON_Timeout.IN := TRUE;
+			CASE eMoveType OF
+				E_LinActuatorMoveType.EXTEND:
+					eSMState := EXTEND;
+				E_LinActuatorMoveType.EXTEND_SLOW:
+					eSMState := EXTEND_SLOW;
+				E_LinActuatorMoveType.RETRACT:
+					eSMState := RETRACT;
+				E_LinActuatorMoveType.RETRACT_SLOW:
+					eSMState := RETRACT_SLOW;
+				E_LinActuatorMoveType.STOP:
+					eSMState := STOP;
+			END_CASE						
+		ELSIF mcPower.Error THEN
+			eSMState := ERROR;
+		END_IF
+		
+		fbTON_Timeout.IN := FALSE;
+
+	EXTEND :
+		eState := E_DeviceState.EXTENDING;							
+		mcMoveAbs.Position := nPosExtend;				
+		mcMoveAbs.Velocity := nVelocityExtend;			
+		mcMoveAbs.BufferMode := MC_Buffered;
+		mcMoveAbs.Execute := TRUE;
+		IF mcMoveAbs.Done AND (fbSwitchExtend_1.getState() = E_DeviceState.ON AND fbSwitchExtend_2.getState() = E_DeviceState.ON) THEN
+			mcMoveAbs.Execute := FALSE;
+			eState := E_DeviceState.EXTENDED;
+			eSMState := ENABLE;
+		ELSIF mcMoveAbs.CommandAborted OR mcMoveAbs.Error OR fbTON_Timeout.Q THEN
+			eSMState := ERROR;
+		END_IF
+		bExecute := FALSE;
+
+	EXTEND_SLOW :				
+		eState := E_DeviceState.EXTENDING;			
+		mcMoveAbs.Position := nPosExtend;				
+		mcMoveAbs.Velocity := nVelocityJog;			
+		mcMoveAbs.BufferMode := MC_Buffered;
+		mcMoveAbs.Execute := TRUE;
+		IF mcMoveAbs.Done AND (fbSwitchExtend_1.getState() = E_DeviceState.ON AND fbSwitchExtend_2.getState() = E_DeviceState.ON) THEN
+			eState := E_DeviceState.EXTENDED;
+			mcMoveAbs.Execute := FALSE;
+			eSMState := ENABLE;
+		ELSIF mcMoveAbs.CommandAborted OR mcMoveAbs.Error OR fbTON_Timeout.Q THEN
+			eSMState := ERROR;
+		END_IF		
+		bExecute := FALSE;
+		
+	RETRACT :			
+		eState := E_DeviceState.RETRACTING;	
+		
+		mcMoveRel.Distance := -20000;
+		mcMoveRel.Velocity := 2000;
+		mcMoveRel.BufferMode := MC_Buffered;
+		mcMoveRel.Execute := TRUE;
+		
+		IF mcMoveRel.Done THEN // AND (fbSwitchRetract_1.getState() = E_DeviceState.ON AND fbSwitchRetract_2.getState() = E_DeviceState.ON) THEN
+			eState := E_DeviceState.RETRACTED;
+			mcMoveAbs.Execute := FALSE;
+			eSMState := ENABLE;
+		ELSIF mcMoveAbs.CommandAborted OR mcMoveAbs.Error OR fbTON_Timeout.Q THEN
+			eSMState := ERROR;
+		END_IF
+		bExecute := FALSE;
+		
+		
+		(*
+		mcMoveAbs.Position := nPosRetract;				
+		mcMoveAbs.Velocity := nVelocityRetract;			
+		mcMoveAbs.BufferMode := MC_Buffered;
+		mcMoveAbs.Execute := TRUE;
+		IF mcMoveAbs.Done AND (fbSwitchRetract_1.getState() = E_DeviceState.ON AND fbSwitchRetract_2.getState() = E_DeviceState.ON) THEN
+			eState := E_DeviceState.RETRACTED;
+			mcMoveAbs.Execute := FALSE;
+			eSMState := ENABLE;
+		ELSIF mcMoveAbs.CommandAborted OR mcMoveAbs.Error OR fbTON_Timeout.Q THEN
+			eSMState := ERROR;
+		END_IF
+		bExecute := FALSE;
+		*)
+
+	RETRACT_SLOW :					
+		eState := E_DeviceState.RETRACTING;		
+		mcMoveAbs.Position := nPosRetract;				
+		mcMoveAbs.Velocity := nVelocityJog;			
+		mcMoveAbs.BufferMode := MC_Buffered;
+		mcMoveAbs.Execute := TRUE;
+		IF mcMoveAbs.Done AND (fbSwitchRetract_1.getState() = E_DeviceState.ON AND fbSwitchRetract_2.getState() = E_DeviceState.ON) THEN
+			eState := E_DeviceState.RETRACTED;
+			mcMoveAbs.Execute := FALSE;
+			eSMState := ENABLE;
+		ELSIF mcMoveAbs.CommandAborted OR mcMoveAbs.Error OR fbTON_Timeout.Q THEN
+			eSMState := ERROR;
+		END_IF		
+		bExecute := FALSE;
+		
+	STOP :
+		mcStop.Execute := TRUE;
+		IF mcStop.Done THEN
+			mcStop.Execute := FALSE;
+			eSMState := ENABLE;
+		END_IF
+
+
+	ERROR :
+		IF mcAxis.Status.Error THEN
+			eSMState := RESET;			(* axis error requires reset *)
+		ELSIF fbTON_Timeout.Q THEN
+			// Raise an alarm that the auto switch was not reached
+		ELSE
+			eSMState := INIT;			(* function block errors don't need a reset *)
+		END_IF
+		
+
+	RESET :
+		mcReset.Execute := TRUE;
+		IF mcReset.Done THEN
+			eSMState := INIT;
+		ELSIF mcReset.Error THEN
+			eSMState := INIT; 			(* can't do anything here *)
+		END_IF
+
+END_CASE
+
+
+
+
+// Execute the motion control function blocks 
+mcPower(Axis := mcAxis, 
+		Enable := mcPower.Enable, 
+		Enable_Positive := mcPower.Enable_Positive, 
+		Enable_Negative := mcPower.Enable_Negative, 
+		Override := 100, 
+		Status => mcPower_Outputs.Done, 
+		Busy => mcPower_Outputs.Busy, 
+		Active => mcPower_Outputs.Active, 
+		Error => mcPower_Outputs.Error, 
+		ErrorID => mcPower_Outputs.ErrorID);
+
+
+mcMoveAbs(Axis := mcAxis,
+			Execute := mcMoveAbs.Execute,
+			Position := mcMoveAbs.Position,
+			Velocity := mcMoveAbs.Velocity,
+			BufferMode := mcMoveAbs.BufferMode,
+			Done => mcMoveAbs_Outputs.Done,
+			Busy => mcMoveAbs_Outputs.Busy,
+			Active => mcMoveAbs_Outputs.Active,
+			CommandAborted => mcMoveAbs_Outputs.CommandAborted,
+			Error => mcMoveAbs_Outputs.Error,
+			ErrorID => mcMoveAbs_Outputs.ErrorID);
+			
+mcMoveRel(Axis := mcAxis,
+			Execute := mcMoveRel.Execute,
+			Distance := mcMoveRel.Distance,
+			Velocity := mcMoveRel.Velocity,
+			BufferMode := mcMoveRel.BufferMode,
+			Busy => mcMoveRel_Outputs.Busy,
+			Active => mcMoveRel_Outputs.Active,
+			CommandAborted => mcMoveRel_Outputs.CommandAborted,
+			Error => mcMoveRel_Outputs.Error,
+			ErrorID => mcMoveRel_Outputs.ErrorID);
+			
+			
+mcReset(Axis := mcAxis,
+		Execute := mcReset.Execute,
+		Done => mcReset_Outputs.Done,
+		Busy => mcReset_Outputs.Busy,
+		Error => mcReset_Outputs.Error,
+		ErrorID => mcReset_Outputs.ErrorID);
+		
+mcStop(Axis := mcAxis,
+		Execute := mcStop.Execute,
+		Done => mcStop_Outputs.Done,
+		Busy => mcStop_Outputs.Busy,
+		Active => mcStop_Outputs.Active,
+		CommandAborted => mcStop_Outputs.CommandAborted,
+		Error => mcStop_Outputs.Error,
+		ErrorId => mcStop_Outputs.ErrorID);
+
+mcHome(Axis := mcAxis,
+		Execute := mcHome.Execute,
+		Done => mcHome_Outputs.Done,
+		Busy => mcHome_Outputs.Busy,
+		Active => mcHome_Outputs.Active,
+		CommandAborted => mcHome_Outputs.CommandAborted,
+		Error => mcHome_Outputs.Error,
+		ErrorID => mcHome_Outputs.ErrorID);
+		
+			
+]]></ST>
+    </Implementation>
+    <Method Name="calcVels" Id="{710b2b67-da25-45b5-8078-8d5bad299f05}">
+      <Declaration><![CDATA[METHOD calcVels : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nVelocityExtend := nStroke / (TIME_TO_INT(tExtend)/1000);
+nVelocityRetract := nStroke / (TIME_TO_INT(tRetract)/1000);
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{36436396-efb3-478a-a142-dcd84e3f8d2e}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	Stroke: INT;
+	Lead: INT;
+	AccelMax: INT;
+	VelocityMax: INT;
+	VelocityJog: INT;
+	TimeExtend: TIME;
+	TimeRetract: TIME;
+	
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nStroke := Stroke;
+nLead := Lead;
+nAccelMax := AccelMax;
+nVelocityMax := VelocityMax;
+nVelocityJog := VelocityJog;
+tExtend := TimeExtend;
+tRetract := TimeRetract;
+
+calcVels(); // calculate extend and retract velocities based on the specified action durations]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_LinearActuator_Elec">
+      <LineId Id="231" Count="1" />
+      <LineId Id="494" Count="0" />
+      <LineId Id="519" Count="0" />
+      <LineId Id="622" Count="0" />
+      <LineId Id="596" Count="0" />
+      <LineId Id="704" Count="0" />
+      <LineId Id="623" Count="0" />
+      <LineId Id="631" Count="0" />
+      <LineId Id="633" Count="0" />
+      <LineId Id="635" Count="4" />
+      <LineId Id="634" Count="0" />
+      <LineId Id="624" Count="0" />
+      <LineId Id="600" Count="0" />
+      <LineId Id="606" Count="0" />
+      <LineId Id="498" Count="0" />
+      <LineId Id="233" Count="13" />
+      <LineId Id="609" Count="12" />
+      <LineId Id="502" Count="0" />
+      <LineId Id="249" Count="2" />
+      <LineId Id="525" Count="1" />
+      <LineId Id="252" Count="1" />
+      <LineId Id="515" Count="0" />
+      <LineId Id="254" Count="4" />
+      <LineId Id="260" Count="0" />
+      <LineId Id="527" Count="0" />
+      <LineId Id="262" Count="2" />
+      <LineId Id="521" Count="0" />
+      <LineId Id="626" Count="0" />
+      <LineId Id="435" Count="1" />
+      <LineId Id="529" Count="0" />
+      <LineId Id="437" Count="4" />
+      <LineId Id="528" Count="0" />
+      <LineId Id="442" Count="3" />
+      <LineId Id="433" Count="0" />
+      <LineId Id="627" Count="0" />
+      <LineId Id="446" Count="0" />
+      <LineId Id="448" Count="0" />
+      <LineId Id="530" Count="0" />
+      <LineId Id="723" Count="0" />
+      <LineId Id="725" Count="0" />
+      <LineId Id="724" Count="0" />
+      <LineId Id="726" Count="0" />
+      <LineId Id="728" Count="0" />
+      <LineId Id="731" Count="0" />
+      <LineId Id="733" Count="6" />
+      <LineId Id="732" Count="0" />
+      <LineId Id="729" Count="1" />
+      <LineId Id="727" Count="0" />
+      <LineId Id="449" Count="4" />
+      <LineId Id="532" Count="0" />
+      <LineId Id="454" Count="4" />
+      <LineId Id="628" Count="0" />
+      <LineId Id="470" Count="0" />
+      <LineId Id="459" Count="1" />
+      <LineId Id="531" Count="0" />
+      <LineId Id="461" Count="4" />
+      <LineId Id="533" Count="0" />
+      <LineId Id="466" Count="3" />
+      <LineId Id="447" Count="0" />
+      <LineId Id="629" Count="0" />
+      <LineId Id="434" Count="0" />
+      <LineId Id="292" Count="0" />
+      <LineId Id="471" Count="2" />
+      <LineId Id="475" Count="0" />
+      <LineId Id="474" Count="0" />
+      <LineId Id="305" Count="5" />
+      <LineId Id="524" Count="0" />
+      <LineId Id="311" Count="0" />
+      <LineId Id="522" Count="0" />
+      <LineId Id="312" Count="0" />
+      <LineId Id="399" Count="0" />
+      <LineId Id="313" Count="9" />
+      <LineId Id="400" Count="3" />
+      <LineId Id="323" Count="23" />
+      <LineId Id="711" Count="0" />
+      <LineId Id="713" Count="4" />
+      <LineId Id="719" Count="3" />
+      <LineId Id="712" Count="0" />
+      <LineId Id="347" Count="7" />
+      <LineId Id="404" Count="8" />
+      <LineId Id="414" Count="0" />
+      <LineId Id="413" Count="0" />
+      <LineId Id="415" Count="1" />
+      <LineId Id="419" Count="5" />
+      <LineId Id="418" Count="0" />
+      <LineId Id="52" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_LinearActuator_Elec.calcVels">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_LinearActuator_Elec.FB_init">
+      <LineId Id="7" Count="0" />
+      <LineId Id="18" Count="5" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="24" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

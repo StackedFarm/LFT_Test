@@ -1,0 +1,167 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_OzoneGenerator" Id="{2e73069d-2885-4b36-bed8-4c1c2feb7cdf}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_OzoneGenerator EXTENDS FB_BaseDevice IMPLEMENTS I_Device
+
+VAR
+	{attribute 'OPC.UA.DA' := '1'} 
+	bInContactor AT %I*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	bOutContactor AT %Q*: BOOL := FALSE;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSMState: (WAIT, TURNING_ON, ON, TURNING_OFF, OFF);
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	tActionTimeout: TIME := T#5S;
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbTON_timeout: TON := (PT := tActionTimeout, IN := FALSE);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbTONstartTime();
+fbTONstopTime();
+
+IF GVL.bAutoUpdateDeviceState THEN
+	eState := eStateTarget;	
+END_IF
+
+
+IF bEnable THEN
+	IF eStateTarget = E_DeviceState.ON AND eState <> E_DeviceState.ON THEN
+		eSMState := TURNING_ON;
+	END_IF
+END_IF
+
+IF eStateTarget = E_DeviceState.OFF AND eState <> E_DeviceState.OFF THEN
+		eSMState := TURNING_OFF;
+END_IF
+
+
+CASE eSMState OF
+	
+	WAIT:
+		//Wait for method call to change ESMState
+		
+	TURNING_ON: 
+		eState := E_DeviceState.TURNING_ON;
+
+		bOutContactor := TRUE;
+	
+		IF fbTONstartTime.Q THEN
+			eSMState := WAIT;
+			raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Failed to Start', Enabled := TRUE, DeviceAlarmID := 1);
+		END_IF
+		
+		IF bInContactor  THEN
+			eSMState := ON;
+			eState := E_DeviceState.ON;
+		END_IF
+		
+	ON:
+		IF bInContactor <> TRUE THEN
+			raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Power Lost', Enabled := TRUE, DeviceAlarmID := 2);
+			eState := E_DeviceState.OFF;
+			eSMState := WAIT;
+		END_IF
+		
+
+		
+	TURNING_OFF:
+		eState := E_DeviceState.TURNING_OFF;
+		bOutContactor := FALSE;
+
+				
+		IF fbTONstopTime.Q THEN
+			eSMState := WAIT;
+			raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Failed to Stop', Enabled := TRUE, DeviceAlarmID := 3);
+		END_IF 
+		
+		IF bInContactor = FALSE THEN
+			eSMState := OFF;	
+		END_IF
+		
+
+	OFF:
+		eState := E_DeviceState.OFF;
+		eSMState := WAIT;
+		
+		
+END_CASE]]></ST>
+    </Implementation>
+    <Method Name="disable" Id="{f11ac026-9bf4-4b9c-962d-7920c05cb413}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{0585212f-17f4-42b5-86ea-6a59770fd08c}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{8d7b77e3-a8d2-4ee7-ae3c-3a19d8e2e118}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	UnitID: STRING(80);
+	UnitDescr: STRING(255); 
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := UnitID;
+sDescr := UnitDescr;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOff" Id="{9af6f438-afa6-40f5-8af2-a331017e0cf1}">
+      <Declaration><![CDATA[METHOD setOff : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eSMState := TURNING_OFF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOn" Id="{fcdb3fac-cf2f-4de3-a992-89acc72e08dc}">
+      <Declaration><![CDATA[METHOD setOn : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eSMState := TURNING_ON;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_OzoneGenerator">
+      <LineId Id="144" Count="1" />
+      <LineId Id="224" Count="0" />
+      <LineId Id="226" Count="2" />
+      <LineId Id="225" Count="0" />
+      <LineId Id="146" Count="60" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OzoneGenerator.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OzoneGenerator.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OzoneGenerator.FB_init">
+      <LineId Id="16" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OzoneGenerator.setOff">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OzoneGenerator.setOn">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,138 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Stack_Controller" Id="{2e8d06bd-2a0c-47d1-82f9-e09653c2af55}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Stack_Controller EXTENDS FB_BaseDevice
+VAR_INPUT CONSTANT
+	nLevels : INT;
+	nStack : INT;
+	nMaxStackEnvironmentZones: INT;
+	nEnvironmentSensorModbusAddresses: ARRAY[0..2] OF ARRAY[0..10] OF UINT;
+	nMaxLevelsPerStack: INT;
+	sEnvironmentZoneNames: ARRAY[0..2] OF STRING;
+END_VAR
+
+VAR_IN_OUT
+	fbModbus : FB_ModbusMaster;
+END_VAR
+
+VAR
+	i : INT;
+	//fbEnvironmentSensors : FB_SensorVirtual_Vaisala;
+	fbEnvironmentZones 		: ARRAY[0..10] OF FB_SensorVirtual_Vaisala; 				// ARRAY[0..10] OF FB_SensorVirtual_Vaisala;
+	fbLevelWaterControls 	: ARRAY[1..10] OF FB_LevelWaterControl; 	// ARRAY[1..nMaxLevelsPerStack] OF FB_LevelWaterControl;
+	fbHumidityControl 		: FB_BangBangControl;
+	fbCO2Control 			: FB_BangBangControl;
+	fbTemperatureControl 	: FB_BangBangControl;
+	
+	{attribute 'OPC.UA.DA' := '1'}
+	rStackHumidity : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	rStackCO2 : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	rStackTemp : REAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+
+//fbEnvironmentSensors(nModbusUnitIDs := GVL.EnvironmentSensorModbusAddress, rMaxDiscrepency := 0.1, fbModbus := fbModbus);
+
+// environment sensors for the stack zones
+rStackHumidity := 0;
+rStackCO2 := 0;
+rStackTemp := 0;
+
+FOR i := 0 TO nMaxStackEnvironmentZones DO
+	fbEnvironmentZones[i](nModbusUnitIDs := nEnvironmentSensorModbusAddresses[i], rMaxDiscrepency := 0.1, fbModbus := fbModbus, sZoneName := sEnvironmentZoneNames[i]);
+	rStackCO2 := rStackCO2 + fbEnvironmentZones[i].rCO2;
+	rStackHumidity := rStackHumidity + fbEnvironmentZones[i].rHumidity;
+	rStackTemp := rStackTemp + fbEnvironmentZones[i].rTemperature;
+END_FOR
+
+// calculate the average CO2 and humidity across the stack
+rStackCO2 := rStackCO2 / (nMaxStackEnvironmentZones+1);
+rStackHumidity := rStackHumidity / (nMaxStackEnvironmentZones+1);
+rStackTemp := rStackTemp / (nMaxStackEnvironmentZones+1);
+
+// control for humidity
+fbHumidityControl(rCurrentValue := rStackHumidity, sParameterName := 'Humidity');
+// bang bang control for CO2
+fbCO2Control(rCurrentValue := rStackCO2, sParameterName := 'CO2');
+// bang bang control for temperature
+fbTemperatureControl(rCurrentValue := rStackTemp, sParameterName := 'Temperature');
+
+// Function blocks which have an instance for every level...
+FOR i := 1 TO nLevels DO
+	// Irrigation valve
+	fbLevelWaterControls[i](nLevel := i);
+END_FOR
+
+checkCropJobs();]]></ST>
+    </Implementation>
+    <Method Name="checkCropJobs" Id="{10189d50-d296-497d-9259-5edf4aef26b6}">
+      <Declaration><![CDATA[METHOD checkCropJobs : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+// reset all crop jobs to false. Any active ones will be changed to true.
+FOR i := 1 TO GVL.maxLevelsPerStack DO
+	fbLevelWaterControls[i].bActiveCropJob := FALSE;
+END_FOR
+
+FOR i := 0 TO GVL.MaxCropJob DO
+	// check if this crop job is coming FROM this stack
+	IF Inputs.CropJobs[i].crop.stack = nStack AND Inputs.CropJobs[i].job_status > E_Job_Status.waiting AND Inputs.CropJobs[i].job_status < E_Job_Status.finished THEN
+		fbLevelWaterControls[Inputs.CropJobs[i].crop.level].bActiveCropJob := TRUE;
+	END_IF
+	
+	// check if this crop job is going TO this stack
+	IF Inputs.CropJobs[i].stack = nStack AND Inputs.CropJobs[i].job_status > E_Job_Status.waiting AND Inputs.CropJobs[i].job_status < E_Job_Status.finished THEN
+		fbLevelWaterControls[Inputs.CropJobs[i].level].bActiveCropJob := TRUE;
+	END_IF
+
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{d7361a32-7ab8-4d94-9bfb-52d814cc637a}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	ID : STRING;
+	Description : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+sID := ID;
+sDescr := Description;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Stack_Controller">
+      <LineId Id="3" Count="6" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="116" Count="0" />
+      <LineId Id="10" Count="3" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="14" Count="4" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="19" Count="4" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="83" Count="0" />
+      <LineId Id="24" Count="6" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Stack_Controller.checkCropJobs">
+      <LineId Id="3" Count="6" />
+      <LineId Id="11" Count="9" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Stack_Controller.FB_init">
+      <LineId Id="8" Count="1" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

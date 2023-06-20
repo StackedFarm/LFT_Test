@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_Machine" Id="{b41227c6-864c-4276-8108-4902f2f8222a}">
+    <Declaration><![CDATA[INTERFACE I_Machine
+]]></Declaration>
+    <Method Name="devices_disable_All" Id="{9cd38ed3-a1d4-4f86-86f3-89233d4550cc}">
+      <Declaration><![CDATA[METHOD devices_disable_All : BOOL
+]]></Declaration>
+    </Method>
+    <Method Name="devices_disable_CurrSeq" Id="{d5620c46-5236-474a-99c2-6547dc71687a}">
+      <Declaration><![CDATA[METHOD devices_disable_CurrSeq : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="devices_enable_All" Id="{cf117ecb-8b11-4dad-947d-2c3f6d4c3628}">
+      <Declaration><![CDATA[METHOD devices_enable_All : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="devices_enable_CurrSeq" Id="{9a0671be-6633-49e9-9f1a-7609de4ec419}">
+      <Declaration><![CDATA[METHOD devices_enable_CurrSeq : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="devices_setAuto_All" Id="{2cee91f5-ff78-49f5-967e-6cfc4046717e}">
+      <Declaration><![CDATA[METHOD devices_setAuto_All : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="devices_setAuto_CurrSeq" Id="{f89c1d67-f0f2-44e2-b0fb-3948cb42cf71}">
+      <Declaration><![CDATA[METHOD devices_setAuto_CurrSeq : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="devices_setManual_All" Id="{d8b2c9b3-92c6-44eb-9b03-747497fd975b}">
+      <Declaration><![CDATA[METHOD devices_setManual_All : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="devices_setManual_CurrSeq" Id="{7eb9793c-b8ae-4987-94f6-98316cc7f859}">
+      <Declaration><![CDATA[METHOD devices_setManual_CurrSeq : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

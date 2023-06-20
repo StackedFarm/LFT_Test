@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_WaterTreatment_Water" Id="{bf1c88ba-2227-40c5-a041-9c86504a7add}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_WaterTreatment_Water :
+STRUCT
+	
+	PH_LOW_Limit:   UINT;
+	PH_HIGH_Limit:  UINT;
+	PH_SetPoint:    UINT;
+	PH_Selection:   UINT;
+	Calibrate_PH: BOOL;
+	
+	Temp_LOW_Limit:    UINT;
+	Temp_HIGH_Limit:    UINT;
+	Temp_SetPoint:    UINT;
+	Temp_Selection:    UINT;
+	Calibrate_Temp: BOOL;
+
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

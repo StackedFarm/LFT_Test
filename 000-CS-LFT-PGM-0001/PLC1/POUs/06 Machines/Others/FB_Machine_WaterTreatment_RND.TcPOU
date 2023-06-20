@@ -1,0 +1,391 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Machine_WaterTreatment_RND" Id="{91dc64c5-dcc3-4490-9eea-f4a17b38a248}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_Machine_WaterTreatment_RND EXTENDS FB_BaseMachine IMPLEMENTS I_Machine
+
+VAR_IN_OUT
+
+	{attribute 'OPC.UA.DA' := '0'} 
+	stInputs: ST_INPUTS_WaterTreatment_RND;
+END_VAR
+
+
+VAR
+	
+
+	bIsFirstRun: BOOL := TRUE;
+
+	
+	// Tanks and Sumps
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbTank_CWTA: FB_Tank(TankID:= 'TK1', TankDescr:= 'Clean Water Tank');
+
+	
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_CWT_A_LSH : FB_Sensor_SICKLevelSwitch_GRF18S(SensorID:= 'TK2A-LSH' , SensorDescr:= 'Clean Water Tank A Level Switch - HIGH', SensorType:= E_SensorType.Analogue);
+	
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbUnit_RO_EDI: FB_Unit_RO_RND(UnitID:= 'U1', UnitDescr:= 'Reverse Osmosis (RO) & Electro De-Ionisation (EDI) Unit');
+	
+	
+	// Package all components into structure to pass to sub-FBs 
+	// This ST is populated by calling the populateComponents method
+	{attribute 'OPC.UA.DA' := '0'} 
+	stAllComponents: ST_RNDWTRComponents;
+	
+	// Interlocks
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbInterlocks: FB_InterlockManager;
+	
+	
+	// Sequence Manager & Sequences
+	{attribute 'OPC.UA.DA' := '0'}
+	fbSeqWTRMain: FB_SequenceRNDWTR_Main;
+
+	{attribute 'OPC.UA.DA' := '0'}
+	aSeqs: ARRAY[1..5] OF FB_SequenceBase;
+	
+	fbTONStartSequence: TON := (PT := T#10s);
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbTONStartSequence();
+
+IF GVL.bAutoUpdateDeviceState THEN
+	simulation();       //  <<<----------------- FOR TESTING ONLY, delete this when not being used (it changes devices statet to the target state automatically)
+END_IF
+
+IF bIsFirstRun  THEN
+	devices_init();	
+	sequence_init();
+	bIsFirstRun := FALSE;
+	fbTONStartSequence(IN := TRUE);
+END_IF
+
+IF fbTONStartSequence.Q THEN
+	fbSequenceManager.startSequence();
+END_IF
+
+scanOPCInputs();
+fbSequenceManager(aSequences := aSeqs); //, fbCurrentSequence := aSeqs[1]);
+interlocks();
+
+
+IF GVL.bEnableInterlocks_DM THEN
+	interlocks();
+END_IF
+
+devices_update();
+
+
+
+
+]]></ST>
+    </Implementation>
+    <Method Name="checkWaterQuality" Id="{d1fce34e-1d23-429e-bce0-ac5388c71b7f}">
+      <Declaration><![CDATA[METHOD checkWaterQuality : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+
+checkWaterQuality := TRUE;
+
+IF fbSensor_PH.getValue() > stInputs.PH_HIGH_Limit OR 
+	fbSensor_PH.getValue() < stInputs.PH_LOW_Limit THEN
+	
+	checkWaterQuality := FALSE;
+	// Raise an event to alert that PH is out of range
+END_IF
+
+IF fbSensor_TMP.getValue() > stInputs.Temp_HIGH_Limit OR
+	fbSensor_TMP.getValue() < stInputs.Temp_LOW_Limit THEN
+	
+	checkWaterQuality := FALSE;
+	// Raise an event to alert that temp is out of range
+END_IF
+
+*)]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="devices_init" Id="{b364b7b4-d20f-4c89-9eca-f80ab6e98074}">
+      <Declaration><![CDATA[METHOD devices_init : BOOL
+VAR
+	VarInfo : __SYSTEM.VAR_INFO;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+fbTank_CWTA.fbSensor_H := fbSensor_CWT_A_LSH;
+
+
+
+VarInfo := __VARINFO(fbSensor_CWT_A_LSH );
+fbSensor_CWT_A_LSH .setVarID(VarID := VarInfo.Symbol);
+
+
+VarInfo := __VARINFO(fbUnit_RO_EDI);
+fbUnit_RO_EDI.setVarID(VarID := VarInfo.Symbol);
+
+
+
+stAllComponents.fbUnit_RO_EDI := ADR( fbUnit_RO_EDI);
+// stAllComponents.fbTank_CWTA :=  ADR( fbTank_CWTA);
+
+
+
+
+aAllComponents[1]  :=  ADR(fbUnit_RO_EDI);
+//aAllComponents[2]  :=  ADR(fbSensor_CWT_A_LSH );
+
+
+
+nQtyComponents := 1;
+
+devices_disable_All();
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="devices_update" Id="{750d125b-cd60-43f0-aa98-578ae4d0bade}">
+      <Declaration><![CDATA[METHOD devices_update : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+fbSensor_CWT_A_LSH();
+//fbTank_CWTA();
+fbUnit_RO_EDI();
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{78c1d75e-f3cc-43c9-8334-9c51b6a30e07}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+
+
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="interlocks" Id="{3d13bd69-2b3a-4c8f-981f-42cbe882feaa}">
+      <Declaration><![CDATA[METHOD interlocks : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbInterlocks.init();
+
+fbInterlocks.update(
+							Description:= 'RND Clean Water Tank Is Full', 
+							InterlockType:= E_InterlockType.RunInterlock, 
+							Subject_Device:= ADR(fbUnit_RO_EDI), 
+							Subject_State:= E_DeviceState.OFF, 
+							Signal:= fbSensor_CWT_A_LSH.getValue() = 0, 
+							HoldSequence:= FALSE);
+							
+fbInterlocks.execute();
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="scanOPCInputs" Id="{92f577f2-6ca8-4314-926d-a5f00f73dc03}">
+      <Declaration><![CDATA[METHOD scanOPCInputs : BOOL
+VAR_INPUT
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+(*
+			SEQUENCE CONTROL
+*)
+
+
+IF stInputs.stSequenceManager.Sequence_Ack_Interlock THEN
+	fbSequenceManager.acknowledgePause();
+	stInputs.stSequenceManager.Sequence_Ack_Interlock := FALSE;
+END_IF
+
+
+CASE stInputs.stSequenceManager.Sequence_Command OF
+	E_SequenceState.RUN:
+		IF fbSequenceManager.getState() <> E_SequenceState.RUN THEN
+			fbSequenceManager.startSequence();
+			stInputs.stSequenceManager.Sequence_Command := E_SequenceState.WAIT;
+		END_IF
+	E_SequenceState.STOP:
+		IF fbSequenceManager.getState() <> E_SequenceState.STOP THEN
+			fbSequenceManager.stopSequence();
+			stInputs.stSequenceManager.Sequence_Command := E_SequenceState.WAIT;
+		END_IF
+	E_SequenceState.HOLD:
+		IF fbSequenceManager.getState() <> E_SequenceState.HOLD THEN
+			fbSequenceManager.pauseSequence();
+			stInputs.stSequenceManager.Sequence_Command := E_SequenceState.WAIT;
+		END_IF
+END_CASE
+
+
+
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="sequence_init" Id="{63d783dd-7a7b-43fe-b41b-52095ff6a146}">
+      <Declaration><![CDATA[METHOD sequence_init : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+fbSeqWTRMain(devices := stAllComponents);
+fbSeqWTRMain.populateSteps();
+
+
+aSeqs[1] := fbSeqWTRMain;
+
+
+
+
+
+	]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="simulation" Id="{9f40173e-2ddc-483e-805f-c1b438022de1}">
+      <Declaration><![CDATA[METHOD simulation : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+//fbPump_CleanWaterPumpA.runSimulation();	 
+//fbValve_TownWaterSupply.runSimulation();
+//fbValve_DM1Supply.runSimulation(); 
+//fbUnit_RO_EDI.runSimulation();]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Machine_WaterTreatment_RND">
+      <LineId Id="1604" Count="1" />
+      <LineId Id="1487" Count="7" />
+      <LineId Id="1603" Count="0" />
+      <LineId Id="1483" Count="0" />
+      <LineId Id="1606" Count="0" />
+      <LineId Id="1484" Count="0" />
+      <LineId Id="1607" Count="1" />
+      <LineId Id="1485" Count="1" />
+      <LineId Id="1495" Count="0" />
+      <LineId Id="1549" Count="1" />
+      <LineId Id="962" Count="2" />
+      <LineId Id="957" Count="0" />
+      <LineId Id="1498" Count="0" />
+      <LineId Id="971" Count="2" />
+      <LineId Id="965" Count="0" />
+      <LineId Id="958" Count="0" />
+      <LineId Id="954" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_WaterTreatment_RND.checkWaterQuality">
+      <LineId Id="27" Count="1" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="19" Count="1" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="15" Count="1" />
+      <LineId Id="21" Count="1" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="29" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_WaterTreatment_RND.devices_init">
+      <LineId Id="494" Count="1" />
+      <LineId Id="497" Count="0" />
+      <LineId Id="330" Count="0" />
+      <LineId Id="354" Count="2" />
+      <LineId Id="530" Count="0" />
+      <LineId Id="410" Count="2" />
+      <LineId Id="532" Count="0" />
+      <LineId Id="332" Count="0" />
+      <LineId Id="282" Count="0" />
+      <LineId Id="329" Count="0" />
+      <LineId Id="295" Count="0" />
+      <LineId Id="534" Count="0" />
+      <LineId Id="325" Count="0" />
+      <LineId Id="434" Count="0" />
+      <LineId Id="436" Count="1" />
+      <LineId Id="522" Count="0" />
+      <LineId Id="525" Count="0" />
+      <LineId Id="480" Count="1" />
+      <LineId Id="433" Count="0" />
+      <LineId Id="535" Count="0" />
+      <LineId Id="482" Count="0" />
+      <LineId Id="230" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_WaterTreatment_RND.devices_update">
+      <LineId Id="7" Count="0" />
+      <LineId Id="24" Count="1" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_WaterTreatment_RND.FB_init">
+      <LineId Id="23" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_WaterTreatment_RND.interlocks">
+      <LineId Id="695" Count="0" />
+      <LineId Id="682" Count="0" />
+      <LineId Id="686" Count="5" />
+      <LineId Id="683" Count="0" />
+      <LineId Id="696" Count="1" />
+      <LineId Id="684" Count="0" />
+      <LineId Id="411" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_WaterTreatment_RND.scanOPCInputs">
+      <LineId Id="277" Count="3" />
+      <LineId Id="291" Count="5" />
+      <LineId Id="298" Count="20" />
+      <LineId Id="343" Count="1" />
+      <LineId Id="472" Count="1" />
+      <LineId Id="68" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_WaterTreatment_RND.sequence_init">
+      <LineId Id="21" Count="1" />
+      <LineId Id="6" Count="1" />
+      <LineId Id="11" Count="1" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="15" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_WaterTreatment_RND.simulation">
+      <LineId Id="6" Count="0" />
+      <LineId Id="8" Count="1" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

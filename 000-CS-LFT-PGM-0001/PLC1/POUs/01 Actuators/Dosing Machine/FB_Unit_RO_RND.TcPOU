@@ -1,0 +1,188 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Unit_RO_RND" Id="{be8b5a2b-8843-42aa-8a40-21182057978c}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_Unit_RO_RND EXTENDS FB_BaseDevice IMPLEMENTS I_Device
+
+VAR
+	bFirstRun: BOOL := TRUE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	bOutContactor AT %Q*: BOOL := FALSE;
+	
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSMState: (WAIT, TURNING_ON, ON, TURNING_OFF, OFF);
+	
+	tDebounce: TIME := T#5S;
+	fbTON_Debounce: TON := (PT := tDebounce, IN := FALSE);
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbTON_Debounce();
+
+IF bFirstRun THEN
+	fbTON_Debounce.IN := TRUE;
+	bFirstRun := FALSE;
+END_IF
+
+
+IF GVL.bAutoUpdateDeviceState THEN
+	eState := eStateTarget;	
+END_IF
+
+
+IF eMode = E_DeviceMode.MANUAL THEN
+	bEnable := TRUE;
+END_IF
+
+IF bEnable AND eStateTarget = E_DeviceState.ON AND eState <> E_DeviceState.ON THEN
+		eSMState := TURNING_ON;
+END_IF
+
+IF (bEnable = FALSE OR eStateTarget = E_DeviceState.OFF) AND eState <> E_DeviceState.OFF THEN
+		eSMState := TURNING_OFF;
+END_IF
+
+
+CASE eSMState OF
+	
+	WAIT:
+		//Wait for method call to change ESMState
+		
+	TURNING_ON: 
+		IF fbTON_Debounce.Q THEN
+			eState := E_DeviceState.TURNING_ON;
+			bOutContactor := TRUE;
+			fbTON_Debounce.IN := FALSE;
+			eSMState := ON;
+		END_IF
+
+		
+	ON:
+		IF bOutContactor <> TRUE THEN
+			raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Power Lost', Enabled := TRUE, DeviceAlarmID := 1);
+			eState := E_DeviceState.OFF;
+			eSMState := TURNING_OFF;
+		END_IF
+			
+	TURNING_OFF:
+		fbTON_Debounce.IN := TRUE;
+		bOutContactor := TRUE;
+		eState := E_DeviceState.TURNING_OFF;
+		bOutContactor := FALSE;
+		eSMState := OFF;
+
+	OFF:
+		eState := E_DeviceState.OFF;
+		eSMState := WAIT;
+		fbTON_Debounce.IN := TRUE;
+		
+END_CASE]]></ST>
+    </Implementation>
+    <Method Name="disable" Id="{54656f00-5594-499d-bd42-c77bc73a0044}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{b2fa1289-5c77-45b7-9abb-82d67b098a30}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{e61bd435-9d8a-4e74-b194-9e33eac1d36d}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	UnitID: STRING(80);
+	UnitDescr: STRING(255); 
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := UnitID;
+sDescr := UnitDescr;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOff" Id="{d3034f92-50a5-413b-983b-942e42fdebb6}">
+      <Declaration><![CDATA[METHOD setOff : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eSMState := TURNING_OFF;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOn" Id="{1729d636-cc5a-42b7-af0e-7e5a8c59d62f}">
+      <Declaration><![CDATA[METHOD setOn : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eSMState := TURNING_ON;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Unit_RO_RND">
+      <LineId Id="101" Count="0" />
+      <LineId Id="282" Count="0" />
+      <LineId Id="279" Count="0" />
+      <LineId Id="283" Count="0" />
+      <LineId Id="285" Count="0" />
+      <LineId Id="284" Count="0" />
+      <LineId Id="280" Count="0" />
+      <LineId Id="225" Count="0" />
+      <LineId Id="227" Count="2" />
+      <LineId Id="226" Count="0" />
+      <LineId Id="102" Count="0" />
+      <LineId Id="257" Count="9" />
+      <LineId Id="185" Count="0" />
+      <LineId Id="183" Count="0" />
+      <LineId Id="115" Count="6" />
+      <LineId Id="274" Count="1" />
+      <LineId Id="277" Count="1" />
+      <LineId Id="319" Count="0" />
+      <LineId Id="276" Count="0" />
+      <LineId Id="163" Count="0" />
+      <LineId Id="159" Count="0" />
+      <LineId Id="132" Count="1" />
+      <LineId Id="165" Count="0" />
+      <LineId Id="171" Count="1" />
+      <LineId Id="168" Count="0" />
+      <LineId Id="166" Count="0" />
+      <LineId Id="140" Count="0" />
+      <LineId Id="302" Count="0" />
+      <LineId Id="256" Count="0" />
+      <LineId Id="141" Count="0" />
+      <LineId Id="189" Count="0" />
+      <LineId Id="267" Count="0" />
+      <LineId Id="150" Count="1" />
+      <LineId Id="153" Count="1" />
+      <LineId Id="271" Count="0" />
+      <LineId Id="155" Count="0" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Unit_RO_RND.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Unit_RO_RND.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Unit_RO_RND.FB_init">
+      <LineId Id="7" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Unit_RO_RND.setOff">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Unit_RO_RND.setOn">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

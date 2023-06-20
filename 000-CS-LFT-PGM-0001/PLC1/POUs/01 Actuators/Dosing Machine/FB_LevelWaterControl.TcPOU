@@ -1,0 +1,238 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_LevelWaterControl" Id="{29274af9-0bb4-45e7-a566-0703d6b5b6b2}" SpecialFunc="None">
+    <Declaration><![CDATA[
+(*
+Function block to control opening and closing of water supply valve to the level
+*)
+
+{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_LevelWaterControl EXTENDS FB_BaseDevice
+VAR_INPUT
+	nStack : INT;
+	nLevel : INT;
+	
+	bValve_NC_1_NO: BOOL;
+	fbValve : FB_Valve_ONOFF_woMonitoring(ValveID := 'valveID' , ValveDescr := 'irrigation valve', Normal_State_NC_1_NO_0 := 0);
+	{attribute 'OPC.UA.DA' := '1'}
+	bActiveCropJob : BOOL;
+	{attribute 'OPC.UA.DA' := '1'}
+	tWaterOnTimer : TON;
+	{attribute 'OPC.UA.DA' := '1'}
+	tWaterOffTimer : TON;
+	{attribute 'OPC.UA.DA' := '1'}
+	tTimeTilWaterOff : TIME;
+	{attribute 'OPC.UA.DA' := '1'}
+	tTimeTilWaterOn : TIME;
+	
+	
+	
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+	{attribute 'OPC.UA.DA' := '1'}
+	nMinutesOff : INT;
+	{attribute 'OPC.UA.DA' := '1'}
+	nMinutesOn : INT;
+	{attribute 'OPC.UA.DA' := '1'}
+	eValve_Mode : E_DeviceMode;
+	{attribute 'OPC.UA.DA' := '1'}
+	eValve_Command : E_DeviceState;
+END_VAR
+
+
+VAR_IN_OUT
+	stSCInputs :ST_INPUTS_RND_StackControl;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+// enable the water control. There is currently no way to Disable water control. Is there a use case for this?
+// If you want to turn water off, you will have to put the valve into manual and close it.
+//Inputs.LevelWaterControls[nLevel].bEnable := TRUE;
+
+devicesUpdate();
+waterTimers();
+waterOnOff();
+scanOPCinputs();
+
+// stSCInputs.LevelWaterControls[nLevel].TimeUntilOn := TIME_TO_INT(tTimeTilWaterOn) / 1000;]]></ST>
+    </Implementation>
+    <Method Name="devicesUpdate" Id="{a97f3e62-4cae-4436-80e6-8dedf3c556d4}">
+      <Declaration><![CDATA[METHOD devicesUpdate : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+//fbValve(bNO_or_NC_0_or_1 := stSCInputs.bIrrigValve_NC_1_NO_0);
+fbValve();
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{f17768b4-610f-44c8-a768-a36491a63a53}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+// set the Water Control to Running. 
+// There is currently no use case for the Water Control to be Stopped
+eState := E_DeviceState.RUNNING;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="scanOPCinputs" Id="{c93adaca-dab0-4b01-965a-65745e798a6f}">
+      <Declaration><![CDATA[METHOD scanOPCinputs : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbValve.setMode(stSCInputs.LevelWaterControls[nLevel].Valve.Mode);
+
+// set the valve's mode to the requested mode
+IF NOT stSCInputs.bWaterQualityGood THEN            // inhibit irrigation if our water quality checkfromt the DM returns no bueno
+	fbValve.close();
+ELSE
+	// OLD VERSION...fbValve.setMode(eValve_Mode);
+	// NEW VERSION..
+	
+	
+	IF fbValve.getMode() = E_DeviceMode.MANUAL THEN
+		// the valve is in Manual so set the valve state to the input command
+		IF stSCInputs.LevelWaterControls[nLevel].Valve.Command (*eValve_Command*) = E_DeviceState.OPEN THEN
+			fbValve.open();
+		END_IF
+		IF stSCInputs.LevelWaterControls[nLevel].Valve.Command (*eValve_Command*) = E_DeviceState.CLOSED THEN
+			fbValve.close();
+		END_IF
+	ELSE
+		// the vale is not in Manual so set the Input command to the actual state
+		// This prevents the valve from moving unexpectedly the next time someone puts it into Manual
+		 stSCInputs.LevelWaterControls[nLevel].Valve.Command := fbValve.getState();
+	END_IF
+	
+	
+	IF stSCInputs.bParamsInitialised THEN
+		nMinutesOn := stSCInputs.LevelWaterControls[1].MinutesOn;
+		nMinutesOff := stSCInputs.LevelWaterControls[1].MinutesOff;
+	END_IF
+
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setState" Id="{af22eaa5-6ac4-4fbf-a826-703690e14297}">
+      <Declaration><![CDATA[METHOD setState : BOOL
+VAR_INPUT
+	state : E_DeviceState;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+eState := state;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="waterOnOff" Id="{5620be2c-06d2-4723-a7b2-ae2777496b54}">
+      <Declaration><![CDATA[METHOD waterOnOff : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF fbValve.getMode() = E_DeviceMode.AUTO THEN
+	IF bActiveCropJob THEN
+		// crop movement is active on this level so turn the valve off
+		fbValve.close();
+	ELSIF eState <> E_DeviceState.RUNNING THEN
+		// water is disabled on this level
+		fbValve.close();
+	ELSIF tWaterOnTimer.IN THEN
+		fbValve.open();
+	ELSE
+		fbValve.close();
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="waterTimers" Id="{a965792a-e564-4083-8136-fd3eb5e5ca59}">
+      <Declaration><![CDATA[METHOD waterTimers : BOOL
+VAR_INPUT
+END_VAR
+
+VAR
+	tTimeOn : TIME;
+	tTimeOff : TIME;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[tTimeOff := DINT_TO_TIME(nMinutesOff * 60000);
+tTimeOn := DINT_TO_TIME(nMinutesOn * 60000);
+
+tWaterOnTimer(IN := nMinutesOn <> 0 AND 	(tWaterOffTimer.Q OR NOT tWaterOffTimer.IN), PT := tTimeOn); 
+tWaterOffTimer(IN := nMinutesOff <> 0 AND 	(tWaterOnTimer.Q OR NOT tWaterOnTimer.IN), PT := tTimeOff); 
+
+
+IF tWaterOffTimer.IN THEN
+	tTimeTilWaterOff := T#0S;
+	tTimeTilWaterOn := tWaterOffTimer.PT - tWaterOffTimer.ET;
+ELSE
+	tTimeTilWaterOn := T#0S;
+	tTimeTilWaterOff := tWaterOnTimer.PT - tWaterOnTimer.ET;
+END_IF
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_LevelWaterControl">
+      <LineId Id="3" Count="7" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="50" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_LevelWaterControl.devicesUpdate">
+      <LineId Id="3" Count="1" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_LevelWaterControl.FB_init">
+      <LineId Id="3" Count="3" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_LevelWaterControl.scanOPCinputs">
+      <LineId Id="70" Count="1" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="33" Count="1" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="42" Count="2" />
+      <LineId Id="46" Count="15" />
+      <LineId Id="37" Count="1" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_LevelWaterControl.setState">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_LevelWaterControl.waterOnOff">
+      <LineId Id="4" Count="11" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_LevelWaterControl.waterTimers">
+      <LineId Id="4" Count="4" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="9" Count="7" />
+      <LineId Id="25" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,161 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Tank" Id="{9643a2c3-e003-4052-a7bc-715057ef7a14}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_Tank EXTENDS FB_BaseDevice IMPLEMENTS I_Device
+
+VAR
+	{attribute 'OPC.UA.DA' := '1'}
+	nFillSetPoint: REAL	;
+	{attribute 'OPC.UA.DA' := '1'}
+	nFillActual:   REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}	
+	bSensorLL: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	bSensorL: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	bSensorH: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	bSensorHH: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	nSensorLIT: REAL := 0.0;
+END_VAR
+VAR_INPUT
+	fbSensor_LL: I_Sensor(SensorID := '', SensorDescr := '' , 	SensorType := E_SensorType.Digital);
+	fbSensor_L: I_Sensor(SensorID := '', SensorDescr := '' , 	SensorType := E_SensorType.Digital);
+	fbSensor_H: I_Sensor(SensorID := '', SensorDescr := '' , 	SensorType := E_SensorType.Digital);
+	fbSensor_HH: I_Sensor(SensorID := '', SensorDescr := '' , 	SensorType := E_SensorType.Digital);
+	fbSensor_LIT: I_Sensor(SensorID := '', SensorDescr := '' , 	SensorType := E_SensorType.Analogue);
+	
+	bSensorLL_Enable: BOOL;
+	bSensorL_Enable: BOOL;
+	bSensorH_Enable: BOOL;
+	bSensorHH_Enable: BOOL;
+	bSensorLIT_Enable: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[update();]]></ST>
+    </Implementation>
+    <Method Name="disable" Id="{0111a6ac-66cd-45f1-8dd1-0a5425edec05}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{e04e7cf2-eede-4b05-8bec-6c40cd705eb5}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{ab3df061-8176-4592-b2b2-bd6f31e97473}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD FB_init : BOOL
+VAR_INPUT
+	(* if TRUE, the retain variables are initialized (warm start / cold start)*)
+	bInitRetains	: BOOL;
+	(* if TRUE, the instance afterwards gets moved into the copy code (online change)*)
+	bInCopyCode	: BOOL;
+	TankID	: STRING(80);
+	TankDescr	: STRING(255);
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := TankID;
+sDescr := TankDescr;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="update" Id="{c70d9cff-27e0-44fd-b668-c198733af948}">
+      <Declaration><![CDATA[METHOD PRIVATE update : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF bSensorLL_Enable THEN
+	IF fbSensor_LL.getValue() = 1 THEN
+		bSensorLL := TRUE;
+	ELSE
+		bSensorLL := FALSE;
+	END_IF
+END_IF
+
+
+IF bSensorL_Enable THEN
+	IF fbSensor_L.getValue() = 1 THEN
+		bSensorL := TRUE;
+	ELSE
+		bSensorL := FALSE;
+	END_IF
+END_IF
+
+IF bSensorH_Enable THEN
+	IF fbSensor_H.getValue() = 1 THEN
+		bSensorH := TRUE;
+	ELSE
+		bSensorH := FALSE;
+	END_IF
+END_IF
+
+IF bSensorHH_Enable THEN
+	IF fbSensor_HH.getValue() = 1 THEN
+		bSensorHH := TRUE;
+	ELSE
+		bSensorHH := FALSE;
+	END_IF
+END_IF
+
+IF bSensorLIT_Enable THEN
+	nSensorLIT := fbSensor_LIT.getValue();
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Tank">
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Tank.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Tank.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Tank.FB_init">
+      <LineId Id="12" Count="0" />
+      <LineId Id="24" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Tank.update">
+      <LineId Id="50" Count="1" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="18" Count="1" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="52" Count="1" />
+      <LineId Id="21" Count="6" />
+      <LineId Id="54" Count="0" />
+      <LineId Id="28" Count="6" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="35" Count="5" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="45" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

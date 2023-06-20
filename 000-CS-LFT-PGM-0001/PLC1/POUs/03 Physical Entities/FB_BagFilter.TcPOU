@@ -1,0 +1,114 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_BagFilter" Id="{6d60cb67-a8de-4da2-8f63-8e864ca4c6b0}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_BagFilter EXTENDS FB_BaseDevice IMPLEMENTS I_Device
+
+VAR
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbDiffPress_Upstream: I_Sensor(SensorID := '', SensorDescr := '', SensorType := E_SensorType.Analogue);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbDiffPress_Downstream: I_Sensor(SensorID := '', SensorDescr := '', SensorType := E_SensorType.Analogue);
+	{attribute 'OPC.UA.DA' := '1'}
+	nDiffPressure: REAL;
+	
+END_VAR
+
+VAR_IN_OUT
+	{attribute 'OPC.UA.DA' := '1'}
+	nMaxPressure: UINT;
+END_VAR
+
+		
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Bag Filters do not actually do anything, however it will be useful to maintain an OEE object for these
+// We can then monitor when filters need to be replaced
+
+nDiffPressure := ABS(fbDiffPress_Upstream.getValue() - fbDiffPress_Downstream.getValue());]]></ST>
+    </Implementation>
+    <Method Name="disable" Id="{dd814a7e-ec48-47bf-baf5-14fd1672986b}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{1f5586b2-fe22-4267-814e-9ca576b99d19}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{0ac5faf3-2585-41fe-a3f1-080f9ada033c}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	FilterID: STRING(80);
+	FilterDescr: STRING(255);
+
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := FilterID;
+sDescr := FilterDescr;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getDiffPressure" Id="{f15d7331-6ccc-40fe-ae5d-bb9fe9c4606b}">
+      <Declaration><![CDATA[METHOD getDiffPressure : REAL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//getDiffPressure := fbSensorPIT_Upstream.getValue() - fbSensorPIT_Downstream.getValue();
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setPressureLimits" Id="{f9e53c89-5043-4bae-bdbf-96455fedcebb}">
+      <Declaration><![CDATA[METHOD setPressureLimits : BOOL
+VAR_INPUT
+	PressTx_Upstream: I_Sensor(SensorID := '', SensorDescr := '', SensorType := E_SensorType.Analogue);
+	PressTx_Downstream: I_Sensor(SensorID := '', SensorDescr := '', SensorType := E_SensorType.Analogue);
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+fbDiffPress_Downstream := PressTx_Downstream;
+fbDiffPress_Upstream := PressTx_Upstream;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_BagFilter">
+      <LineId Id="9" Count="1" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="23" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BagFilter.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BagFilter.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BagFilter.FB_init">
+      <LineId Id="7" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="25" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BagFilter.getDiffPressure">
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BagFilter.setPressureLimits">
+      <LineId Id="12" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="13" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,1077 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Machine_DosingMachine_TEST2" Id="{53a3cf83-d815-4809-a196-b9621a6d4a11}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_Machine_DosingMachine_TEST2 EXTENDS FB_BaseMachine
+
+VAR
+	
+	// Set limits for machines 
+	// Bag filter differential pressures
+	nPressureDiffLimit_Filter1_Limit: REAL := 6000; //kpa
+	nPressureDiffLimit_Filter2_Limit: REAL := 6000; //kpa
+	
+	// Dosing / Nutrient Limits & SetPoints
+	nEC_Low_Limit: REAL := 1000;
+	nEC_High_Limit: REAL := 1400;
+	nEC_SetPoint: REAL := 1200;
+	
+	nPH_Low_Limit: REAL := 7.8;
+	nPH_High_Limit: REAL := 8.0;
+	nPH_SetPoint: REAL := 8.2;
+	
+	nDO_Low_Limit: REAL := 500;
+	nDO_High_Limit: REAL := 700;
+	nDO_SetPoint: REAL := 600;
+	
+	nORP_Low_Limit: REAL := 1000;
+	nORP_High_Limit: REAL := 1200;
+	nORP_SetPoint: REAL := 1400;
+	
+	nTemp_Low_Limit: REAL  := 1.5;
+	nTemp_High_Limit: REAL := 26;
+	nTemp_SetPoint: REAL := 18;  // not applicable for now
+	
+	
+	//Sequence Manager & Sequences
+	fbSequenceManager: FB_SequenceManager;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbSeqDMMain: FB_SequenceDM_Main;
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbSeqDMCal: FB_SequenceDM_Calibrate;
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbSeqDMFill: FB_SequenceDM_Fill;
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbSeqDMDrain: FB_SequenceDM_Drain;
+	
+	
+	// Hold a reference to MBMaster - may need to share this with other dosing machines if only 1 x RS485 card is used for both
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbModbusMaster: REFERENCE TO FB_ModbusMaster;
+	
+	// Hold a reference to these tanks (they are shared between dosing machines and water treatment)
+	fbTank_pHUP: REFERENCE TO FB_Tank;
+	fbTank_pHDown: REFERENCE TO FB_Tank;
+	fbTank_NutrientA: REFERENCE TO FB_Tank;
+	fbTank_NutrientB: REFERENCE TO FB_Tank;
+	fbTank_NutrientC: REFERENCE TO FB_Tank;
+
+	// Dosing Pumps
+	fbDosingPump_phUp		: FB_DosingPumpPRISMA(MotorID:= '_DP1', MotorDescr:= ' Dosing Pump - pH Up' , ModbusUnitID:=2 , ModbusMaster:=fbModbusMaster);
+	fbDosingPump_phDown		: FB_DosingPumpPRISMA(MotorID:= '_DP2', MotorDescr:= ' Dosing Pump - pH Down' , ModbusUnitID:=3 , ModbusMaster:=fbModbusMaster);
+	fbDosingPump_NutrientA	: FB_DosingPumpPRISMA(MotorID:= '_DP3', MotorDescr:= ' Dosing Pump - Nutrient A' , ModbusUnitID:=4 , ModbusMaster:=fbModbusMaster);	
+	fbDosingPump_NutrientB	: FB_DosingPumpPRISMA(MotorID:= '_DP4', MotorDescr:= ' Dosing Pump - Nutrient B' , ModbusUnitID:=5 , ModbusMaster:=fbModbusMaster);
+	fbDosingPump_NutrientC	: FB_DosingPumpPRISMA(MotorID:= '_DP5', MotorDescr:= ' Dosing Pump - Nutrient C' , ModbusUnitID:=6 , ModbusMaster:=fbModbusMaster);
+	
+	
+	// Atlas Sensors
+	fbSensor_DissOx1: FB_Sensor_AtlasDO(SensorID:= '-SU1-DO1' , SensorDescr:= ' Dissolved Oxygen - Sensor 1', SensorType:= E_SensorType.Analogue);
+	fbSensor_DissOx2: FB_Sensor_AtlasDO(SensorID:= '-SU1-DO2' , SensorDescr:= ' Dissolved Oxygen - Sensor 2', SensorType:= E_SensorType.Analogue);
+	fbSensor_DissOx: FB_DualRedundantSensor(SensorID:= 'SU1-DO', SensorDescr:= 'Dissolved Oxygen Sensing', SensorType:= E_SensorType.Analogue);
+	//fbSensor_DissOx.addSensors(Sensor1 := fbSensor_DissOx1, Sensor2 := fbSensor_DissOx2);
+	
+	
+	fbSensor_EC1: FB_Sensor_AtlasEC(SensorID:= '-SU1-EC1', SensorDescr:= ' Electrical Conductivity - Sensor 1', SensorType:= E_SensorType.Analogue);
+	fbSensor_EC2: FB_Sensor_AtlasEC(SensorID:= '-SU1-EC2', SensorDescr:= ' Electrical Conductivity - Sensor 2', SensorType:= E_SensorType.Analogue);
+	fbSensor_EC: FB_DualRedundantSensor(SensorID:= 'SU1-EC', SensorDescr:= 'Electrical Conductivity Sensing',  SensorType:= E_SensorType.Analogue);
+	
+	fbSensor_ORP1: FB_Sensor_AtlasORP(SensorID:= '-SU1-ORP1', SensorDescr:= ' Oxidation / Reduction Potential - Sensor 1', SensorType:= E_SensorType.Analogue);
+	fbSensor_ORP2: FB_Sensor_AtlasORP(SensorID:= '-SU1-ORP2', SensorDescr:= ' Oxidation / Reduction Potential - Sensor 2', SensorType:= E_SensorType.Analogue);
+	fbSensor_ORP: FB_DualRedundantSensor(SensorID:= 'SU1-ORP', SensorDescr:= 'Oxidation / Reduction Potential', SensorType:= E_SensorType.Analogue);
+	
+	fbSensor_PH1: FB_Sensor_AtlasPH(SensorID:= '-SU1-PH1', SensorDescr:= ' Potential Hydrogen (ph) - Sensor 1', SensorType:= E_SensorType.Analogue);
+	fbSensor_PH2: FB_Sensor_AtlasPH(SensorID:= '-SU1-PH2', SensorDescr:= ' Potential Hydrogen (ph) - Sensor 2', SensorType:= E_SensorType.Analogue);
+	fbSensor_PH: FB_DualRedundantSensor(SensorID:= 'SU1-PH', SensorDescr:= 'Potential Hydrogen (ph)', SensorType:= E_SensorType.Analogue);
+		
+	fbSensor_TMP1: FB_Sensor_AtlasTEMP(SensorID:= '-SU1-TMP1', SensorDescr:= 'Water Temperature - Sensor 1', SensorType:= E_SensorType.Analogue);
+	fbSensor_TMP2: FB_Sensor_AtlasTEMP(SensorID:= '-SU1-TMP2', SensorDescr:= 'Water Temperature - Sensor 2', SensorType:= E_SensorType.Analogue);
+	fbSensor_TMP: FB_DualRedundantSensor(SensorID:= 'SU1-TMP', SensorDescr:= 'Water Temperature', SensorType:= E_SensorType.Analogue);
+	
+	fbSensor_SumpLIT1 : FB_Sensor_4_20mA_Generic(SensorID:= '_SU1_LIT1', SensorDescr:= ' Sump Level Transmitter 1' , SensorType:= E_SensorType.Analogue); 
+	fbSensor_FilterPIT1: FB_Sensor_OceanControlsPressureTx_BVS006NA( SensorID:= '_SU1_PIT1',	SensorDescr:= ' Bag Filter Pressure Sensor 1', SensorType:= E_SensorType.Analogue);
+	fbSensor_FilterPIT2: FB_Sensor_OceanControlsPressureTx_BVS006NA( SensorID:= '_SU1_PIT2',	SensorDescr:= ' Bag Filter Pressure Sensor 2', SensorType:= E_SensorType.Analogue);
+	fbSensor_FilterPIT3: FB_Sensor_OceanControlsPressureTx_BVS006NA( SensorID:= '_SU1_PIT3',	SensorDescr:= ' Bag Filter Pressure Sensor 3', SensorType:= E_SensorType.Analogue);  
+	fbSensor_DosingPIT1: FB_Sensor_OceanControlsPressureTx_BVS006NA( SensorID:= '_SU1_PIT4',	SensorDescr:= 'Dosing Line Pressure Transmitter', SensorType:= E_SensorType.Analogue);
+	
+	// Actuated Valves
+	fbValve_DosingSupply: FB_Valve_ONOFF_woMonitoring(ValveID:= '_SU1_V1', ValveDescr:= ' Dosing Circuit Supply Valve' ); 
+	fbValve_IrrigatorSupply: FB_Valve_ONOFF_woMonitoring(ValveID:= '_SU1_V2', ValveDescr:= ' Irrigator Supply Valve' ); 
+	fbValve_WasteWaterReturn: FB_Valve_ONOFF_woMonitoring(ValveID:= '_SU1_V4', ValveDescr:= ' Waste Water Return Valve');
+	
+	// Vendor Units	
+	fbUnit_OxyInjector: FB_OxygenInjector(UnitID:= '_SU1_OXY1' , UnitDescr:= ' Oxygen Injector');	 
+	fbUnit_UltraSonCleaner: FB_UltraSonicCleaner(UnitID:= '_SU1_USC1' , UnitDescr:= ' Ultrasonic Cleaner');
+	
+	// VSD Pumps
+	fbPump_MainPumpA: FB_PumpVSD_DanfossFC202(PumpID:='_SU1_PU1_A' , PumpDescr:=' Main Pump - A');	 
+	fbPump_MainPumpB: FB_PumpVSD_DanfossFC202(PumpID:='_SU1_PU1_B' , PumpDescr:=' Main Pump - B');	 
+	fbDrumFilter1: FB_DrumFilter_Faivre120(FilterID:= '_SU1_DF1' , FIlterDescr:= ' Drum Filter');	 
+	fbUVFilter1: FB_UVFilter_UltraAqua_MR4_220PP(UnitID:= '_SU1_UVC1', UnitDescr:= ' Ultraviolet Filter' );	 
+	
+	// Passive Components
+	fbBagFilter1: FB_BagFilter(FilterID:= 'SU1-FTR1', FilterDescr:= 'Dosing Sump Bag Filter 1' , DiffPress_Upstream:= fbSensor_FilterPIT1, DiffPress_Downstream:= fbSensor_FilterPIT2);
+	fbBagFilter2: FB_BagFilter(FilterID:= 'SU1-FTR2', FilterDescr:= 'Dosing Sump Bag Filter 2' , DiffPress_Upstream:= fbSensor_FilterPIT2, DiffPress_Downstream:= fbSensor_FilterPIT3);
+	fbSumpDosing: FB_Tank(TankID:= 'SU1', TankDescr:= 'Dosing Sump'); //, Sensor_LL:= fbSensor_SumpLIT1,Sensor_L:= fbSensor_SumpLIT1, Sensor_H:= fbSensor_SumpLIT1, Sensor_HH:= fbSensor_SumpLIT1,	Sensor_LIT:= fbSensor_SumpLIT1); 
+	
+	
+	// Control Loops
+	(*fbControlLoop_Dosing: FB_ControlLoop_Dosing(
+								DosingPump_phUp := fbDosingPump_phUp, 
+								DosingPump_phDOwn := fbDosingPump_phDown, 
+								DosingPump_Nutrient_A := fbDosingPump_NutrientA, 
+								DosingPump_Nutrient_B := fbDosingPump_NutrientB, 
+								DosingPump_Nutrient_C := fbDosingPump_NutrientC, 
+								Sensor_EC := fbSensor_EC, 
+								Sensor_DO := fbSensor_DissOx, 
+								Sensor_ORP := fbSensor_ORP, 
+								Sensor_PH := fbSensor_PH, 
+								Sensor_TEMP := fbSensor_TMP);
+								*)
+	
+	
+	
+	// Package all components into structure to pass to sub-FBs 
+	// This ST is populated by calling the populateComponents method
+	{attribute 'OPC.UA.DA' := '0'} 
+	stAllComponents: ST_DMComponents;
+	
+	
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Assign Pressure Sensors to Bag Filters & Tanks
+fbBagFilter1.setPressureLimits();
+fbBagFilter2.setPressureLimits();
+//fbSumpDosing.setLevelSensors();
+
+// Run Sequences
+checkRunPermissives();
+
+fbSequenceManager();
+
+// Look for inputs
+
+
+//Run Control Loops
+
+// Cycle Through Device FBs
+fbDosingPump_phUp();
+fbDosingPump_phDown();
+fbDosingPump_NutrientA();
+fbDosingPump_NutrientB();
+fbDosingPump_NutrientC();
+fbSensor_DissOx1();
+fbSensor_DissOx2();
+fbSensor_EC1();
+fbSensor_EC2();
+fbSensor_ORP1();
+fbSensor_ORP2();
+fbSensor_PH1();
+fbSensor_PH2();
+fbSensor_TMP1();
+fbSensor_TMP2();
+fbSensor_SumpLIT1();
+fbSensor_FilterPIT1();
+fbSensor_FilterPIT2();
+fbSensor_FilterPIT3();
+fbValve_DosingSupply();
+fbValve_IrrigatorSupply();
+fbValve_WasteWaterReturn();
+fbUnit_OxyInjector();
+fbUnit_UltraSonCleaner();
+fbPump_MainPumpA(); 
+fbPump_MainPumpB();	 
+fbDrumFilter1();	 
+fbUVFilter1();	 
+fbBagFilter1();
+fbBagFilter2();
+fbSumpDosing();
+
+
+
+
+
+
+
+
+
+
+
+
+
+]]></ST>
+    </Implementation>
+    <Method Name="checkRunPermissive_DosingPump_NutrientA" Id="{637447e8-df78-438b-9a67-6db95b00ec62}">
+      <Declaration><![CDATA[METHOD checkRunPermissive_DosingPump_NutrientA : BOOL
+VAR_INPUT
+END_VAR
+
+VAR
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF fbSensor_DosingPIT1.getState() = E_DeviceState.OUT_OF_RANGE OR
+	fbDosingPump_NutrientB.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_NutrientC.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_phUp.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_phDown.getState() = E_DeviceState.RUNNING  THEN
+	
+		checkRunPermissive_DosingPump_NutrientA := FALSE;
+
+ELSE
+		checkRunPermissive_DosingPump_NutrientA := TRUE;
+END_IF
+	]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkRunPermissive_DosingPump_NutrientB" Id="{35eaffdb-1bf7-4065-91da-b4f590f28d84}">
+      <Declaration><![CDATA[METHOD checkRunPermissive_DosingPump_NutrientB : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF fbSensor_DosingPIT1.getState() = E_DeviceState.OUT_OF_RANGE OR
+	fbDosingPump_NutrientA.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_NutrientC.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_phUp.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_phDown.getState() = E_DeviceState.RUNNING  THEN
+	
+		checkRunPermissive_DosingPump_NutrientB := FALSE;
+
+ELSE
+		checkRunPermissive_DosingPump_NutrientB := TRUE;
+END_IF
+	]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkRunPermissive_DosingPump_NutrientC" Id="{c759d88b-9262-4e6f-acf5-3abe58dbb944}">
+      <Declaration><![CDATA[METHOD checkRunPermissive_DosingPump_NutrientC : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF fbSensor_DosingPIT1.getState() = E_DeviceState.OUT_OF_RANGE OR
+	fbDosingPump_NutrientA.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_NutrientB.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_phUp.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_phDown.getState() = E_DeviceState.RUNNING  THEN
+	
+		checkRunPermissive_DosingPump_NutrientC := FALSE;
+
+ELSE
+		checkRunPermissive_DosingPump_NutrientC := TRUE;
+END_IF
+	]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkRunPermissive_DosingPump_phDown" Id="{ea23e31f-a6d0-46d3-9368-255118558e7c}">
+      <Declaration><![CDATA[METHOD checkRunPermissive_DosingPump_phDown : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF fbSensor_DosingPIT1.getState() = E_DeviceState.OUT_OF_RANGE OR
+	fbDosingPump_NutrientA.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_NutrientB.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_NutrientC.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_phUp.getState() = E_DeviceState.RUNNING  THEN
+	
+		checkRunPermissive_DosingPump_phDown := FALSE;
+
+ELSE
+		checkRunPermissive_DosingPump_phDown := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkRunPermissive_DosingPump_phUp" Id="{f613e88e-a5b3-4145-84c2-bf8f335cb104}">
+      <Declaration><![CDATA[METHOD checkRunPermissive_DosingPump_phUp : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF fbSensor_DosingPIT1.getState() = E_DeviceState.OUT_OF_RANGE OR
+	fbDosingPump_NutrientA.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_NutrientB.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_NutrientC.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_phDown.getState() = E_DeviceState.RUNNING  THEN
+	
+		checkRunPermissive_DosingPump_phUp := FALSE;
+
+ELSE
+		checkRunPermissive_DosingPump_phUp := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkRunPermissive_OxyInjector" Id="{a3c7a05d-2811-41b4-bb72-e6752139f302}">
+      <Declaration><![CDATA[METHOD checkRunPermissive_OxyInjector : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF fbSumpDosing.getState() = E_DeviceState.OUT_OF_RANGE THEN
+
+		checkRunPermissive_OxyInjector := FALSE;
+ELSE
+		checkRunPermissive_OxyInjector := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkRunPermissive_PumpMainPumpA" Id="{e8b13e73-0de0-4444-99f5-e52cf60656a5}">
+      <Declaration><![CDATA[METHOD checkRunPermissive_PumpMainPumpA : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF fbPump_MainPumpB.getState() = E_DeviceState.RUNNING OR
+	(fbValve_IrrigatorSupply.getState() = E_DeviceState.CLOSED AND
+		fbValve_WasteWaterReturn.getState() = E_DeviceState.CLOSED AND
+		fbSensor_DosingPIT1.getState() = E_DeviceState.LOW_LOW) OR
+	fbSumpDosing.getState() = E_DeviceState.LOW_LOW OR
+	fbBagFilter1.getDiffPressure() > nPressureDiffLimit_Filter1_Limit OR
+	fbBagFilter2.getDiffPressure() > nPressureDiffLimit_Filter2_Limit THEN
+	
+		checkRunPermissive_PumpMainPumpA := FALSE;
+ELSE
+	checkRunPermissive_PumpMainPumpA := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkRunPermissive_PumpMainPumpB" Id="{83b8063e-3126-4934-8fad-832eeb1caf84}">
+      <Declaration><![CDATA[METHOD checkRunPermissive_PumpMainPumpB : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF fbPump_MainPumpA.getState() = E_DeviceState.RUNNING OR
+	(fbValve_IrrigatorSupply.getState() = E_DeviceState.CLOSED AND
+		fbValve_WasteWaterReturn.getState() = E_DeviceState.CLOSED AND
+		fbSensor_DosingPIT1.getState() = E_DeviceState.LOW_LOW) OR
+	fbSumpDosing.getState() = E_DeviceState.LOW_LOW OR
+	fbBagFilter1.getDiffPressure() > nPressureDiffLimit_Filter1_Limit OR
+	fbBagFilter2.getDiffPressure() > nPressureDiffLimit_Filter2_Limit THEN
+	
+		checkRunPermissive_PumpMainPumpB := FALSE;
+ELSE
+	checkRunPermissive_PumpMainPumpB := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkRunPermissive_UltraSonCleaner" Id="{329cc6da-26e3-4b61-af8a-a5bcba792d14}">
+      <Declaration><![CDATA[METHOD checkRunPermissive_UltraSonCleaner : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF fbSumpDosing.getState() = E_DeviceState.LOW_LOW THEN
+	
+	checkRunPermissive_UltraSonCleaner := FALSE;
+ELSE
+	checkRunPermissive_UltraSonCleaner := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkRunPermissive_UVFilter" Id="{87a910d3-a05a-4a53-bc30-727d8983f718}">
+      <Declaration><![CDATA[METHOD checkRunPermissive_UVFilter : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+IF fbSumpDosing.getState() = E_DeviceState.LOW_LOW THEN
+	checkRunPermissive_UVFilter := TRUE;
+ELSE
+	checkRunPermissive_UVFilter := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkRunPermissive_ValveIrrigatorSupply" Id="{ee29b21f-1248-4c1c-aa7d-fc96b19edf21}">
+      <Declaration><![CDATA[METHOD checkRunPermissive_ValveIrrigatorSupply : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+// No interlocks exist for this valve 
+IF FALSE THEN
+	checkRunPermissive_ValveIrrigatorSupply := FALSE;
+ELSE
+	checkRunPermissive_ValveIrrigatorSupply := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkRunPermissive_ValveWasteWaterReturn" Id="{46344458-5bc2-457c-a0ee-80dba8c0336b}">
+      <Declaration><![CDATA[METHOD checkRunPermissive_ValveWasteWaterReturn : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF FALSE THEN
+	checkRunPermissive_ValveWasteWaterReturn := FALSE;
+ELSE
+	checkRunPermissive_ValveWasteWaterReturn := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkRunPermissives" Id="{2f1d77c9-a412-4415-8932-7fc29bf25ec3}">
+      <Declaration><![CDATA[METHOD checkRunPermissives : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Check RUN interlocks and stop motors / pumps & close / open valves
+
+IF checkRunPermissive_DosingPump_phUp() <> TRUE THEN
+	fbDosingPump_phUp.setOFF(RequestComplete := NULL);
+END_IF
+
+IF checkRunPermissive_DosingPump_phDown() <> TRUE THEN
+	fbDosingPump_phDown.setOFF(RequestComplete := NULL);
+END_IF
+
+IF checkRunPermissive_DosingPump_NutrientA() <> TRUE THEN
+	fbDosingPump_NutrientA.setOFF(RequestComplete := NULL);
+END_IF
+
+IF checkRunPermissive_DosingPump_NutrientB() <> TRUE THEN
+	fbDosingPump_NutrientB.setOFF(RequestComplete := NULL);
+END_IF
+
+IF checkRunPermissive_DosingPump_NutrientC() <> TRUE THEN
+	fbDosingPump_NutrientC.setOFF(RequestComplete := NULL);
+END_IF
+
+IF checkRunPermissive_OxyInjector() <> TRUE THEN
+	fbUnit_OxyInjector.setOff();
+END_IF
+
+IF checkRunPermissive_PumpMainPumpA() <> TRUE THEN
+	fbPump_MainPumpA.setReference(RefSetPoint := 0);
+	// fbPump_MainPumpA.setOff(); check if this is needed when testing pump
+END_IF
+
+IF checkRunPermissive_PumpMainPumpB() <> TRUE THEN
+	fbPump_MainPumpB.setReference(RefSetPoint := 0);
+	// fbPump_MainPumpB.setOff(); check if this is needed when testing pump
+END_IF
+
+IF checkRunPermissive_UltraSonCleaner() <> TRUE THEN
+	fbUnit_UltraSonCleaner.setOff();
+END_IF
+
+IF checkRunPermissive_UVFilter() <> TRUE THEN
+	fbUVFilter1.setOff();
+END_IF
+
+IF checkRunPermissive_ValveIrrigatorSupply() <> TRUE THEN
+	fbValve_IrrigatorSupply.close();
+END_IF
+
+IF checkStartPermissive_ValveWasteWaterReturn() <> TRUE THEN
+	fbValve_WasteWaterReturn.close();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkStartPermissive_DosingPump_NutrientA" Id="{f205a502-7bec-407e-b372-8e494ce707ba}">
+      <Declaration><![CDATA[METHOD checkStartPermissive_DosingPump_NutrientA : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF fbSensor_DosingPIT1.getState() = E_DeviceState.OUT_OF_RANGE OR
+	fbDosingPump_NutrientB.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_NutrientC.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_phUp.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_phDown.getState() = E_DeviceState.RUNNING  THEN
+	
+		checkStartPermissive_DosingPump_NutrientA := FALSE;
+
+ELSE
+		checkStartPermissive_DosingPump_NutrientA := TRUE;
+END_IF
+	]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkStartPermissive_DosingPump_NutrientB" Id="{46c50b2c-1f33-49f0-b774-355abc183b5e}">
+      <Declaration><![CDATA[METHOD checkStartPermissive_DosingPump_NutrientB : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF fbSensor_DosingPIT1.getState() = E_DeviceState.OUT_OF_RANGE OR
+	fbDosingPump_NutrientA.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_NutrientC.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_phUp.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_phDown.getState() = E_DeviceState.RUNNING  THEN
+	
+		checkStartPermissive_DosingPump_NutrientB := FALSE;
+
+ELSE
+		checkStartPermissive_DosingPump_NutrientB := TRUE;
+END_IF
+	]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkStartPermissive_DosingPump_NutrientC" Id="{2563a098-4dc4-4ac9-a185-e06cd7da1614}">
+      <Declaration><![CDATA[METHOD checkStartPermissive_DosingPump_NutrientC : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF fbSensor_DosingPIT1.getState() = E_DeviceState.OUT_OF_RANGE OR
+	fbDosingPump_NutrientA.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_NutrientB.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_phUp.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_phDown.getState() = E_DeviceState.RUNNING  THEN
+	
+		checkStartPermissive_DosingPump_NutrientC := FALSE;
+
+ELSE
+		checkStartPermissive_DosingPump_NutrientC := TRUE;
+END_IF
+	]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkStartPermissive_DosingPump_phDown" Id="{92aa4398-aace-4449-a769-6a57913f6b8c}">
+      <Declaration><![CDATA[METHOD checkStartPermissive_DosingPump_phDown : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF fbSensor_DosingPIT1.getState() = E_DeviceState.OUT_OF_RANGE OR
+	fbDosingPump_NutrientA.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_NutrientB.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_NutrientC.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_phUp.getState() = E_DeviceState.RUNNING  THEN
+	
+		checkStartPermissive_DosingPump_phDown := FALSE;
+
+ELSE
+		checkStartPermissive_DosingPump_phDown := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkStartPermissive_DosingPump_phUp" Id="{3b803a46-f4ed-4930-a6a8-1d7a06f5daaf}">
+      <Declaration><![CDATA[METHOD checkStartPermissive_DosingPump_phUp : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF fbSensor_DosingPIT1.getState() = E_DeviceState.OUT_OF_RANGE OR
+	fbDosingPump_NutrientA.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_NutrientB.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_NutrientC.getState() = E_DeviceState.RUNNING OR
+	fbDosingPump_phDown.getState() = E_DeviceState.RUNNING  THEN
+	
+		checkStartPermissive_DosingPump_phUp := FALSE;
+
+ELSE
+		checkStartPermissive_DosingPump_phUp := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkStartPermissive_OxyInjector" Id="{6d43473f-dd2d-4f6e-85f9-447bf2d4dc68}">
+      <Declaration><![CDATA[METHOD checkStartPermissive_OxyInjector : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF fbSumpDosing.getState() = E_DeviceState.OUT_OF_RANGE THEN
+
+		checkStartPermissive_OxyInjector := FALSE;
+ELSE
+		checkStartPermissive_OxyInjector := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkStartPermissive_PumpMainPumpA" Id="{db3f675a-66d8-431f-9f20-ad6e1ea4b7fa}">
+      <Declaration><![CDATA[METHOD checkStartPermissive_PumpMainPumpA : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF fbPump_MainPumpB.getState() = E_DeviceState.RUNNING OR
+	(fbValve_IrrigatorSupply.getState() = E_DeviceState.CLOSED AND
+		fbValve_WasteWaterReturn.getState() = E_DeviceState.CLOSED AND
+		fbSensor_DosingPIT1.getState() = E_DeviceState.LOW_LOW) OR
+	fbSumpDosing.getState() = E_DeviceState.LOW_LOW OR
+	fbBagFilter1.getDiffPressure() > nPressureDiffLimit_Filter1_Limit OR
+	fbBagFilter2.getDiffPressure() > nPressureDiffLimit_Filter2_Limit THEN
+	
+		checkStartPermissive_PumpMainPumpA := FALSE;
+ELSE
+	checkStartPermissive_PumpMainPumpA := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkStartPermissive_PumpMainPumpB" Id="{3a358ca3-8973-403f-957a-68c670400664}">
+      <Declaration><![CDATA[METHOD checkStartPermissive_PumpMainPumpB : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF fbPump_MainPumpA.getState() = E_DeviceState.RUNNING OR
+	(fbValve_IrrigatorSupply.getState() = E_DeviceState.CLOSED AND
+		fbValve_WasteWaterReturn.getState() = E_DeviceState.CLOSED AND
+		fbSensor_DosingPIT1.getState() = E_DeviceState.LOW_LOW) OR
+	fbSumpDosing.getState() = E_DeviceState.LOW_LOW OR
+	fbBagFilter1.getDiffPressure() > nPressureDiffLimit_Filter1_Limit OR
+	fbBagFilter2.getDiffPressure() > nPressureDiffLimit_Filter2_Limit THEN
+	
+		checkStartPermissive_PumpMainPumpB := FALSE;
+ELSE
+	checkStartPermissive_PumpMainPumpB := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkStartPermissive_UltraSonCleaner" Id="{17be9ffc-5770-42bb-9580-e5b2056ce1e6}">
+      <Declaration><![CDATA[METHOD checkStartPermissive_UltraSonCleaner : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF fbSumpDosing.getState() = E_DeviceState.LOW_LOW THEN
+	
+	checkStartPermissive_UltraSonCleaner := TRUE;
+ELSE
+	checkStartPermissive_UltraSonCleaner := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkStartPermissive_UVFilter" Id="{95df847b-be50-4542-a5ca-6735ec18c923}">
+      <Declaration><![CDATA[METHOD checkStartPermissive_UVFilter : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF fbSumpDosing.getState() = E_DeviceState.LOW_LOW THEN
+	
+	checkStartPermissive_UVFilter := FALSE;
+ELSE
+	checkStartPermissive_UVFilter := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkStartPermissive_ValveIrrigatorSupply" Id="{c55bc875-ec8b-4127-a7bf-2d649c90834c}">
+      <Declaration><![CDATA[METHOD checkStartPermissive_ValveIrrigatorSupply : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF  checkWaterQuality() = FALSE THEN
+	checkStartPermissive_ValveIrrigatorSupply := FALSE;
+ELSE
+	checkStartPermissive_ValveIrrigatorSupply := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkStartPermissive_ValveWasteWaterReturn" Id="{e60f58d9-00ad-4637-ab82-22026983b770}">
+      <Declaration><![CDATA[METHOD checkStartPermissive_ValveWasteWaterReturn : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF FALSE THEN
+	checkStartPermissive_ValveWasteWaterReturn := TRUE;
+ELSE
+	checkStartPermissive_ValveWasteWaterReturn := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="checkWaterQuality" Id="{174ad74d-0105-4959-8b14-c0f30b2e73fe}">
+      <Declaration><![CDATA[METHOD checkWaterQuality : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[checkWaterQuality := TRUE;
+
+IF fbSensor_DissOx.getValue() < nDO_Low_Limit OR
+	fbSensor_DissOx.getValue() > nDO_High_Limit THEN
+	
+	checkWaterQuality := FALSE;
+	// raise an event
+END_IF
+
+IF fbSensor_EC.getValue() < nEC_Low_Limit OR
+	fbSensor_EC.getValue() > nEC_High_Limit THEN
+	
+	checkWaterQuality := FALSE;
+	// raise an event
+END_IF
+
+
+IF fbSensor_ORP.getValue() < nORP_Low_Limit OR
+	fbSensor_ORP.getValue() > nORP_High_Limit THEN
+	
+	checkWaterQuality := FALSE;
+	// raise an event
+END_IF
+
+
+IF fbSensor_PH.getValue() < nPH_Low_Limit OR
+	fbSensor_PH.getValue() > nPH_High_Limit THEN
+	
+	checkWaterQuality := FALSE;
+	// raise an event
+END_IF
+
+
+IF fbSensor_TMP.getValue() < nTemp_Low_Limit OR
+	fbSensor_TMP.getValue() > nTemp_High_Limit THEN
+	
+	checkWaterQuality := FALSE;
+	// raise an event
+END_IF
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="devices_init" Id="{e7cca487-b88d-48df-a5ad-1aac5085da55}">
+      <Declaration><![CDATA[METHOD devices_init : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[stAllComponents.fbTank_pHUP :=  fbTank_pHUP;
+stAllComponents.fbTank_pHDown :=  fbTank_pHDown;
+stAllComponents.fbTank_NutrientA :=  fbTank_NutrientA;
+stAllComponents.fbTank_NutrientB :=  fbTank_NutrientB;
+stAllComponents.fbTank_NutrientC :=  fbTank_NutrientC;
+
+stAllComponents.fbDosingPump_phUp  :=  fbDosingPump_phUp ;
+stAllComponents.fbDosingPump_phDown  :=  fbDosingPump_phDown ;
+
+
+stAllComponents.fbSensor_DissOx1 :=  fbSensor_DissOx1;
+stAllComponents.fbSensor_DissOx2 :=  fbSensor_DissOx2;
+stAllComponents.fbSensor_EC1 :=  fbSensor_EC1;
+stAllComponents.fbSensor_EC2 :=  fbSensor_EC2;
+stAllComponents.fbSensor_ORP1 :=  fbSensor_ORP1;
+stAllComponents.fbSensor_ORP2 :=  fbSensor_ORP2;
+stAllComponents.fbSensor_PH1 :=  fbSensor_PH1;
+stAllComponents.fbSensor_PH2 :=  fbSensor_PH2;
+
+stAllComponents.fbSensor_TMP1 :=  fbSensor_TMP1;
+stAllComponents.fbSensor_TMP2 :=  fbSensor_TMP2;
+stAllComponents.fbSensor_SumpLIT1 :=  fbSensor_SumpLIT1;
+stAllComponents.fbSensor_FilterPIT1 :=  fbSensor_FilterPIT1;
+stAllComponents.fbSensor_FilterPIT2 :=  fbSensor_FilterPIT2;
+stAllComponents.fbSensor_FilterPIT3 :=  fbSensor_FilterPIT3;
+stAllComponents.fbSensor_DosingPIT1 :=  fbSensor_DosingPIT1;
+
+
+stAllComponents.fbValve_DosingSupply := fbValve_DosingSupply;
+stAllComponents.fbValve_IrrigatorSupply :=  fbValve_IrrigatorSupply;
+stAllComponents.fbValve_WasteWaterReturn :=  fbValve_WasteWaterReturn;
+
+
+stAllComponents.fbUnit_OxyInjector :=  fbUnit_OxyInjector;
+stAllComponents.fbUnit_UltraSonCleaner :=  fbUnit_UltraSonCleaner;
+
+
+stAllComponents.fbPump_MainPumpA :=  fbPump_MainPumpA;
+stAllComponents.fbPump_MainPumpB :=  fbPump_MainPumpB;
+stAllComponents.fbDrumFilter1 :=  fbDrumFilter1;
+stAllComponents.fbUVFilter1 :=  fbUVFilter1;
+
+
+stAllComponents.fbBagFilter1 :=  fbBagFilter1;
+stAllComponents.fbBagFilter2 :=  fbBagFilter2;
+stAllComponents.fbSumpDosing :=  fbSumpDosing;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{33b204cc-64f7-4abf-a882-188b8b25856d}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	
+	ModbusMaster: FB_ModbusMaster;
+	
+	Tank_PHUp: FB_Tank(	TankID:= '', TankDescr:= '');
+	Tank_PHDown: FB_Tank(	TankID:= '', TankDescr:= '');
+	Tank_NutrientA: FB_Tank(	TankID:= '', TankDescr:= '');
+	Tank_NutrientB: FB_Tank(	TankID:= '', TankDescr:= '');
+	Tank_NutrientC: FB_Tank(	TankID:= '', TankDescr:= '');
+	
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbModbusMaster REF= ModbusMaster;
+
+
+fbTank_pHUP REF= Tank_PHUp;
+fbTank_pHDown REF= Tank_pHDown;
+fbTank_NutrientA REF= Tank_NutrientA;
+fbTank_NutrientB REF= Tank_NutrientB;
+fbTank_NutrientC REF= Tank_NutrientC;
+
+
+(*
+fbSequenceManager.addSequence(Sequence := fbSeqDMCal);
+fbSequenceManager.addSequence(Sequence := fbSeqDMDrain);
+fbSequenceManager.addSequence(Sequence := fbSeqDMFill);
+fbSequenceManager.addSequence(Sequence := fbSeqDMMain);
+
+populateComponents();
+*)
+
+
+// populateComponents();
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setDosingTanks" Id="{9c0c6ca6-a6c3-404d-92c3-5fd2380e67b4}">
+      <Declaration><![CDATA[METHOD setDosingTanks : BOOL
+VAR_INPUT
+	Tank_pHUP: REFERENCE TO FB_Tank;
+	Tank_pHDown: REFERENCE TO FB_Tank;
+	Tank_NutrientA: REFERENCE TO FB_Tank;
+	Tank_NutrientB: REFERENCE TO FB_Tank;
+	Tank_NutrientC: REFERENCE TO FB_Tank;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbTank_pHUP := Tank_pHUP;
+fbTank_pHDown := Tank_pHDown;
+fbTank_NutrientA := Tank_NutrientA;
+fbTank_NutrientB := Tank_NutrientB;
+fbTank_NutrientC := Tank_NutrientC;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2">
+      <LineId Id="730" Count="59" />
+      <LineId Id="120" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkRunPermissive_DosingPump_NutrientA">
+      <LineId Id="21" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="42" Count="4" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="8" Count="1" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkRunPermissive_DosingPump_NutrientB">
+      <LineId Id="20" Count="1" />
+      <LineId Id="23" Count="9" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkRunPermissive_DosingPump_NutrientC">
+      <LineId Id="20" Count="1" />
+      <LineId Id="23" Count="9" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkRunPermissive_DosingPump_phDown">
+      <LineId Id="20" Count="1" />
+      <LineId Id="23" Count="8" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkRunPermissive_DosingPump_phUp">
+      <LineId Id="20" Count="1" />
+      <LineId Id="23" Count="8" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkRunPermissive_OxyInjector">
+      <LineId Id="11" Count="1" />
+      <LineId Id="18" Count="1" />
+      <LineId Id="21" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkRunPermissive_PumpMainPumpA">
+      <LineId Id="6" Count="1" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="14" Count="2" />
+      <LineId Id="18" Count="1" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="8" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkRunPermissive_PumpMainPumpB">
+      <LineId Id="15" Count="11" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkRunPermissive_UltraSonCleaner">
+      <LineId Id="6" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="9" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkRunPermissive_UVFilter">
+      <LineId Id="6" Count="1" />
+      <LineId Id="10" Count="3" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkRunPermissive_ValveIrrigatorSupply">
+      <LineId Id="13" Count="1" />
+      <LineId Id="9" Count="3" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkRunPermissive_ValveWasteWaterReturn">
+      <LineId Id="6" Count="4" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkRunPermissives">
+      <LineId Id="62" Count="1" />
+      <LineId Id="23" Count="1" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="28" Count="3" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="1" />
+      <LineId Id="10" Count="2" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="14" Count="2" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="33" Count="1" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="41" Count="3" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="51" Count="1" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="54" Count="0" />
+      <LineId Id="56" Count="1" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="60" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkStartPermissive_DosingPump_NutrientA">
+      <LineId Id="17" Count="1" />
+      <LineId Id="20" Count="9" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkStartPermissive_DosingPump_NutrientB">
+      <LineId Id="17" Count="1" />
+      <LineId Id="20" Count="9" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkStartPermissive_DosingPump_NutrientC">
+      <LineId Id="17" Count="1" />
+      <LineId Id="20" Count="9" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkStartPermissive_DosingPump_phDown">
+      <LineId Id="17" Count="1" />
+      <LineId Id="20" Count="8" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkStartPermissive_DosingPump_phUp">
+      <LineId Id="14" Count="1" />
+      <LineId Id="17" Count="8" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkStartPermissive_OxyInjector">
+      <LineId Id="14" Count="1" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="19" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkStartPermissive_PumpMainPumpA">
+      <LineId Id="14" Count="11" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkStartPermissive_PumpMainPumpB">
+      <LineId Id="28" Count="0" />
+      <LineId Id="17" Count="10" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkStartPermissive_UltraSonCleaner">
+      <LineId Id="6" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="9" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkStartPermissive_UVFilter">
+      <LineId Id="18" Count="1" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="21" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkStartPermissive_ValveIrrigatorSupply">
+      <LineId Id="16" Count="3" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkStartPermissive_ValveWasteWaterReturn">
+      <LineId Id="6" Count="4" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.checkWaterQuality">
+      <LineId Id="17" Count="0" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="34" Count="1" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="38" Count="30" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="30" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.devices_init">
+      <LineId Id="168" Count="4" />
+      <LineId Id="174" Count="2" />
+      <LineId Id="180" Count="18" />
+      <LineId Id="221" Count="0" />
+      <LineId Id="200" Count="17" />
+      <LineId Id="16" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.FB_init">
+      <LineId Id="131" Count="16" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="107" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_DosingMachine_TEST2.setDosingTanks">
+      <LineId Id="5" Count="0" />
+      <LineId Id="11" Count="3" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

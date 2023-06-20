@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_SequenceList_WTR" Id="{ee6da9ee-b478-42d3-af11-55bb3032167f}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_SequenceList_WTR :
+(
+	SEQ_MAIN := 0,
+	SEQ_CALIBRATE := 1
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

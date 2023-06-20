@@ -1,0 +1,196 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Valve_ONOFF_woMonitoring" Id="{be52fd31-1f17-4daa-8d2a-ab79d198985d}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA' := '1'}
+FUNCTION_BLOCK FB_Valve_ONOFF_woMonitoring EXTENDS FB_BaseDevice IMPLEMENTS I_Device, I_ValveActuated
+
+
+(*
+VAR_INPUT
+	bNO_or_NC_0_or_1: BOOL;
+END_VAR
+*)
+
+VAR
+	bFirstRun: BOOL := TRUE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	bValveOutput AT %Q*: BOOL := FALSE;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSMState: (WAIT, CLOSED, OPEN);
+	
+	tDebounce: TIME := T#5S;
+	fbTON_Debounce: TON := (PT := tDebounce, IN := FALSE);
+	
+	
+END_VAR
+
+VAR PERSISTENT
+	bNO_or_NC_0_or_1: BOOL; 
+	bNCNC_Override: BOOL := FALSE;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbTONstartTime();
+fbTONstopTime();
+fbTON_Debounce();
+
+IF bFirstRun THEN
+	fbTON_Debounce(IN := TRUE);
+	bFirstRun := FALSE;
+END_IF
+
+IF GVL.bAutoUpdateDeviceState THEN
+	eState := eStateTarget;	
+END_IF
+
+IF eMode = E_DeviceMode.MANUAL THEN
+	bEnable := TRUE;
+END_IF
+
+IF (eStateTarget = E_DeviceState.OPEN) AND fbTON_Debounce.Q AND bEnable THEN
+	eSMState := OPEN;
+	fbTON_Debounce(IN := FALSE);
+END_IF
+
+IF eStateTarget = E_DeviceState.CLOSED OR (NOT bEnable) THEN
+	eSMState := CLOSED;
+	fbTON_Debounce(IN := TRUE);
+END_IF
+
+	
+CASE eSMState OF
+	
+	WAIT:
+		//Wait for method call to change ESMState
+		
+	OPEN:
+		IF bNO_or_NC_0_or_1 THEN
+			bValveOutput := TRUE;
+		ELSE
+			bValveOutput := FALSE;
+		END_IF
+		
+		eState := E_DeviceState.OPEN;
+		fbTON_Debounce(IN := TRUE);
+	
+
+	CLOSED:
+		IF bNO_or_NC_0_or_1 THEN
+			bValveOutput := FALSE;
+		ELSE
+			bValveOutput := TRUE;
+		END_IF
+		
+		eState := E_DeviceState.CLOSED;
+		fbTON_Debounce(IN := TRUE);
+END_CASE
+
+
+]]></ST>
+    </Implementation>
+    <Method Name="close" Id="{72eec927-b65f-4c00-ad83-1a0e7a406d8c}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD close : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bEnable = TRUE THEN
+	eStateTarget := E_DeviceState.CLOSED;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="disable" Id="{49dac921-c3b7-41b4-9e3f-8277e785c0d8}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{b5ea5c8c-cbb0-48b7-806a-fb6cc43a26ab}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{ca8d3573-7788-4531-b595-aaafdddaa79d}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD FB_init : BOOL
+VAR_INPUT
+	(* if TRUE, the retain variables are initialized (warm start / cold start)*)
+	bInitRetains	: BOOL;
+	(* if TRUE, the instance afterwards gets moved into the copy code (online change)*)
+	bInCopyCode	: BOOL;
+	
+	ValveID: STRING(80);
+	ValveDescr: STRING(255); 
+	
+	Normal_State_NC_1_NO_0: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := ValveID;
+sDescr := ValveDescr;
+
+bNO_or_NC_0_or_1 := Normal_State_NC_1_NO_0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getMode" Id="{f4cb89d5-3134-4e8c-ab76-68a572e016b3}">
+      <Declaration><![CDATA[METHOD getMode : E_DeviceMode
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+getMode := eMode;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="open" Id="{675a66f8-5fbb-4bfe-91ce-ce89b1397bd9}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD open : BOOL
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bEnable = TRUE THEN
+	eStateTarget := E_DeviceState.OPEN;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Valve_ONOFF_woMonitoring">
+      <LineId Id="532" Count="31" />
+      <LineId Id="638" Count="0" />
+      <LineId Id="564" Count="7" />
+      <LineId Id="636" Count="0" />
+      <LineId Id="610" Count="0" />
+      <LineId Id="572" Count="8" />
+      <LineId Id="639" Count="0" />
+      <LineId Id="581" Count="2" />
+      <LineId Id="206" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Valve_ONOFF_woMonitoring.close">
+      <LineId Id="7" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Valve_ONOFF_woMonitoring.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Valve_ONOFF_woMonitoring.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Valve_ONOFF_woMonitoring.FB_init">
+      <LineId Id="65" Count="1" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="37" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Valve_ONOFF_woMonitoring.getMode">
+      <LineId Id="6" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Valve_ONOFF_woMonitoring.open">
+      <LineId Id="8" Count="1" />
+      <LineId Id="4" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,205 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Sensor_GrowMedium_MOISTURE" Id="{88957389-1c2c-4458-a94a-4cdf9eda6a51}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_Sensor_GrowMedium_MOISTURE EXTENDS FB_BaseSensor IMPLEMENTS I_Device, I_Sensor
+
+VAR
+	
+	bCAL: BOOL := FALSE;
+	
+	eSMState: (WAIT, CAL_DRY, CAL_WET, CALC_CORRECTION) := WAIT;
+
+END_VAR
+	
+VAR PERSISTENT ;
+	nMoisture_LOW_val: REAL;
+	nMoisture_HIGH_val: REAL;
+	
+	nCurveGradient: REAL := 0.625; // 
+	nCurveOffset: REAL := -2.5; // Defaults
+END_VAR
+	
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[calculate();
+filter();
+
+// Detect if any buttons in ignition have been pressed for Calibration
+IF bCAL THEN 
+	bCAL := FALSE;
+	CASE eSMState OF
+		WAIT:
+			eSMState := CAL_DRY;
+		CAL_DRY:
+			eSMState := CAL_WET;
+		CAL_WET:
+			eSMState := CALC_CORRECTION;
+	END_CASE
+END_IF
+
+
+CASE eSMState OF 
+	WAIT:
+		// wait here for a calibration command to be received
+		eState := E_DeviceState.RUNNING;
+	CAL_DRY:
+		nMoisture_LOW_val 	:= nMeasuredCurrent;
+		eState := E_DeviceState.CAL_STEP1;
+
+	CAL_WET:
+		nMoisture_HIGH_val 	:= nMeasuredCurrent;
+		eState := E_DeviceState.CAL_STEP2;
+
+	CALC_CORRECTION:
+		nCurveGradient := 100.0 / (nMoisture_HIGH_val - nMoisture_LOW_val);
+		nCurveOffset := 100.0 - (nCurveGradient * nMoisture_HIGH_val);
+		eState := E_DeviceState.CAL_STEP3;
+		eSMState := WAIT;
+		
+END_CASE
+]]></ST>
+    </Implementation>
+    <Method Name="calculate" Id="{be7a1123-9f60-4d09-9ba0-0ba768df3356}">
+      <Declaration><![CDATA[METHOD PRIVATE calculate : BOOL
+VAR_INPUT
+	
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nMeasuredCurrent := (INT_TO_REAL(nRawInput)/GVL.nMaxADCOutput)*16.0 + 4.0; // in mA
+
+// nCurrentValue := (nCurveGradient * nMeasuredCurrent) + nCurveOffset;
+
+nCurrentValue := (nCurveGradient * nFilteredCurrent) + nCurveOffset; // delete this eventually 
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="calibrate" Id="{00ff78a3-5a41-48c6-b4f3-679db21971a2}">
+      <Declaration><![CDATA[METHOD calibrate : BOOL
+VAR_INPUT
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+bCAL := TRUE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="disable" Id="{6db9c88a-681b-4fc1-9e23-29f10af3ecd5}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{b42ee797-30b5-4118-86af-a4ab834733ad}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{b1e2a149-0ff5-4520-a291-2b94b5d27c2e}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD FB_init : BOOL
+VAR_INPUT
+	(* if TRUE, the retain variables are initialized (warm start / cold start)*)
+	bInitRetains	: BOOL;
+	(* if TRUE, the instance afterwards gets moved into the copy code (online change)*)
+	bInCopyCode	: BOOL;
+	
+	SensorID	: STRING(80);
+	SensorDescr	: STRING(255);
+	SensorType	: E_SensorType;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := SensorID;
+sDescr := SensorDescr;
+eSensorType := SensorType;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getType" Id="{8288ddf3-20e2-438f-b80a-5e3e212915b9}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getType : E_SensorType
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getType := eSensorType;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getValue" Id="{0431d3d5-5f7a-4a30-bb21-a4beac71f081}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getValue : REAL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getValue := nCurrentValue;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="write" Id="{b00fb345-eb3e-443d-97f4-cff1fe4eecd1}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD write : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// use this method to initiated a hardware read from assigned IO if required
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Sensor_GrowMedium_MOISTURE">
+      <LineId Id="460" Count="0" />
+      <LineId Id="554" Count="0" />
+      <LineId Id="466" Count="1" />
+      <LineId Id="512" Count="9" />
+      <LineId Id="471" Count="0" />
+      <LineId Id="482" Count="4" />
+      <LineId Id="550" Count="0" />
+      <LineId Id="492" Count="0" />
+      <LineId Id="496" Count="0" />
+      <LineId Id="551" Count="0" />
+      <LineId Id="498" Count="1" />
+      <LineId Id="503" Count="0" />
+      <LineId Id="552" Count="0" />
+      <LineId Id="505" Count="3" />
+      <LineId Id="553" Count="0" />
+      <LineId Id="509" Count="2" />
+      <LineId Id="56" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_GrowMedium_MOISTURE.calculate">
+      <LineId Id="47" Count="0" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="41" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_GrowMedium_MOISTURE.calibrate">
+      <LineId Id="20" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="14" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_GrowMedium_MOISTURE.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_GrowMedium_MOISTURE.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_GrowMedium_MOISTURE.FB_init">
+      <LineId Id="13" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_GrowMedium_MOISTURE.getType">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_GrowMedium_MOISTURE.getValue">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_GrowMedium_MOISTURE.write">
+      <LineId Id="4" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_TrayExchangeState" Id="{adbb6843-b621-4fed-8712-7c0e624e87b4}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_TrayExchangeState :
+(
+	IDLE,
+	REQUESTED,
+	ACCEPTED,
+	IN_PROGRESS,
+	COMPLETED
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

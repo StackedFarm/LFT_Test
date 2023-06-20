@@ -1,0 +1,138 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Sensor_4_20mA_Generic" Id="{c0927399-3adb-47b4-bf92-aa20a2b989cb}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_Sensor_4_20mA_Generic EXTENDS FB_BaseDevice IMPLEMENTS I_Device, I_Sensor
+
+VAR
+	{attribute 'OPC.UA.DA' := '1'} 
+	eSensorType: E_SensorType;
+	{attribute 'OPC.UA.DA' := '0'} 
+	nRawInput AT %I*: INT;
+	{attribute 'OPC.UA.DA' := '1'} 
+	nCurrentValue: REAL;
+	
+	{attribute 'OPC.UA.DA' := '1'} 
+	nVal4mA: REAL;
+	{attribute 'OPC.UA.DA' := '1'} 
+	nVal20mA: REAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[calculate();]]></ST>
+    </Implementation>
+    <Method Name="calculate" Id="{23a37c0f-3f49-4065-9f31-c1ede2725044}">
+      <Declaration><![CDATA[METHOD calculate : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nCurrentValue := nVal4mA + (INT_TO_REAL(nRawInput) / GVL.nMaxADCOutput) * (nVal20mA - nVal4mA) ;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="disable" Id="{7406af38-0d0c-45b5-885b-1800b14dc2d6}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{25771364-7f4e-4b8c-a440-aaea871004f4}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{e743491d-7c4d-4846-8a3e-febc368c23ce}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD FB_init : BOOL
+VAR_INPUT
+	(* if TRUE, the retain variables are initialized (warm start / cold start)*)
+	bInitRetains	: BOOL;
+	(* if TRUE, the instance afterwards gets moved into the copy code (online change)*)
+	bInCopyCode	: BOOL;
+	SensorID	: STRING(80);
+	SensorDescr	: STRING(255);
+	SensorType	: E_SensorType;
+	
+
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := SensorID;
+sDescr := SensorDescr;
+eSensorType := SensorType;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getType" Id="{374732ee-0a91-48e3-bc13-844523f9b29c}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getType : E_SensorType
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getType := eSensorType;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getValue" Id="{a8673510-9521-469e-a4b3-2471be363ec9}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getValue : REAL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getValue := nCurrentValue;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setLimits" Id="{7253a6e8-5688-4c6a-9e28-5c8d523cd39a}">
+      <Declaration><![CDATA[METHOD setLimits : BOOL
+VAR_INPUT
+	Val_4mA: 	REAL;
+	Val_20mA: 	REAL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nVal4mA := Val_4mA;
+nVal20mA := Val_20mA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="write" Id="{0c7d7757-117b-44e1-a2db-fc685086cb20}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD write : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Sensor_4_20mA_Generic">
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_4_20mA_Generic.calculate">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_4_20mA_Generic.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_4_20mA_Generic.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_4_20mA_Generic.FB_init">
+      <LineId Id="32" Count="0" />
+      <LineId Id="35" Count="1" />
+      <LineId Id="17" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_4_20mA_Generic.getType">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_4_20mA_Generic.getValue">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_4_20mA_Generic.setLimits">
+      <LineId Id="16" Count="0" />
+      <LineId Id="15" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_4_20mA_Generic.write">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

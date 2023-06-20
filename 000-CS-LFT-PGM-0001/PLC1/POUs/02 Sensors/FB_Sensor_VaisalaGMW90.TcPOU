@@ -1,0 +1,118 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Sensor_VaisalaGMW90" Id="{9c5ab558-b6cb-477e-97a3-52402886fd16}" SpecialFunc="None">
+    <Declaration><![CDATA[
+(*
+	Handles communication and control of a Vaisala GMW90 environment sensor (Temp, Humidity, CO2)
+*)
+{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_Sensor_VaisalaGMW90 EXTENDS FB_BaseDevice
+VAR_INPUT
+	nModbusUnitID: UINT; // slave ID of the sensor
+END_VAR
+VAR_OUTPUT
+	{attribute 'OPC.UA.DA' := '1'}
+	rCO2 : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	rTemperature : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	rHumidity : REAL;
+	nErrorCount : INT;
+	nReadAttempts : INT;
+	
+END_VAR
+VAR
+	nSensorValues : ARRAY[1..10] OF WORD;
+	nErrorCodes : ARRAY[1..10] OF WORD;
+	
+	nWordsToRead_values : UINT := 3; // ( CO2;  Temp;  Hum)
+	nWordsToRead_errors : UINT := 2; // The GMW90 has 16 bits for error codes
+
+	nAdrFirstReg_CO2 : WORD := 256; // THE GMW90 stores its int value for CO2 value in register 256
+	nAdrFirstReg_Error : WORD := 513; // the GMW90 stores its error codes in 0513 register
+	
+	bRequestCompleted : BOOL; // is set to True by FB_Master when read is completed (or failed)
+	
+	bReadingError : BOOL; // we are currently reading the error register
+	bTest : BOOL;
+	tReadDelay : TON;
+	bReadTrigger : BOOL;
+	bReading : BOOL;
+	tReadDelayTime : TIME := T#10S;
+	trigError : R_TRIG;
+	trigRead : R_TRIG;
+END_VAR
+
+
+VAR_IN_OUT
+	fbModbus : FB_ModbusMaster;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+// the function block just reads the modbus registers over and over.
+// It takes turns between reading the values and reading the error codes
+
+// 10 second cycle timer...
+tReadDelay(IN := NOT bReadTrigger, PT := tReadDelayTime);
+bReadTrigger := tReadDelay.Q AND NOT fbModbus.isBusy();
+IF tReadDelay.Q THEN
+	bReading := TRUE;
+END_IF
+
+IF bEnable AND bReadTrigger (*bReading*) THEN
+
+	IF NOT bReadingError THEN
+		
+		// read CO2, Hum and Temp
+		fbModbus.readRegs(ReadRegsVals := ADR(nSensorValues),
+			SlaveAddress := nModbusUnitID,
+			QtyWordsToRead := nWordsToRead_values,
+			AdrFirstSlaveRegisterRead := nAdrFirstReg_CO2,
+			bRequestCompleted := ADR(bRequestCompleted)
+		);
+		
+	END_IF
+	
+	IF bReadingError THEN
+		// read the error codes
+		fbModbus.readRegs(ReadRegsVals := ADR(nErrorCodes),
+			SlaveAddress := nModbusUnitID,
+			QtyWordsToRead := nWordsToRead_errors,
+			AdrFirstSlaveRegisterRead := nAdrFirstReg_Error,
+			bRequestCompleted := ADR(bRequestCompleted)
+		);
+	END_IF
+	
+	IF bRequestCompleted THEN
+		// the read has finished, so map the outputs
+		IF NOT bReadingError THEN
+			// map the sensor values
+			rCO2 := nSensorValues[1]; 
+			rHumidity :=  nSensorValues[2] / 100.00; 
+			rTemperature := nSensorValues[3] / 100.00; 
+		ELSE
+			// map the errors
+			
+		END_IF
+		
+		// reset flags and start again
+		bRequestCompleted := FALSE;
+		bReadingError := FALSE;
+		bReading := FALSE;
+	END_IF
+	
+END_IF
+
+// read count
+trigRead(CLK := bReadTrigger);
+IF trigRead.Q THEN
+	nReadAttempts := nReadAttempts + 1;
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FB_Sensor_VaisalaGMW90">
+      <LineId Id="3" Count="58" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

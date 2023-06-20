@@ -1,0 +1,1210 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Machine_POP" Id="{dd0b1c07-301a-41cb-aaee-ff837cc40ded}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_Machine_POP EXTENDS FB_BaseMachine IMPLEMENTS I_Machine
+
+
+
+VAR_IN_OUT PERSISTENT
+	
+	stInputs: ST_INPUTS_POP;
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbHandshakeUpstream: 	FB_HandShake_TrayMovement();
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbHandshakeDownstream: 	FB_HandShake_TrayMovement();
+	
+END_VAR
+
+
+
+VAR
+	
+	stTrayCurrent: ST_Tray;
+	
+	bIsFirstRun: BOOL := TRUE;
+	bEnableIgnitionControl: BOOL := TRUE;
+	bFirstInputScan: BOOL := TRUE;
+	
+	
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbLinAct_POP1: 					FB_LinearActuator_Elec(
+														Stroke:= 		GVL.LinActPOP_Stroke, 
+														Lead:= 			GVL.LinActPOP_Lead, 
+														AccelMax:= 		GVL.LinActPOP_AccelMax, 
+														VelocityMax:= 	GVL.LinActPOP_VelocityMax , 
+														VelocityJog:= 	GVL.LinActPOP_VelocityJog, 
+														TimeExtend:= 	GVL.LinActPOP_TimeExtend, 
+														TimeRetract:= 	GVL.LinActPOP_TimeRetract);
+	
+
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}														
+	fbLinAct_POP2: 					FB_LinearActuator_Elec(
+														Stroke:= 		GVL.LinActPOP_Stroke, 
+														Lead:= 			GVL.LinActPOP_Lead, 
+														AccelMax:= 		GVL.LinActPOP_AccelMax, 
+														VelocityMax:= 	GVL.LinActPOP_VelocityMax , 
+														VelocityJog:= 	GVL.LinActPOP_VelocityJog, 
+														TimeExtend:= 	GVL.LinActPOP_TimeExtend, 
+														TimeRetract:= 	GVL.LinActPOP_TimeRetract);
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}													
+	fbLinAct_POP3: 					FB_LinearActuator_Elec(
+														Stroke:= 		GVL.LinActPOP_Stroke, 
+														Lead:= 			GVL.LinActPOP_Lead, 
+														AccelMax:= 		GVL.LinActPOP_AccelMax, 
+														VelocityMax:= 	GVL.LinActPOP_VelocityMax , 
+														VelocityJog:= 	GVL.LinActPOP_VelocityJog, 
+														TimeExtend:= 	GVL.LinActPOP_TimeExtend, 
+														TimeRetract:= 	GVL.LinActPOP_TimeRetract);
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbStaticConv_POP1:				FB_StaticConveyor(
+														IntervalDistance:= 	GVL.StaticConvPOP_IntervalDistance, 
+														GearRatio:= 		GVL.StaticConvPOP_GearRatio, 
+														AccelMax:= 			GVL.StaticConvPOP_AccelMax, 
+														VelocityMax:= 		GVL.StaticConvPOP_VelocityMax, 
+														VelocityJog:= 		GVL.StaticConvPOP_VelocityJog, 
+														IntervalTimeFWD:= 	GVL.StaticConvPOP_IntervalTimeFWD, 
+														IntervalTimeREV:= 	GVL.StaticConvPOP_IntervalTimeREV);
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}													
+	fbStaticConv_POP2:				FB_StaticConveyor(
+														IntervalDistance:= 	GVL.StaticConvPOP_IntervalDistance, 
+														GearRatio:= 		GVL.StaticConvPOP_GearRatio, 
+														AccelMax:= 			GVL.StaticConvPOP_AccelMax, 
+														VelocityMax:= 		GVL.StaticConvPOP_VelocityMax, 
+														VelocityJog:= 		GVL.StaticConvPOP_VelocityJog, 
+														IntervalTimeFWD:= 	GVL.StaticConvPOP_IntervalTimeFWD, 
+														IntervalTimeREV:= 	GVL.StaticConvPOP_IntervalTimeREV);
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}													
+	fbStaticConv_POP3:				FB_StaticConveyor(
+														IntervalDistance:= 	GVL.StaticConvPOP_IntervalDistance, 
+														GearRatio:= 		GVL.StaticConvPOP_GearRatio, 
+														AccelMax:= 			GVL.StaticConvPOP_AccelMax, 
+														VelocityMax:= 		GVL.StaticConvPOP_VelocityMax, 
+														VelocityJog:= 		GVL.StaticConvPOP_VelocityJog, 
+														IntervalTimeFWD:= 	GVL.StaticConvPOP_IntervalTimeFWD, 
+														IntervalTimeREV:= 	GVL.StaticConvPOP_IntervalTimeREV);
+														
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}													
+	fbTrayCentre_POP1:				FB_LinearActuator_Pneumatic(
+														Stroke:= GVL.TrayCentrePOP_Stroke, 
+														TimeExtend:= GVL.TrayCentrePOP_TimeExtend,
+														TimeRetract:= GVL.TrayCentrePOP_TimeRetract );
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbTrayCentre_POP2:				FB_LinearActuator_Pneumatic(
+														Stroke:= GVL.TrayCentrePOP_Stroke, 
+														TimeExtend:= GVL.TrayCentrePOP_TimeExtend,
+														TimeRetract:= GVL.TrayCentrePOP_TimeRetract );
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}				
+	fbTrayCentre_POP3:				FB_LinearActuator_Pneumatic(
+														Stroke:= GVL.TrayCentrePOP_Stroke, 
+														TimeExtend:= GVL.TrayCentrePOP_TimeExtend,
+														TimeRetract:= GVL.TrayCentrePOP_TimeRetract );									
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_TrayEnd:				FB_Sensor_OMRON_E3AS();
+	
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_POP1Extend1:				FB_AutoSwitch();
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_POP1Extend2:				FB_AutoSwitch();
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_POP1Retract1:				FB_AutoSwitch();
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_POP1Retract2:				FB_AutoSwitch();
+	
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_POP2Extend1:				FB_AutoSwitch();
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_POP2Extend2:				FB_AutoSwitch();
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_POP2Retract1:				FB_AutoSwitch();
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_POP2Retract2:				FB_AutoSwitch();
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_POP3Extend1:				FB_AutoSwitch();
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_POP3Extend2:				FB_AutoSwitch();
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_POP3Retract1:				FB_AutoSwitch();
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_POP3Retract2:				FB_AutoSwitch();
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_CV1TrayExtend:				FB_AutoSwitch();
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_CV1TrayRetract:			FB_AutoSwitch();
+	
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_CV2TrayExtend:				FB_AutoSwitch();
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_CV2TrayRetract:			FB_AutoSwitch();
+	
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_CV3TrayExtend:				FB_AutoSwitch();
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbSensor_CV3TrayRetract:			FB_AutoSwitch();
+	
+	(**
+	**		TESTING / SIMULATION VARIABLES
+	**)
+	
+	tgStartSeq: R_TRIG;
+	
+	
+END_VAR
+
+VAR PERSISTENT
+													
+	// Package all components into structure & array 
+	// ST used for readability
+	// Arrray used for iterability 
+	stAllComponents: ST_POPComponents;
+	
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbInterlocks: 			FB_InterlockManager;
+	
+	ePOP_Type: E_POP_Type;
+	bInProgress: BOOL := FALSE;	//used as a flag to signify that we are in an operation
+	
+	// Sequences
+	fbSeq_EXT_CONV: 	FB_SequenceEXTEND_CONVEY;
+	fbSeq_RET_CONV:		FB_SequenceRETRACT_CONVEY;
+	fbSeq_CONV_EXT:		FB_SequenceCONVEY_EXTEND;
+	fbSeq_CONV_RET:		FB_SequenceCONVEY_RETRACT;
+	fbSeq_EXT:			FB_SequenceGET_READY_EXTEND;
+	fbSeq_RET:			FB_SequenceGET_READY_RETRACT;
+	aSeqs: ARRAY[1..10] OF FB_SequenceBase;	
+
+END_VAR
+
+
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF bIsFirstRun THEN
+	devices_init();
+	devices_update();
+	sequence_init();
+	bIsFirstRun := FALSE;
+END_IF
+
+devices_update();
+
+// Scan inputs from OPC
+IF stInputs.bParamsInitialised AND bEnableIgnitionControl THEN
+	IF bFirstInputScan THEN
+		stInputs.stSequenceManager.Sequence_Selected := 1;
+		stInputs.stSequenceManager.Sequence_Command := E_SequenceState.STOP;
+		fbSequenceManager.selectSequence(Sequence := 1); // main sequence
+		fbSequenceManager.stopSequence();
+		bFirstInputScan := FALSE;
+	END_IF
+	scanOPCInputs(Inputs := stInputs ); // only scan if SCADA has set the imputs, otherwise keep persistent or initalised variables
+END_IF
+
+(*
+// Sequence manager
+fbSeq_EXT_CONV.populateSteps();
+fbSeq_RET_CONV.populateSteps();
+fbSeq_CONV_EXT.populateSteps();
+fbSeq_CONV_RET.populateSteps();
+fbSeq_EXT.populateSteps();
+fbSeq_RET.populateSteps();
+*)
+
+aSeqs[1] := fbSeq_EXT_CONV;
+(*aSeqs[2] := fbSeq_CONV_EXT;
+aSeqs[3] := fbSeq_RET_CONV;
+aSeqs[4] := fbSeq_CONV_RET;
+aSeqs[5] := fbSeq_EXT;
+aSeqs[6] := fbSeq_RET;
+*)
+
+fbSequenceManager(aSequences := aSeqs);
+
+// Interlocks (make sure this is always called second last (so it overrides any target states set by the sequence manager)
+IF GVL.bEnableInterlocks THEN
+	interlocks();
+END_IF
+
+// Update devices
+devices_update();
+handshakes();
+sequence();
+
+
+(**
+**		TESTING / SIMULATION VARIABLES
+**)
+
+tgStartSeq();
+IF tgStartSeq.Q THEN
+	fbSequenceManager.selectSequence(Sequence := 1);
+	fbSequenceManager.startSequence();
+END_IF
+
+
+
+
+
+
+
+]]></ST>
+    </Implementation>
+    <Method Name="devices_init" Id="{a68727a6-fad2-4558-8640-42f72ece9114}">
+      <Declaration><![CDATA[METHOD devices_init : BOOL
+VAR
+	VarInfo : __SYSTEM.VAR_INFO;
+	setVarID: INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Hold References to devices in a structure and also an array
+// A structure is useful where devices are accessed by name (handy with auto-complete and readability)
+// The array is useful for when we want to iterate through all of the devices in the machine and apply a global command (i.e. disable all devices)
+
+// Extract the function block instance name and insert it to each function block
+// This enables us to share only the function block name over OPC for nested instances (i.e. sequences, interlock manager)
+// The contents of each function block is shared over OPC within the Machine as per heirarchy
+// When Ignition needs to retrieve details of devices at the interlock manager and sequence, it simply performs a lookup using the VarID as a key
+
+
+VarInfo := __VARINFO(fbLinAct_POP1);
+fbLinAct_POP1.setVarID(VarID := VarInfo.Symbol);
+
+VarInfo := __VARINFO(fbLinAct_POP2);
+fbLinAct_POP2.setVarID(VarID := VarInfo.Symbol);
+
+VarInfo := __VARINFO(fbLinAct_POP3);
+fbLinAct_POP3.setVarID(VarID := VarInfo.Symbol);
+
+VarInfo := __VARINFO(fbStaticConv_POP1);
+fbStaticConv_POP1.setVarID(VarID := VarInfo.Symbol);
+
+VarInfo := __VARINFO(fbStaticConv_POP2);
+fbStaticConv_POP2.setVarID(VarID := VarInfo.Symbol);
+
+VarInfo := __VARINFO(fbStaticConv_POP3);
+fbStaticConv_POP3.setVarID(VarID := VarInfo.Symbol);
+
+VarInfo := __VARINFO(fbTrayCentre_POP1);
+fbTrayCentre_POP1.setVarID(VarID := VarInfo.Symbol);
+
+VarInfo := __VARINFO(fbTrayCentre_POP2);
+fbTrayCentre_POP2.setVarID(VarID := VarInfo.Symbol);
+
+VarInfo := __VARINFO(fbTrayCentre_POP3);
+fbTrayCentre_POP3.setVarID(VarID := VarInfo.Symbol);
+
+VarInfo := __VARINFO(fbSensor_TrayEnd);
+fbSensor_TrayEnd.setVarID(VarID := VarInfo.Symbol);
+
+aAllComponents[1]  :=  ADR(fbLinAct_POP1);
+aAllComponents[2]  :=  ADR(fbLinAct_POP2);
+aAllComponents[3]  :=  ADR(fbLinAct_POP3);
+
+aAllComponents[4]  :=  ADR(fbStaticConv_POP1 );
+aAllComponents[5]  :=  ADR(fbStaticConv_POP2 );
+aAllComponents[6]  :=  ADR(fbStaticConv_POP3  );
+
+aAllComponents[7]  :=  ADR(fbTrayCentre_POP1 );
+aAllComponents[8]  :=  ADR(fbTrayCentre_POP2 );
+aAllComponents[9]  :=  ADR(fbTrayCentre_POP3 );
+aAllComponents[10]  :=  ADR(fbSensor_TrayEnd );
+
+aAllComponents[11]  :=  ADR(fbHandshakeDownstream);
+aAllComponents[12]  :=  ADR(fbHandshakeUpstream);
+
+
+
+
+
+
+fbLinAct_POP1.setID(ID := 'POP1 Vertical Actuator');
+fbLinAct_POP2.setID(ID := 'POP2 Vertical Actuator');
+fbLinAct_POP3.setID(ID := 'POP3 Vertical Actuator');
+fbStaticConv_POP1.setID(ID := 'POP1 Static Conveyor');
+fbStaticConv_POP2.setID(ID := 'POP2 Static Conveyor');
+fbStaticConv_POP3.setID(ID := 'POP3 Static Conveyor');
+fbTrayCentre_POP1.setID(ID := 'POP1 Tray Centre Actuator');
+fbTrayCentre_POP2.setID(ID := 'POP2 Tray Centre Actuator');
+fbTrayCentre_POP3.setID(ID := 'POP3 Tray Centre Actuator');
+fbSensor_TrayEnd.setID(ID := 'Tray End Sensor');
+fbHandshakeDownstream.setID(ID := 'Downstream tray exchange handshake');
+fbHandshakeUpstream.setID(ID := 'Upstream tray exchange handshake');
+
+
+
+stAllComponents.fbLinAct_POP1 			:= ADR(fbLinAct_POP1);
+stAllComponents.fbLinAct_POP2 			:= ADR(fbLinAct_POP2);
+stAllComponents.fbLinAct_POP3 			:= ADR(fbLinAct_POP3);
+stAllComponents.fbStaticConv_POP1		:= ADR(fbStaticConv_POP1);
+stAllComponents.fbStaticConv_POP2		:= ADR(fbStaticConv_POP2);
+stAllComponents.fbStaticConv_POP3		:= ADR(fbStaticConv_POP3);
+stAllComponents.fbTrayCentre_POP1		:= ADR(fbTrayCentre_POP1);
+stAllComponents.fbTrayCentre_POP2		:= ADR(fbTrayCentre_POP2);
+stAllComponents.fbTrayCentre_POP3		:= ADR(fbTrayCentre_POP3);
+stAllComponents.fbTrayEndSensor			:= ADR(fbSensor_TrayEnd);
+stAllComponents.fbHandshakeDownstream 	:= ADR(fbHandshakeDownstream);
+stAllComponents.fbHandshakeUpstream 	:= ADR(fbHandshakeUpstream);
+
+// NOte that the soil sensors have not been added to the stAllComponents or components array at this stage
+// They are not being used in sequences or interlocks (at this stage)
+
+
+nQtyComponents := 12;
+
+devices_disable_All();
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="devices_update" Id="{1b7feb4b-cbbc-4c6a-b389-6856fb398443}">
+      <Declaration><![CDATA[METHOD devices_update : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbLinAct_POP1(fbSwitchExtend_1 := fbSensor_POP1Extend1, fbSwitchExtend_2 := fbSensor_POP1Extend2, fbSwitchRetract_1 := fbSensor_POP1Retract1, fbSwitchRetract_2 := fbSensor_POP1Retract2);
+fbLinAct_POP2(fbSwitchExtend_1 := fbSensor_POP2Extend1, fbSwitchExtend_2 := fbSensor_POP2Extend2, fbSwitchRetract_1 := fbSensor_POP2Retract1, fbSwitchRetract_2 := fbSensor_POP2Retract2);
+fbLinAct_POP3(fbSwitchExtend_1 := fbSensor_POP3Extend1, fbSwitchExtend_2 := fbSensor_POP3Extend2, fbSwitchRetract_1 := fbSensor_POP3Retract1, fbSwitchRetract_2 := fbSensor_POP3Retract2);
+fbStaticConv_POP1(fbTrayDetectionSensor := fbSensor_TrayEnd);
+fbStaticConv_POP2(fbTrayDetectionSensor := fbSensor_TrayEnd);
+fbStaticConv_POP3(fbTrayDetectionSensor := fbSensor_TrayEnd);
+fbTrayCentre_POP1(fbSwitchExtend := fbSensor_CV1TrayExtend, fbSwitchRetract := fbSensor_CV1TrayRetract);
+fbTrayCentre_POP2(fbSwitchExtend := fbSensor_CV2TrayExtend, fbSwitchRetract := fbSensor_CV2TrayRetract);
+fbTrayCentre_POP3(fbSwitchExtend := fbSensor_CV3TrayExtend, fbSwitchRetract := fbSensor_CV3TrayRetract);
+
+fbSensor_TrayEnd();
+fbSensor_POP1Extend1();
+fbSensor_POP1Extend2();
+fbSensor_POP1Retract1();
+fbSensor_POP1Retract2();
+
+fbSensor_POP2Extend1();
+fbSensor_POP2Extend2();
+fbSensor_POP2Retract1();
+fbSensor_POP2Retract2();
+
+fbSensor_POP3Extend1();
+fbSensor_POP3Extend2();
+fbSensor_POP3Retract1();
+fbSensor_POP3Retract2();
+
+fbSensor_CV1TrayExtend();
+fbSensor_CV1TrayRetract();
+fbSensor_CV2TrayExtend();
+fbSensor_CV2TrayRetract();
+fbSensor_CV3TrayExtend();
+fbSensor_CV3TrayRetract();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{9859e583-9672-4a64-b482-d0b6ecf9ad87}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	ID: STRING;
+	Description: STRING;
+	
+	POP_Type: E_POP_Type;
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := ID;
+sDescr := Description;
+
+ePOP_Type := POP_Type;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="handshakes" Id="{6deb0032-ab07-4713-b463-7cc1bc65b2d6}">
+      <Declaration><![CDATA[METHOD handshakes : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+*
+*				DOWNSTREAM HANDSHAKE (we are sending a tray downstream)
+*)
+
+IF fbHandshakeDownstream.stTrayExchgangeOutput.eState = E_TrayExchangeState.IDLE AND (fbSensor_TrayEnd.getState() = E_DeviceState.ON) THEN
+	fbHandshakeDownstream.stTrayExchangeInput.eState := E_TrayExchangeState.REQUESTED;
+END_IF
+
+IF fbHandshakeDownstream.stTrayExchgangeOutput.eState = E_TrayExchangeState.ACCEPTED THEN //AND bTrayisReady THEN
+	fbHandshakeDownstream.stTrayExchangeInput.eState := E_TrayExchangeState.IN_PROGRESS;
+END_IF
+
+IF fbHandshakeDownstream.stTrayExchgangeOutput.eState = E_TrayExchangeState.COMPLETED THEN
+	fbHandshakeDownstream.stTrayExchangeInput.stTrayOutgoing := stTrayCurrent;
+END_IF
+
+
+
+(*
+*
+*				UPSTREAM HANDSHAKE (we are receiving a tray)
+*)
+
+
+IF fbHandshakeUpstream.stTrayExchgangeOutput.eState = E_TrayExchangeState.REQUESTED  THEN // bTrayisReady THEN
+	fbHandshakeUpstream.stTrayExchangeInput.eState := E_TrayExchangeState.ACCEPTED;
+END_IF
+
+
+IF fbHandshakeUpstream.stTrayExchgangeOutput.eState = E_TrayExchangeState.ACCEPTED THEN // AND bStartingtoMove THEN
+	fbHandshakeUpstream.stTrayExchangeInput.eState := E_TrayExchangeState.IN_PROGRESS;
+END_IF
+
+
+IF fbHandshakeUpstream.stTrayExchgangeOutput.eState = E_TrayExchangeState.COMPLETED THEN
+	stTrayCurrent := fbHandshakeUpstream.stTrayExchangeInput.stTrayOutgoing;
+END_IF
+
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="interlocks" Id="{59193bb1-61de-46c6-9e61-e4b5fd0dffc1}">
+      <Declaration><![CDATA[METHOD interlocks : BOOL
+VAR_INPUT
+END_VAR
+
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbInterlocks.init();
+
+
+fbInterlocks.update(
+							Description:= 'Linear Actuator 1 Attempted to Move While Static Conveyor Running',
+							InterlockType:= E_InterlockType.RunInterlock, 
+							Subject_Device:= ADR(fbLinAct_POP1), 
+							Subject_State:= E_DeviceState.IDLE, 
+							Signal:=  (fbStaticConv_POP1.getState() = E_DeviceState.RUNNING) OR (fbStaticConv_POP2.getState() = E_DeviceState.RUNNING)
+										OR (fbStaticConv_POP3.getState() = E_DeviceState.RUNNING) OR (fbStaticConv_POP1.getState() = E_DeviceState.REVERSE) OR (fbStaticConv_POP2.getState() = E_DeviceState.REVERSE)
+										OR (fbStaticConv_POP3.getState() = E_DeviceState.REVERSE),
+							HoldSequence:=	FALSE);
+							
+
+fbInterlocks.update(
+							Description:= 'Linear Actuator 2 Attempted to Move While Static Conveyor Running',
+							InterlockType:= E_InterlockType.RunInterlock, 
+							Subject_Device:= ADR(fbLinAct_POP2), 
+							Subject_State:= E_DeviceState.IDLE, 
+							Signal:=  (fbStaticConv_POP1.getState() = E_DeviceState.RUNNING) OR (fbStaticConv_POP2.getState() = E_DeviceState.RUNNING)
+										OR (fbStaticConv_POP3.getState() = E_DeviceState.RUNNING) OR (fbStaticConv_POP1.getState() = E_DeviceState.REVERSE) OR (fbStaticConv_POP2.getState() = E_DeviceState.REVERSE)
+										OR (fbStaticConv_POP3.getState() = E_DeviceState.REVERSE),
+							HoldSequence:=	FALSE);
+
+fbInterlocks.update(
+							Description:= 'Linear Actuator 3 Attempted to Move While Static Conveyor Running',
+							InterlockType:= E_InterlockType.RunInterlock, 
+							Subject_Device:= ADR(fbLinAct_POP3), 
+							Subject_State:= E_DeviceState.IDLE, 
+							Signal:=  (fbStaticConv_POP1.getState() = E_DeviceState.RUNNING) OR (fbStaticConv_POP2.getState() = E_DeviceState.RUNNING)
+										OR (fbStaticConv_POP3.getState() = E_DeviceState.RUNNING) OR (fbStaticConv_POP1.getState() = E_DeviceState.REVERSE) OR (fbStaticConv_POP2.getState() = E_DeviceState.REVERSE)
+										OR (fbStaticConv_POP3.getState() = E_DeviceState.REVERSE),
+							HoldSequence:=	FALSE);
+							
+							
+fbInterlocks.update(
+							Description:= 'Static Conveyor 1 Attemped to Move While POPs Are Moving',
+							InterlockType:= E_InterlockType.RunInterlock, 
+							Subject_Device:= ADR(fbStaticConv_POP1), 
+							Subject_State:= E_DeviceState.IDLE, 
+							Signal:=  (fbLinAct_POP1.getState() = E_DeviceState.RUNNING) OR (fbLinAct_POP2.getState() = E_DeviceState.RUNNING)
+										OR (fbLinAct_POP3.getState() = E_DeviceState.RUNNING) OR (fbLinAct_POP1.getState() = E_DeviceState.REVERSE) OR (fbLinAct_POP2.getState() = E_DeviceState.REVERSE)
+										OR (fbLinAct_POP3.getState() = E_DeviceState.REVERSE),
+							HoldSequence:=	FALSE);
+							
+
+fbInterlocks.update(
+							Description:= 'Static Conveyor 2 Attemped to Move While POPs Are Moving',
+							InterlockType:= E_InterlockType.RunInterlock, 
+							Subject_Device:= ADR(fbStaticConv_POP2), 
+							Subject_State:= E_DeviceState.IDLE, 
+							Signal:=  (fbLinAct_POP1.getState() = E_DeviceState.RUNNING) OR (fbLinAct_POP2.getState() = E_DeviceState.RUNNING)
+										OR (fbLinAct_POP3.getState() = E_DeviceState.RUNNING) OR (fbLinAct_POP1.getState() = E_DeviceState.REVERSE) OR (fbLinAct_POP2.getState() = E_DeviceState.REVERSE)
+										OR (fbLinAct_POP3.getState() = E_DeviceState.REVERSE),
+							HoldSequence:=	FALSE);
+							
+
+fbInterlocks.update(
+							Description:= 'Static Conveyor 3 Attemped to Move While POPs Are Moving',
+							InterlockType:= E_InterlockType.RunInterlock, 
+							Subject_Device:= ADR(fbStaticConv_POP3), 
+							Subject_State:= E_DeviceState.IDLE, 
+							Signal:=  (fbLinAct_POP1.getState() = E_DeviceState.RUNNING) OR (fbLinAct_POP2.getState() = E_DeviceState.RUNNING)
+										OR (fbLinAct_POP3.getState() = E_DeviceState.RUNNING) OR (fbLinAct_POP1.getState() = E_DeviceState.REVERSE) OR (fbLinAct_POP2.getState() = E_DeviceState.REVERSE)
+										OR (fbLinAct_POP3.getState() = E_DeviceState.REVERSE),
+							HoldSequence:=	FALSE);	
+
+							
+fbInterlocks.update(
+							Description:= 'Static Conveyor 1 Attemped to Move When Tray Centre Actuators are Centred',
+							InterlockType:= E_InterlockType.RunInterlock, 
+							Subject_Device:= ADR(fbStaticConv_POP1), 
+							Subject_State:= E_DeviceState.IDLE, 
+							Signal:=  (fbTrayCentre_POP1.getState() = E_DeviceState.EXTENDED) OR (fbTrayCentre_POP2.getState() = E_DeviceState.EXTENDED)
+										OR (fbTrayCentre_POP3.getState() = E_DeviceState.EXTENDED),
+							HoldSequence:=	FALSE);							
+							
+fbInterlocks.update(
+							Description:= 'Static Conveyor 2 Attemped to Move When Tray Centre Actuators are Centred',
+							InterlockType:= E_InterlockType.RunInterlock, 
+							Subject_Device:= ADR(fbStaticConv_POP2), 
+							Subject_State:= E_DeviceState.IDLE, 
+							Signal:=  (fbTrayCentre_POP1.getState() = E_DeviceState.EXTENDED) OR (fbTrayCentre_POP2.getState() = E_DeviceState.EXTENDED)
+										OR (fbTrayCentre_POP3.getState() = E_DeviceState.EXTENDED),
+							HoldSequence:=	FALSE);		
+							
+							
+fbInterlocks.update(
+							Description:= 'Static Conveyor 3 Attemped to Move When Tray Centre Actuators are Centred',
+							InterlockType:= E_InterlockType.RunInterlock, 
+							Subject_Device:= ADR(fbStaticConv_POP3), 
+							Subject_State:= E_DeviceState.IDLE, 
+							Signal:=  (fbTrayCentre_POP1.getState() = E_DeviceState.EXTENDED) OR (fbTrayCentre_POP2.getState() = E_DeviceState.EXTENDED)
+										OR (fbTrayCentre_POP3.getState() = E_DeviceState.EXTENDED),
+							HoldSequence:=	FALSE);		
+							
+							
+							
+(* HANDSHAKING INTERLOCKS *)
+							
+fbInterlocks.update(
+							Description:= 'Wait for tray RESQUESTED signal',
+							InterlockType:= E_InterlockType.RunInterlock, 
+							Subject_Device:= ADR(fbStaticConv_POP1), 
+							Subject_State:= E_DeviceState.IDLE, 
+							Signal:=  ((fbSequenceManager.getCurrentSeq_ID() = E_SequenceList_POP.SEQ_EXTEND_CONVEY) OR
+										(fbSequenceManager.getCurrentSeq_ID() = E_SequenceList_POP.SEQ_RETRACT_CONVEY)) AND
+										fbHandshakeDownstream.stTrayExchgangeOutput.eState <> E_TrayExchangeState.IN_PROGRESS,
+							HoldSequence:=	FALSE);		
+							
+							
+fbInterlocks.update(
+							Description:= 'Wait for tray RESQUESTED signal',
+							InterlockType:= E_InterlockType.RunInterlock, 
+							Subject_Device:= ADR(fbStaticConv_POP2), 
+							Subject_State:= E_DeviceState.IDLE, 
+							Signal:=  ((fbSequenceManager.getCurrentSeq_ID() = E_SequenceList_POP.SEQ_EXTEND_CONVEY) OR
+										(fbSequenceManager.getCurrentSeq_ID() = E_SequenceList_POP.SEQ_RETRACT_CONVEY)) AND
+										fbHandshakeDownstream.stTrayExchgangeOutput.eState <> E_TrayExchangeState.IN_PROGRESS,
+							HoldSequence:=	FALSE);		
+
+fbInterlocks.update(
+							Description:= 'Wait for tray RESQUESTED signal',
+							InterlockType:= E_InterlockType.RunInterlock, 
+							Subject_Device:= ADR(fbStaticConv_POP3), 
+							Subject_State:= E_DeviceState.IDLE, 
+							Signal:=  ((fbSequenceManager.getCurrentSeq_ID() = E_SequenceList_POP.SEQ_EXTEND_CONVEY) OR
+										(fbSequenceManager.getCurrentSeq_ID() = E_SequenceList_POP.SEQ_RETRACT_CONVEY)) AND
+										fbHandshakeDownstream.stTrayExchgangeOutput.eState <> E_TrayExchangeState.IN_PROGRESS,
+							HoldSequence:=	FALSE);									
+							
+fbInterlocks.update(
+							Description:= 'Wait for tray RESQUESTED signal',
+							InterlockType:= E_InterlockType.RunInterlock, 
+							Subject_Device:= ADR(fbLinAct_POP1), 
+							Subject_State:= E_DeviceState.IDLE, 
+							Signal:=  ((fbSequenceManager.getCurrentSeq_ID() = E_SequenceList_POP.SEQ_CONVEY_EXTEND) OR
+										(fbSequenceManager.getCurrentSeq_ID() = E_SequenceList_POP.SEQ_CONVEY_RETRACT)) AND
+										fbHandshakeDownstream.stTrayExchgangeOutput.eState <> E_TrayExchangeState.IN_PROGRESS,
+							HoldSequence:=	FALSE);		
+
+fbInterlocks.update(
+							Description:= 'Wait for tray RESQUESTED signal',
+							InterlockType:= E_InterlockType.RunInterlock, 
+							Subject_Device:= ADR(fbLinAct_POP2), 
+							Subject_State:= E_DeviceState.IDLE, 
+							Signal:=  ((fbSequenceManager.getCurrentSeq_ID() = E_SequenceList_POP.SEQ_CONVEY_EXTEND) OR
+										(fbSequenceManager.getCurrentSeq_ID() = E_SequenceList_POP.SEQ_CONVEY_RETRACT)) AND
+										fbHandshakeDownstream.stTrayExchgangeOutput.eState <> E_TrayExchangeState.IN_PROGRESS,
+							HoldSequence:=	FALSE);									
+
+fbInterlocks.update(
+							Description:= 'Wait for tray RESQUESTED signal',
+							InterlockType:= E_InterlockType.RunInterlock, 
+							Subject_Device:= ADR(fbLinAct_POP3), 
+							Subject_State:= E_DeviceState.IDLE, 
+							Signal:=  ((fbSequenceManager.getCurrentSeq_ID() = E_SequenceList_POP.SEQ_CONVEY_EXTEND) OR
+										(fbSequenceManager.getCurrentSeq_ID() = E_SequenceList_POP.SEQ_CONVEY_RETRACT)) AND
+										fbHandshakeDownstream.stTrayExchgangeOutput.eState <> E_TrayExchangeState.IN_PROGRESS,
+							HoldSequence:=	FALSE);		
+
+							
+fbInterlocks.execute();
+							
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="scanOPCInputs" Id="{4ab94a57-734f-492b-b7ca-b018517c8a45}">
+      <Declaration><![CDATA[METHOD scanOPCInputs : BOOL
+VAR_INPUT
+	Inputs: ST_INPUTS_POP;
+END_VAR
+
+VAR 
+	nCurrenSeq_Temp: INT;
+	nPrev_Seq: INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+(*
+			SEQUENCE CONTROL
+*)
+
+
+
+IF stInputs.stSequenceManager.Sequence_Selected <> fbSequenceManager.getCurrentSeq_ID() THEN // Selected sequence has been changed
+	fbSequenceManager.stopSequence();
+	devices_disable_All();
+	fbSequenceManager.selectSequence(stInputs.stSequenceManager.Sequence_Selected);
+	devices_enable_CurrSeq();
+END_IF
+
+
+IF stInputs.stSequenceManager.Sequence_Ack_Interlock THEN
+	fbSequenceManager.acknowledgePause();
+	stInputs.stSequenceManager.Sequence_Ack_Interlock := FALSE;
+END_IF
+
+
+CASE stInputs.stSequenceManager.Sequence_Command OF
+	E_SequenceState.RUN:
+		IF fbSequenceManager.getState() <> E_SequenceState.RUN THEN
+			fbSequenceManager.startSequence();
+			stInputs.stSequenceManager.Sequence_Command := E_SequenceState.WAIT;
+		END_IF
+	E_SequenceState.STOP:
+		IF fbSequenceManager.getState() <> E_SequenceState.STOP THEN
+			fbSequenceManager.stopSequence();
+			stInputs.stSequenceManager.Sequence_Command := E_SequenceState.WAIT;
+		END_IF
+	E_SequenceState.HOLD:
+		IF fbSequenceManager.getState() <> E_SequenceState.HOLD THEN
+			fbSequenceManager.pauseSequence();
+			stInputs.stSequenceManager.Sequence_Command := E_SequenceState.WAIT;
+		END_IF
+END_CASE
+
+
+(*
+			POP ACTUATORS
+*)
+
+fbLinAct_POP1.setMode(Mode := stInputs.stLinAct_POP1.Mode);
+IF fbLinAct_POP1.inManual() THEN
+	fbLinAct_POP1.setCommand(StateTarget := stInputs.stLinAct_POP1.Command);
+ELSE
+	stInputs.stLinAct_POP1.Command := fbLinAct_POP1.getCommand();
+END_IF
+
+
+fbLinAct_POP2.setMode(Mode := stInputs.stLinAct_POP2.Mode);
+IF fbLinAct_POP2.inManual() THEN
+	fbLinAct_POP2.setCommand(StateTarget := stInputs.stLinAct_POP2.Command);
+ELSE
+	stInputs.stLinAct_POP2.Command := fbLinAct_POP2.getCommand();
+END_IF
+
+fbLinAct_POP3.setMode(Mode := stInputs.stLinAct_POP3.Mode);
+IF fbLinAct_POP3.inManual() THEN
+	fbLinAct_POP3.setCommand(StateTarget := stInputs.stLinAct_POP3.Command);
+ELSE
+	stInputs.stLinAct_POP3.Command := fbLinAct_POP3.getCommand();
+END_IF
+
+
+(*
+			TRAY CENTRE ACTUATORS
+*)
+
+fbTrayCentre_POP1.setMode(Mode := stInputs.stTrayCentre_POP1.Mode);
+IF fbTrayCentre_POP1.inManual() THEN
+	fbTrayCentre_POP1.setCommand(StateTarget := stInputs.stTrayCentre_POP1.Command);
+ELSE
+	stInputs.stTrayCentre_POP1.Command := fbTrayCentre_POP1.getCommand();
+END_IF
+
+fbTrayCentre_POP2.setMode(Mode := stInputs.stTrayCentre_POP2.Mode);
+IF fbTrayCentre_POP2.inManual() THEN
+	fbTrayCentre_POP2.setCommand(StateTarget := stInputs.stTrayCentre_POP2.Command);
+ELSE
+	stInputs.stTrayCentre_POP2.Command := fbTrayCentre_POP2.getCommand();
+END_IF
+
+fbTrayCentre_POP3.setMode(Mode := stInputs.stTrayCentre_POP3.Mode);
+IF fbTrayCentre_POP3.inManual() THEN
+	fbTrayCentre_POP3.setCommand(StateTarget := stInputs.stTrayCentre_POP3.Command);
+ELSE
+	stInputs.stTrayCentre_POP3.Command := fbTrayCentre_POP3.getCommand();
+END_IF
+
+
+
+(*
+			STATIC CONVEYORS
+*)
+
+
+fbStaticConv_POP1.setMode(Mode := stInputs.stStaticConv_POP1.Mode);
+IF fbStaticConv_POP1.inManual() THEN
+	fbStaticConv_POP1.setCommand(StateTarget := stInputs.stStaticConv_POP1.Command);
+ELSE
+	stInputs.stStaticConv_POP1.Command := fbStaticConv_POP1.getCommand();
+END_IF
+									
+fbStaticConv_POP2.setMode(Mode := stInputs.stStaticConv_POP2.Mode);
+IF fbStaticConv_POP2.inManual() THEN
+	fbStaticConv_POP2.setCommand(StateTarget := stInputs.stStaticConv_POP2.Command);
+ELSE
+	stInputs.stStaticConv_POP2.Command := fbStaticConv_POP2.getCommand();
+END_IF
+
+fbStaticConv_POP3.setMode(Mode := stInputs.stStaticConv_POP3.Mode);
+IF fbStaticConv_POP3.inManual() THEN
+	fbStaticConv_POP3.setCommand(StateTarget := stInputs.stStaticConv_POP3.Command);
+ELSE
+	stInputs.stStaticConv_POP3.Command := fbStaticConv_POP3.getCommand();
+END_IF													
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="sequence" Id="{682d83a0-ee3a-4a43-a046-60c8c29d9f33}">
+      <Declaration><![CDATA[METHOD sequence : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+
+IF (fbSequenceManager.getState() = E_SequenceState.COMPLETE) AND (fbHandshakeUpstream.stTrayExchgangeOutput.eState = E_TrayExchangeState.REQUESTED) AND NOT bInProgress THEN
+	
+	CASE ePOP_Type OF 
+		E_POP_Type.EXTEND_CONVEY:
+			fbSequenceManager.selectSequence(Sequence := E_SequenceList_POP.SEQ_EXTEND_CONVEY);
+		E_POP_Type.CONVEY_EXTEND:
+			fbSequenceManager.selectSequence(Sequence := E_SequenceList_POP.SEQ_CONVEY_EXTEND);
+		E_POP_Type.RETRACT_CONVEY:
+			fbSequenceManager.selectSequence(Sequence := E_SequenceList_POP.SEQ_RETRACT_CONVEY);
+		E_POP_Type.CONVEY_RETRACT:
+			fbSequenceManager.selectSequence(Sequence := E_SequenceList_POP.SEQ_RETRACT_CONVEY);
+	END_CASE
+
+	fbSequenceManager.startSequence();
+	bInProgress := TRUE;
+END_IF
+
+
+
+IF (fbSequenceManager.getState() = E_SequenceState.COMPLETE) AND bInProgress THEN
+	// return the pop conveyor back to resting condition
+	CASE ePOP_Type OF 
+		E_POP_Type.EXTEND_CONVEY:
+			fbSequenceManager.selectSequence(Sequence := E_SequenceList_POP.SEQ_RETRACT);
+		E_POP_Type.CONVEY_EXTEND:
+			fbSequenceManager.selectSequence(Sequence := E_SequenceList_POP.SEQ_RETRACT);
+		E_POP_Type.RETRACT_CONVEY:
+			fbSequenceManager.selectSequence(Sequence := E_SequenceList_POP.SEQ_EXTEND);
+		E_POP_Type.CONVEY_RETRACT:
+			fbSequenceManager.selectSequence(Sequence := E_SequenceList_POP.SEQ_EXTEND);
+	END_CASE
+	fbSequenceManager.startSequence();
+	bInProgress := FALSE;
+END_IF
+
+*)]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="sequence_init" Id="{41dd3da2-5c40-4f9d-8304-c735973b9623}">
+      <Declaration><![CDATA[METHOD sequence_init : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbSeq_EXT_CONV(devices := stAllComponents);
+fbSeq_EXT_CONV.populateSteps();
+aSeqs[1] := fbSeq_EXT_CONV;
+
+(*
+fbSeq_RET_CONV(devices := stAllComponents);
+fbSeq_CONV_EXT(devices := stAllComponents);
+fbSeq_CONV_RET(devices := stAllComponents);
+fbSeq_EXT(devices := stAllComponents);
+fbSeq_RET(devices := stAllComponents);
+*)
+
+
+(*
+fbSeqRND_DMMain(devices := stAllComponents);
+fbSeqRND_DMCal(devices := stAllComponents);
+fbSeqRND_DMFill(devices := stAllComponents);
+fbSeqRND_DMDrain(devices := stAllComponents);
+fbSeqRND_DMFlush(devices := stAllComponents);
+
+fbSeqRND_DMMain.populateSteps();
+fbSeqRND_DMCal.populateSteps();
+fbSeqRND_DMFill.populateSteps();
+fbSeqRND_DMDrain.populateSteps();
+fbSeqRND_DMFlush.populateSteps();
+
+aSeqs[1] := fbSeqRND_DMMain;
+aSeqs[2] := fbSeqRND_DMCal;
+aSeqs[3] := fbSeqRND_DMFill;
+aSeqs[4] := fbSeqRND_DMDrain;
+aSeqs[5] := fbSeqRND_DMFlush;
+
+
+*)]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Machine_POP">
+      <LineId Id="11643" Count="1" />
+      <LineId Id="11962" Count="0" />
+      <LineId Id="11645" Count="16" />
+      <LineId Id="11945" Count="0" />
+      <LineId Id="11662" Count="1" />
+      <LineId Id="11700" Count="0" />
+      <LineId Id="11705" Count="3" />
+      <LineId Id="11699" Count="0" />
+      <LineId Id="11947" Count="0" />
+      <LineId Id="11709" Count="0" />
+      <LineId Id="11666" Count="1" />
+      <LineId Id="11710" Count="3" />
+      <LineId Id="11963" Count="0" />
+      <LineId Id="11668" Count="11" />
+      <LineId Id="11956" Count="3" />
+      <LineId Id="11955" Count="0" />
+      <LineId Id="11965" Count="0" />
+      <LineId Id="11680" Count="1" />
+      <LineId Id="11964" Count="0" />
+      <LineId Id="11960" Count="1" />
+      <LineId Id="11682" Count="6" />
+      <LineId Id="10684" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_POP.devices_init">
+      <LineId Id="535" Count="2" />
+      <LineId Id="916" Count="0" />
+      <LineId Id="542" Count="2" />
+      <LineId Id="277" Count="0" />
+      <LineId Id="234" Count="0" />
+      <LineId Id="233" Count="0" />
+      <LineId Id="551" Count="1" />
+      <LineId Id="611" Count="0" />
+      <LineId Id="553" Count="1" />
+      <LineId Id="612" Count="0" />
+      <LineId Id="555" Count="1" />
+      <LineId Id="613" Count="0" />
+      <LineId Id="557" Count="1" />
+      <LineId Id="614" Count="0" />
+      <LineId Id="559" Count="1" />
+      <LineId Id="615" Count="0" />
+      <LineId Id="561" Count="1" />
+      <LineId Id="908" Count="1" />
+      <LineId Id="906" Count="0" />
+      <LineId Id="911" Count="1" />
+      <LineId Id="910" Count="0" />
+      <LineId Id="914" Count="1" />
+      <LineId Id="913" Count="0" />
+      <LineId Id="827" Count="0" />
+      <LineId Id="917" Count="0" />
+      <LineId Id="641" Count="4" />
+      <LineId Id="905" Count="0" />
+      <LineId Id="646" Count="2" />
+      <LineId Id="902" Count="0" />
+      <LineId Id="649" Count="2" />
+      <LineId Id="918" Count="0" />
+      <LineId Id="963" Count="0" />
+      <LineId Id="936" Count="0" />
+      <LineId Id="964" Count="0" />
+      <LineId Id="939" Count="2" />
+      <LineId Id="935" Count="0" />
+      <LineId Id="853" Count="2" />
+      <LineId Id="864" Count="8" />
+      <LineId Id="965" Count="1" />
+      <LineId Id="934" Count="0" />
+      <LineId Id="831" Count="0" />
+      <LineId Id="690" Count="0" />
+      <LineId Id="740" Count="0" />
+      <LineId Id="920" Count="8" />
+      <LineId Id="967" Count="1" />
+      <LineId Id="895" Count="0" />
+      <LineId Id="892" Count="0" />
+      <LineId Id="896" Count="0" />
+      <LineId Id="893" Count="0" />
+      <LineId Id="673" Count="2" />
+      <LineId Id="672" Count="0" />
+      <LineId Id="683" Count="0" />
+      <LineId Id="682" Count="0" />
+      <LineId Id="16" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_POP.devices_update">
+      <LineId Id="133" Count="0" />
+      <LineId Id="143" Count="1" />
+      <LineId Id="136" Count="1" />
+      <LineId Id="151" Count="0" />
+      <LineId Id="139" Count="0" />
+      <LineId Id="146" Count="1" />
+      <LineId Id="152" Count="0" />
+      <LineId Id="142" Count="0" />
+      <LineId Id="129" Count="0" />
+      <LineId Id="153" Count="2" />
+      <LineId Id="165" Count="0" />
+      <LineId Id="157" Count="2" />
+      <LineId Id="156" Count="0" />
+      <LineId Id="164" Count="0" />
+      <LineId Id="161" Count="2" />
+      <LineId Id="160" Count="0" />
+      <LineId Id="167" Count="0" />
+      <LineId Id="166" Count="0" />
+      <LineId Id="168" Count="4" />
+    </LineIds>
+    <LineIds Name="FB_Machine_POP.FB_init">
+      <LineId Id="10" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="26" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_POP.handshakes">
+      <LineId Id="6" Count="0" />
+      <LineId Id="23" Count="2" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="1" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="65" Count="1" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="59" Count="1" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="28" Count="13" />
+      <LineId Id="54" Count="1" />
+      <LineId Id="61" Count="1" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="46" Count="1" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_POP.interlocks">
+      <LineId Id="141" Count="0" />
+      <LineId Id="557" Count="0" />
+      <LineId Id="149" Count="6" />
+      <LineId Id="625" Count="0" />
+      <LineId Id="674" Count="0" />
+      <LineId Id="156" Count="0" />
+      <LineId Id="626" Count="0" />
+      <LineId Id="628" Count="0" />
+      <LineId Id="675" Count="7" />
+      <LineId Id="627" Count="0" />
+      <LineId Id="644" Count="0" />
+      <LineId Id="683" Count="7" />
+      <LineId Id="636" Count="0" />
+      <LineId Id="704" Count="0" />
+      <LineId Id="694" Count="0" />
+      <LineId Id="696" Count="7" />
+      <LineId Id="695" Count="0" />
+      <LineId Id="645" Count="0" />
+      <LineId Id="705" Count="8" />
+      <LineId Id="617" Count="0" />
+      <LineId Id="691" Count="0" />
+      <LineId Id="714" Count="8" />
+      <LineId Id="692" Count="0" />
+      <LineId Id="734" Count="0" />
+      <LineId Id="726" Count="7" />
+      <LineId Id="723" Count="1" />
+      <LineId Id="735" Count="6" />
+      <LineId Id="725" Count="0" />
+      <LineId Id="742" Count="1" />
+      <LineId Id="745" Count="6" />
+      <LineId Id="744" Count="0" />
+      <LineId Id="757" Count="0" />
+      <LineId Id="766" Count="3" />
+      <LineId Id="759" Count="5" />
+      <LineId Id="770" Count="1" />
+      <LineId Id="758" Count="0" />
+      <LineId Id="782" Count="1" />
+      <LineId Id="785" Count="7" />
+      <LineId Id="784" Count="0" />
+      <LineId Id="794" Count="8" />
+      <LineId Id="793" Count="0" />
+      <LineId Id="772" Count="0" />
+      <LineId Id="774" Count="7" />
+      <LineId Id="773" Count="0" />
+      <LineId Id="804" Count="8" />
+      <LineId Id="803" Count="0" />
+      <LineId Id="813" Count="0" />
+      <LineId Id="816" Count="7" />
+      <LineId Id="814" Count="1" />
+      <LineId Id="693" Count="0" />
+      <LineId Id="543" Count="1" />
+      <LineId Id="147" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_POP.scanOPCInputs">
+      <LineId Id="553" Count="11" />
+      <LineId Id="566" Count="7" />
+      <LineId Id="575" Count="4" />
+      <LineId Id="829" Count="0" />
+      <LineId Id="580" Count="3" />
+      <LineId Id="830" Count="0" />
+      <LineId Id="584" Count="3" />
+      <LineId Id="831" Count="0" />
+      <LineId Id="588" Count="1" />
+      <LineId Id="867" Count="0" />
+      <LineId Id="626" Count="3" />
+      <LineId Id="1098" Count="1" />
+      <LineId Id="1101" Count="4" />
+      <LineId Id="1107" Count="6" />
+      <LineId Id="1106" Count="0" />
+      <LineId Id="1115" Count="5" />
+      <LineId Id="1114" Count="0" />
+      <LineId Id="1128" Count="0" />
+      <LineId Id="1165" Count="2" />
+      <LineId Id="1122" Count="0" />
+      <LineId Id="1168" Count="0" />
+      <LineId Id="1121" Count="0" />
+      <LineId Id="1124" Count="3" />
+      <LineId Id="1123" Count="0" />
+      <LineId Id="1131" Count="5" />
+      <LineId Id="1130" Count="0" />
+      <LineId Id="1138" Count="5" />
+      <LineId Id="1137" Count="0" />
+      <LineId Id="1170" Count="4" />
+      <LineId Id="1169" Count="0" />
+      <LineId Id="1100" Count="0" />
+      <LineId Id="1146" Count="5" />
+      <LineId Id="808" Count="1" />
+      <LineId Id="1153" Count="5" />
+      <LineId Id="1164" Count="0" />
+      <LineId Id="1159" Count="4" />
+      <LineId Id="1152" Count="0" />
+      <LineId Id="813" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_POP.sequence">
+      <LineId Id="55" Count="1" />
+      <LineId Id="5" Count="1" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="26" Count="2" />
+      <LineId Id="30" Count="2" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="40" Count="8" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="49" Count="1" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="57" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Machine_POP.sequence_init">
+      <LineId Id="46" Count="0" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="54" Count="0" />
+      <LineId Id="62" Count="2" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="42" Count="3" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="11" Count="3" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="16" Count="3" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

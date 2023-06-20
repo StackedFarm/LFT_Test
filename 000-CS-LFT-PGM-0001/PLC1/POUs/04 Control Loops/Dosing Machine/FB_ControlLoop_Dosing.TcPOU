@@ -1,0 +1,667 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ControlLoop_Dosing" Id="{cdbae9c3-bbed-4d34-922d-a36de93867e0}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ControlLoop_Dosing EXTENDS FB_BaseDevice
+
+VAR PERSISTENT
+	nVolumeWater: REAL := 200.0; // Litres
+	
+	nPHDownFactor: LREAL := 10000;
+	nPH_ProcessValue_Moles: FLOAT;
+	nPH_ProcessValue: FLOAT;
+	nPH_Setpoint: FLOAT;
+	nPH_LowBand: FLOAT;
+	nPH_HighBand: FLOAT;
+	
+	nPHSensorValDummy: FLOAT;
+	nNutrient_ProcessValue: FLOAT;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	eCurrentNutrient: 			(NUTRIENT_A,NUTRIENT_B,NUTRIENT_C, PH) := NUTRIENT_C;
+	bPHOnly: BOOL := TRUE;
+	
+	nPIDNutrientMaxDoseRate: UINT;
+	nPIDNutrientMinDoseRate: UINT;
+	tPIDNutrientTimeBetweenDoses: TIME;
+	nPIDPHMaxDoseRate: UINT;
+	nPIDPHMinDoseRate: UINT;
+	tPIDPHTimeBetweenDoses: TIME;
+	
+	benableDosPumps: BOOL := TRUE;
+	{attribute 'OPC.UA.DA' := '1'} 
+	tPIDLoopTime: TIME := T#1M;	//5 second PID calculation
+	
+	// PID loop variables below
+	nPIDNutrientSetpoint:		REAL; 
+	nPIDNutrientSetpointBand:	REAL; // %
+	nPIDNutrientManSyncVal:		REAL;
+	bPIDNutrientSync: 			BOOL;
+	nPIDNutrientError:			REAL;
+	nPIDNutrientErrorPerc:		REAL;  // this is used to check if we are at 75%
+	nPIDNutrientOutput: 		LREAL; 
+	bPIDNutrientHold: 			BOOL;
+	ePIDNutrientMode: 			E_CTRL_MODE;
+	stPIDNutrientParameters: 	ST_CTRL_PID_PARAMS;
+	ePIDNutrientErrorId: 		E_CTRL_ERRORCODES;
+	bPIDNutrientError: 			BOOL;
+	bPIDNutrientARWactive: 		BOOL;
+	
+	//stPIDParams values
+	tPIDNutrientCtrlCycleTime: 		TIME := tPIDLoopTime;
+	tPIDNutrientTaskCycleTime:		TIME := T#10MS;
+	nPIDNutrientKp:  				REAL := 1.0;
+	nPIDNutrientCompensator:  		REAL := 1.0/1000.0;
+	tPIDNutrientTn: 				TIME := T#0S;
+	tPIDNutrientTv:					TIME := T#0S;
+	tPIDNutrientTd:					TIME := T#200S; 
+	nPIDNutrientOutMaxLimit: 		REAL := 300; 		// this is set in the cyclic routine, the error band moves with the setpoint
+	nPIDNutrientOutMinLimit:		REAL := 0;
+	bPIDNutrientPInTheFeedbackPath: BOOL := FALSE;
+	bPIDNutrientDInTheFeedbackPath: BOOL := FALSE;
+	bPIDNutrientARWOnIPartOnly:		BOOL := FALSE;
+	
+	
+	
+	// Inputs
+	nPIDPHSetpoint_Moles:			FLOAT; 					// Setpoint of the controlled variable (units pH)
+	nPIDPHSetpoint_HydrogenMoles:	FLOAT;			// Setpoint of the controlled variable (H+ moles)
+	nPIDPHSetpointBand:		REAL;					// 
+	nPIDPHManSyncVal:		REAL;					// 	Input, to whose value it is possible to set the internal state of the PID-element.
+	bPIDPHSync: 			BOOL;					//  A rising edge at this input sets the PID-element to the value "fManSyncValue".
+	nPIDPHError:			REAL;					//  This is abs(actual - setpoint)
+
+	bPIDPHHold: 			BOOL;					// 	A TRUE at this input will hold the internal state (and therefore also the output) constant at its current value, independently of the control deviation.			
+	ePIDPHMode: 			E_CTRL_MODE;			//  Input that specifies the operation mode of the function block.
+	
+	
+	// Outputs 
+	nPIDPHOutput: 			LREAL;					// Output of the PID element
+	ePIDPHErrorId: 			E_CTRL_ERRORCODES;		// Supplies the error number when the output bError is set.
+	bPIDPHError: 			BOOL;					// Becomes TRUE, as soon as an error occurs.
+	bPIDPHARWactive: 		BOOL;					// A TRUE at this output indicates that the PID-element is being restricted.
+	
+	// Inputs & Outputs (VAR IN OUT)
+	stPIDPHParameters: 		ST_CTRL_PID_PARAMS;		// Parameter structure of the PID element
+	
+	//stPIDParams values
+	tPIDPHCtrlCycleTime: 		TIME := tPIDLoopTime;	// Cycle time with which the control loop is processed. This must be greater than or equal to the TaskCycleTime. The function block uses this input value to calculate internally whether the state and the output values have to be updated in the current cycle.
+	tPIDPHTaskCycleTime:		TIME := T#10MS;	// Cycle TIME with which the FUNCTION block is called. IF the FUNCTION block is called in every cycle THIS corresponds TO the task cycle TIME OF the calling task
+	nPIDPHKp:  					FLOAT := 16327.71;	// Controller amplification / controller coefficient (our system gain is 0.0000025)
+	tPIDPHTn: 					TIME := T#0S;  			// Integral action time; if this is parameterized to T#0s, the I component is deactivated.
+	tPIDPHTv:					TIME := T#0S;  			// Derivative action time; if this is parameterized to T#0s, the D component is deactivated.
+	tPIDPHTd:					TIME := T#200S; 		// Damping time
+	nPIDPHOutMaxLimit: 			REAL := 300; 	// Upper limit at which integration is halted and to which the output is limited (ARW measure). Reaching this limit is indicated by a TRUE at the bARWActive output.
+	nPIDPHOutMinLimit:			REAL := -300;		// 	Lower LIMIT AT which integration is halted AND TO which the output is limited (ARW measure). Reaching THIS LIMIT is indicated BY a TRUE AT the bARWActive output
+	bPIDPHPInTheFeedbackPath: 	BOOL := FALSE;	// Input value of the internal P-element can be selected with this input (see functional diagram). Standard setting: FALSE
+	bPIDPHDInTheFeedbackPath:	BOOL := FALSE;	//  Input value of the internal D-element can be selected with this input (see functional diagram). Standard setting: FALSE
+	bPIDPHARWOnIPartOnly:		BOOL := FALSE;			// 	If this parameter is FALSE (the standard setting), the integration of the I-component is halted if the complete controller output reaches the upper or lower limit. If it is TRUE, the integration is halted if the I-component (the output of the integrator) reaches some limit. (Cf. functional diagram.)
+	
+	nPIDPH_Out: INT;
+	tgNutrientOutLatch: R_TRIG;
+	nNutrientOutput: LREAL := 0;
+END_VAR
+
+VAR
+	bFirstRun: BOOL := TRUE;
+	bResetTimer: BOOL := FALSE;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbSensor_EC:	I_Sensor(SensorID := '', SensorDescr := '' , SensorType := E_SensorType.Analogue);
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbSensor_DO:	I_Sensor(SensorID := '', SensorDescr := '' , SensorType := E_SensorType.Analogue);
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbSensor_ORP:	I_Sensor(SensorID := '', SensorDescr := '' , SensorType := E_SensorType.Analogue);
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbSensor_PH:	I_Sensor(SensorID := '', SensorDescr := '' , SensorType := E_SensorType.Analogue);
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbSensor_TEMP:	I_Sensor(SensorID := '', SensorDescr := '' , SensorType := E_SensorType.Analogue);	
+
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbDosingPump_phUp:  		I_PumpDosing;
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbDosingPump_phDOwn:  		I_PumpDosing;
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbDosingPump_Nutrient_A:  	I_PumpDosing;
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbDosingPump_Nutrient_B:  	I_PumpDosing;
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbDosingPump_Nutrient_C:  	I_PumpDosing;
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSMState: 					(WAIT, CALCULATE, NUTRIENT_ONLY, NUTRIENT_AND_PH, PH_ONLY) := WAIT;
+
+	
+	bDoseRequestSent:		BOOL := FALSE;
+	bDoseRequestComplete: 	BOOL := FALSE;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	fbTON_PIDLoop: TON := (PT := tPIDLoopTime, IN := FALSE);
+	
+	{attribute 'OPC.UA.DA' := '0'}
+	PID_Nutrient: FB_CTRL_PID;
+	
+	{attribute 'OPC.UA.DA' := '0'}
+	PID_PH: FB_CTRL_PID;
+	
+	tgDisableOneShot: F_TRIG;
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF bFirstRun THEN
+	fbTON_PIDLoop(PT := tPIDLoopTime, IN := TRUE);
+	bFirstRun := FALSE;
+END_IF
+
+
+eState := eStateTarget;
+
+IF fbTON_PIDLoop.Q THEN
+	fbTON_PIDLoop.IN := FALSE;
+	eSMState := CALCULATE;		// This is the entry point to start PID calculations and dosing
+END_IF
+
+fbTON_PIDLoop(PT := tPIDLoopTime);
+
+calcInput();
+updatePIDParams();
+calcError();
+tgNutrientOutLatch();
+tgDisableOneShot(CLK := bEnable);
+
+IF nPIDNutrientSetpoint > -1 THEN
+	IF nPIDNutrientError > 0 THEN
+		nPIDNutrientErrorPerc:=	1 - (ABS(nPIDNutrientError)/(nPIDNutrientSetpoint)); // this is used to decide if we opt for nutrient only dosing or nutrient and PH
+	ELSE
+		nPIDNutrientErrorPerc := 1; //
+	END_IF
+END_IF
+
+IF eState = E_DeviceState.ON AND bEnable THEN
+	//IF (nPH_ProcessValue < nPH_LowBand) OR (nPH_ProcessValue > nPH_HighBand) THEN
+	PID_PH(		fSetpointValue := nPIDPHSetpoint_Moles, 			fActualValue := nPH_ProcessValue_Moles, 			stParams := stPIDPHParameters); //, eMode := E_CTRL_MODE.eCTRL_MODE_ACTIVE);	
+	//END_IF
+	
+	PID_Nutrient(	fSetpointValue := nPIDNutrientSetpoint, 	fActualValue := nNutrient_ProcessValue, 	stParams := stPIDNutrientParameters);//, eMode := E_CTRL_MODE.eCTRL_MODE_ACTIVE);
+END_IF
+
+IF bEnable AND benableDosPumps AND (eState = E_DeviceState.ON) THEN
+	fbDosingPump_Nutrient_A.enable();
+	fbDosingPump_Nutrient_B.enable();
+	fbDosingPump_Nutrient_C.enable();
+	fbDosingPump_phDOwn.enable();
+	fbDosingPump_phUp.enable();
+	//fbDosingPump_phUp.disable();   // temporarily disable pH up dosing 
+END_IF
+
+IF tgDisableOneShot.Q THEN   // handle the case where the control lloop is turned off mid-dose
+	fbDosingPump_Nutrient_A.setOFF(RequestComplete := 0);
+	fbDosingPump_Nutrient_B.setOFF(RequestComplete := 0);
+	fbDosingPump_Nutrient_C.setOFF(RequestComplete := 0);
+	fbDosingPump_phDOwn.setOFF(RequestComplete := 0);
+	fbDosingPump_phUp.setOFF(RequestComplete := 0);
+	fbDosingPump_Nutrient_A.disable();
+	fbDosingPump_Nutrient_B.disable();
+	fbDosingPump_Nutrient_C.disable();
+	fbDosingPump_phDOwn.disable();
+	fbDosingPump_phUp.disable();
+	eStateTarget := E_DeviceState.OFF;
+	PID_Nutrient.eMode := E_CTRL_MODE.eCTRL_MODE_RESET;
+	PID_PH.eMode := E_CTRL_MODE.eCTRL_MODE_RESET;
+END_IF
+
+
+CASE eSMState OF
+
+	WAIT:
+		// Do nothing and wait for timer to trigger
+		
+	CALCULATE:
+	
+		IF (eStateTarget = E_DeviceState.ON) AND bEnable THEN 
+			
+			IF nPIDNutrientErrorPerc < 0.75 THEN    // only bring in pH when EC is 75% percent of setpoint
+				eSMState := NUTRIENT_ONLY;
+				//tPIDNutrientCtrlCycleTime := tPIDLoopTime * 3;
+				tPIDNutrientCtrlCycleTime := tPIDNutrientTaskCycleTime;
+				//PID_Nutrient.eMode 		:= E_CTRL_MODE.eCTRL_MODE_ACTIVE;
+				PID_PH.eMode 			:= E_CTRL_MODE.eCTRL_MODE_RESET;
+
+			ELSIF (nPIDNutrientError < 0.03) AND (eCurrentNutrient = PH) THEN
+				
+				eSMState := PH_ONLY;
+				//tPIDPHCtrlCycleTime := tPIDLoopTime;
+				tPIDPHCtrlCycleTime := tPIDPHTaskCycleTime;
+				PID_Nutrient.eMode 		:= E_CTRL_MODE.eCTRL_MODE_RESET;
+				//PID_PH.eMode 			:= E_CTRL_MODE.eCTRL_MODE_ACTIVE;
+			ELSE 
+				eSMState := NUTRIENT_AND_PH;
+				//tPIDNutrientCtrlCycleTime := tPIDLoopTime * 4;
+				tPIDNutrientCtrlCycleTime := tPIDNutrientTaskCycleTime;
+				//tPIDPHCtrlCycleTime := tPIDLoopTime * 4;
+				tPIDPHCtrlCycleTime := tPIDPHTaskCycleTime;
+				//PID_Nutrient.eMode 		:= E_CTRL_MODE.eCTRL_MODE_ACTIVE;
+				//PID_PH.eMode 			:= E_CTRL_MODE.eCTRL_MODE_ACTIVE;
+			END_IF
+		END_IF
+		
+		
+		IF bPHOnly AND (eStateTarget = E_DeviceState.ON) THEN  // this was used for commissioning when we were only doing PH
+			eSMState := PH_ONLY;
+			fbDosingPump_phUp.enable();
+			fbDosingPump_phDOwn.enable();
+		END_IF
+		
+		IF eCurrentNutrient = NUTRIENT_A THEN
+			tgNutrientOutLatch(CLK := TRUE);
+		END_IF
+		
+		IF tgNutrientOutLatch.Q THEN
+			nNutrientOutput := PID_Nutrient.fOut;
+		END_IF
+		
+		fbTON_PIDLoop(IN := FALSE);
+		
+	NUTRIENT_AND_PH:
+		// Activate both Nutrient and PH Loops
+		PID_Nutrient.eMode 		:= E_CTRL_MODE.eCTRL_MODE_ACTIVE;
+		
+		nPIDPH_Out := LREAL_TO_INT(PID_PH.fOut); 
+		
+		IF (nPH_ProcessValue < nPH_LowBand) OR (nPH_ProcessValue > nPH_HighBand) THEN
+				PID_PH.eMode 		:= E_CTRL_MODE.eCTRL_MODE_ACTIVE;
+		ELSE
+				PID_PH.eMode 		:= E_CTRL_MODE.eCTRL_MODE_RESET;	// reset the PID loop if we are inside the deadband to avoid integral wind-up
+		END_IF
+		
+		
+		// Execute the PID loop calculations
+		//PID_PH(fSetpointValue := nPIDPHSetpoint_HydrogenMoles, fActualValue := nPH_ProcessValue, stParams := stPIDPHParameters);
+		//PID_Nutrient(fSetpointValue := nPIDNutrientSetpoint, fActualValue := nNutrient_ProcessValue, stParams := stPIDNutrientParameters);
+		
+		CASE eCurrentNutrient OF
+			NUTRIENT_A:
+				fbDosingPump_Nutrient_A.executeDose(DoseQtyMls := LREAL_TO_UINT(nNutrientOutput), DoseRateMlph := 100, RequestComplete := 0, RequestAccepted => bDoseRequestComplete);
+				eCurrentNutrient := NUTRIENT_B;
+			NUTRIENT_B:
+				fbDosingPump_Nutrient_B.executeDose(DoseQtyMls := LREAL_TO_UINT(nNutrientOutput), DoseRateMlph := 100, RequestComplete := 0, RequestAccepted => bDoseRequestComplete);
+				eCurrentNutrient := NUTRIENT_C;
+				tgNutrientOutLatch(CLK := FALSE);
+			NUTRIENT_C:
+				fbDosingPump_Nutrient_C.executeDose(DoseQtyMls := LREAL_TO_UINT(nNutrientOutput), DoseRateMlph := 100, RequestComplete := 0, RequestAccepted => bDoseRequestComplete);
+				eCurrentNutrient := PH;
+			PH:
+				IF (nPH_ProcessValue < nPH_LowBand) OR (nPH_ProcessValue > nPH_HighBand) THEN
+					IF nPIDPH_Out > 0 THEN
+						fbDosingPump_phDOwn.executeDose(DoseQtyMls := (PID_PH.fOut/nPHDownFactor), DoseRateMlph := 100, RequestComplete := 0, RequestAccepted => bDoseRequestComplete);
+					ELSIF nPIDPH_Out < 0 THEN
+						fbDosingPump_phUp.executeDose(DoseQtyMls := ABS(PID_PH.fOut), DoseRateMlph := 100, RequestComplete := 0, RequestAccepted => bDoseRequestComplete);
+					END_IF
+				END_IF
+				eCurrentNutrient := NUTRIENT_A;	
+				
+		END_CASE	
+		eSMState := WAIT; // go back to wait for the next timer trigger
+		fbTON_PIDLoop.IN := TRUE;			
+		
+			
+		NUTRIENT_ONLY:
+		
+			PID_Nutrient.eMode := E_CTRL_MODE.eCTRL_MODE_ACTIVE;
+			// Activate both Nutrient and PH Loops
+			//PID_PH.eMode 			:= E_CTRL_MODE.eCTRL_MODE_IDLE; // E_CTRL_MODE.eCTRL_MODE_FREEZE; ----- <<<< FOR TESTING ONLY, PUT THIS BACK FOR DEPLOYMENT
+			//PID_Nutrient.eMode 		:= E_CTRL_MODE.eCTRL_MODE_ACTIVE;
+			
+			// Execute the PID loop calculations
+			//PID_Nutrient(fSetpointValue := nPIDNutrientSetpoint, fActualValue := nNutrient_ProcessValue, stParams := stPIDNutrientParameters, fOut => nNutrientOutput);
+		
+			CASE eCurrentNutrient OF
+				PH:
+					eCurrentNutrient := NUTRIENT_A;
+				NUTRIENT_A:
+					fbDosingPump_Nutrient_A.executeDose(DoseQtyMls := LREAL_TO_UINT(nNutrientOutput), DoseRateMlph := 100, RequestComplete := 0, RequestAccepted => bDoseRequestComplete);
+					eCurrentNutrient := NUTRIENT_B;
+				NUTRIENT_B:
+					fbDosingPump_Nutrient_B.executeDose(DoseQtyMls := LREAL_TO_UINT(nNutrientOutput), DoseRateMlph := 100, RequestComplete := 0, RequestAccepted => bDoseRequestComplete);
+					eCurrentNutrient := NUTRIENT_C;
+					tgNutrientOutLatch(CLK := FALSE);
+				NUTRIENT_C:
+					fbDosingPump_Nutrient_C.executeDose(DoseQtyMls := LREAL_TO_UINT(nNutrientOutput), DoseRateMlph := 100, RequestComplete := 0, RequestAccepted => bDoseRequestComplete);
+					eCurrentNutrient := NUTRIENT_A;
+			END_CASE
+			eSMState := WAIT; // go back to wait for the next timer trigger		
+			fbTON_PIDLoop.IN := TRUE;	
+			
+			
+		PH_ONLY:
+		
+			nPIDPH_Out := LREAL_TO_INT(PID_PH.fOut); 
+			
+			IF (nPH_ProcessValue < nPH_LowBand) OR (nPH_ProcessValue > nPH_HighBand) THEN
+					PID_PH.eMode 		:= E_CTRL_MODE.eCTRL_MODE_ACTIVE;
+			ELSE
+					PID_PH.eMode 		:= E_CTRL_MODE.eCTRL_MODE_RESET;	// reset the PID loop if we are inside the deadband to avoid integral wind-up
+			END_IF
+			
+			IF (nPH_ProcessValue < nPH_LowBand) OR (nPH_ProcessValue > nPH_HighBand) THEN
+				IF nPIDPH_Out > 0 THEN
+					fbDosingPump_phDOwn.executeDose(DoseQtyMls := (PID_PH.fOut/nPHDownFactor), DoseRateMlph := 100, RequestComplete := 0, RequestAccepted => bDoseRequestComplete);
+				ELSIF nPIDPH_Out < 0 THEN
+					fbDosingPump_phUp.executeDose(DoseQtyMls := ABS(PID_PH.fOut), DoseRateMlph := 100, RequestComplete := 0, RequestAccepted => bDoseRequestComplete);
+				END_IF
+			END_IF
+			eCurrentNutrient := PH;	
+		
+			eSMState := WAIT; // go back to wait for the next timer trigger		
+			fbTON_PIDLoop.IN := TRUE;			
+			
+END_CASE
+
+
+
+IF NOT ((nPH_ProcessValue < nPH_LowBand) OR (nPH_ProcessValue > nPH_HighBand)) THEN
+	PID_Nutrient.eMode := E_CTRL_MODE.eCTRL_MODE_RESET;
+END_IF
+]]></ST>
+    </Implementation>
+    <Method Name="calcError" Id="{b4acf13f-0525-47bb-86b5-5d8f7ede069c}">
+      <Declaration><![CDATA[METHOD calcError : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nPIDNutrientError 	:= nPIDNutrientSetpoint - nNutrient_ProcessValue;
+nPIDNutrientError 	:= nPIDNutrientError;
+
+nPIDPHError			:= nPIDPHSetpoint_Moles - nPH_ProcessValue_Moles;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="calcInput" Id="{a1394798-d048-4d30-be75-fb00bbdfcb31}">
+      <Declaration><![CDATA[METHOD calcInput : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//nPIDPHSetpoint 			:= 	EXPT(10, -1.0 * fbSensor_PH.getValue());
+
+nNutrient_ProcessValue 		:= 	fbSensor_EC.getValue();
+
+//nPIDPHSetpoint 			:= 	EXPT(10, -1.0 * fbSensor_PH.getValue());
+
+nPIDPHSetpoint_Moles		:= 	EXPT(10, -1.0 * nPH_Setpoint) * nVolumeWater;
+nPH_ProcessValue_Moles		:= 	EXPT(10, -1.0 * fbSensor_PH.getValue())  * nVolumeWater;
+
+nPH_ProcessValue			:= fbSensor_PH.getValue();
+//nPH_Setpoint				:= fbSensor_PH.getValue();
+// nPH_HighBand				:= nPH_Setpoint + 0.1;
+nPH_HighBand				:= nPH_Setpoint;
+nPH_LowBand					:= nPH_Setpoint - 0.07;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{e700d9bc-e7a6-4850-8528-e4d6ccb6ff6c}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	DosingPump_phUp:  			I_PumpDosing;
+	DosingPump_phDOwn:  		I_PumpDosing;
+	DosingPump_Nutrient_A:  	I_PumpDosing;
+	DosingPump_Nutrient_B:  	I_PumpDosing;
+	DosingPump_Nutrient_C:  	I_PumpDosing;
+	
+	ID: STRING(80);
+	Description: STRING(80);
+	
+	
+	Sensor_EC:				I_Sensor(SensorID := '', SensorDescr := '' , SensorType := E_SensorType.Analogue);
+	Sensor_DO:				I_Sensor(SensorID := '', SensorDescr := '' , SensorType := E_SensorType.Analogue);
+	Sensor_ORP:				I_Sensor(SensorID := '', SensorDescr := '' , SensorType := E_SensorType.Analogue);
+	Sensor_PH:				I_Sensor(SensorID := '', SensorDescr := '' , SensorType := E_SensorType.Analogue);
+	Sensor_TEMP:			I_Sensor(SensorID := '', SensorDescr := '' , SensorType := E_SensorType.Analogue);
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbDosingPump_phUp := DosingPump_phUp;
+fbDosingPump_phDOwn := DosingPump_phDOwn;
+fbDosingPump_Nutrient_A := DosingPump_Nutrient_A;
+fbDosingPump_Nutrient_B := DosingPump_Nutrient_B;
+fbDosingPump_Nutrient_C := DosingPump_Nutrient_C;
+
+fbSensor_EC := Sensor_EC;
+fbSensor_DO := Sensor_DO;
+fbSensor_ORP := Sensor_ORP;
+fbSensor_PH := Sensor_PH;
+fbSensor_TEMP := Sensor_TEMP;	
+sID := ID;
+sDescr := Description;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setParams" Id="{08571d90-6c64-496e-ae36-cfe115c8d18a}">
+      <Declaration><![CDATA[METHOD setParams : BOOL
+VAR_INPUT
+	(*
+	NutrientMaxDoseRate: UINT;
+	NutrientMinDoseRate: UINT;
+	NutrientTimeBetweenDoses: TIME;
+	PHMaxDoseRate: UINT;
+	PHMinDoseRate: UINT;
+	PHTimeBetweenDoses: TIME;
+
+
+	// PID loop variables below
+	*)
+	NutrientSetpoint:		REAL; 
+	(*
+	NutrientSetpointBand:	REAL;
+	
+	NutrientManSyncVal:		REAL;
+	NutrientSync: 			BOOL; 
+	NutrientHold: 			BOOL;
+	NutrientMode: 			E_CTRL_MODE;
+	NutrientCtrlCycleTime: 	TIME;
+	NutrientTaskCycleTime:	TIME;
+	
+	//stPIDParams values
+	NutrientKp:  				REAL;
+	NutrientTn: 				TIME; 
+	NutrientTv:					TIME; 
+	NutrientTd:					TIME; 
+	NutrientOutMaxLimit: 		REAL;
+	NutrientOutMinLimit:		REAL;
+	NutrientPInTheFeedbackPath: BOOL;
+	NutrientDInTheFeedbackPath: BOOL;
+	NutrientARWOnIPartOnly:		BOOL;
+	
+	*)
+	PHSetpoint:			REAL; 
+	PHSetpointBand:		REAL;
+	(*
+	PHManSyncVal:		REAL;
+	PHSync: 			BOOL;
+	PHHold: 			BOOL;
+	PHMode: 			E_CTRL_MODE;
+	PHCtrlCycleTime: 		TIME;
+	PHTaskCycleTime:		TIME;
+	
+	
+	//stPIDParams values
+	*)
+	PHKp:  					REAL;
+	PHTn: 					TIME;
+	PHTv:					TIME;
+	PHTd:					TIME; 
+	(*
+	PHOutMaxLimit: 			REAL; 		
+	PHOutMinLimit:			REAL;
+	PHPInTheFeedbackPath: 	BOOL;
+	PHDInTheFeedbackPath:	BOOL;
+	PHARWOnIPartOnly:		BOOL;
+	*)
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+nPIDNutrientMaxDoseRate := 				NutrientMaxDoseRate;
+nPIDNutrientMinDoseRate := 				NutrientMinDoseRate;
+tPIDNutrientTimeBetweenDoses := 		NutrientTimeBetweenDoses;
+
+nPIDPHMaxDoseRate := 					PHMaxDoseRate;
+nPIDPHMinDoseRate := 					PHMinDoseRate;
+tPIDPHTimeBetweenDoses := 				PHTimeBetweenDoses;
+
+*)
+nPIDNutrientSetpoint := 				NutrientSetpoint;
+(*
+nPIDNutrientSetpointBand := 			NutrientSetpointBand;
+nPIDNutrientManSyncVal := 				NutrientManSyncVal;
+bPIDNutrientSync := 					NutrientSync;
+bPIDNutrientHold := 					NutrientHold;
+ePIDNutrientMode := 					NutrientMode;
+tPIDNutrientCtrlCycleTime := 			NutrientCtrlCycleTime;
+tPIDNutrientTaskCycleTime := 			NutrientTaskCycleTime;
+
+nPIDNutrientKp := 						NutrientKp;
+tPIDNutrientTn := 						NutrientTn;
+tPIDNutrientTv := 						NutrientTv;
+tPIDNutrientTd := 						NutrientTd;
+nPIDNutrientOutMaxLimit := 				NutrientOutMaxLimit;
+nPIDNutrientOutMinLimit := 				NutrientOutMinLimit;
+bPIDNutrientPInTheFeedbackPath := 		NutrientPInTheFeedbackPath;
+bPIDNutrientDInTheFeedbackPath := 		NutrientDInTheFeedbackPath;
+bPIDNutrientARWactive := 				NutrientARWOnIPartOnly;
+*)
+nPH_Setpoint := 						PHSetpoint;
+
+nPIDPHSetpointBand := 					PHSetpointBand;
+(*
+nPIDPHManSyncVal := 					PHManSyncVal;
+bPIDPHSync := 							PHSync;
+bPIDPHHold := 							PHHold;
+ePIDPHMode := 							PHMode;
+tPIDPHCtrlCycleTime := 					PHCtrlCycleTime;
+tPIDPHTaskCycleTime := 					PHTaskCycleTime;
+*)
+nPIDPHKp := 							PHKp;
+tPIDPHTn := 							PHTn * 1000;
+tPIDPHTv := 							PHTv * 1000;
+tPIDPHTd := 							PHTd * 1000;
+(*
+nPIDPHOutMaxLimit := 					PHOutMaxLimit;
+nPIDPHOutMinLimit := 					PHOutMinLimit;
+bPIDPHPInTheFeedbackPath := 			PHPInTheFeedbackPath;
+bPIDPHDInTheFeedbackPath := 			PHDInTheFeedbackPath;
+bPIDPHARWactive := 						PHARWOnIPartOnly;
+*)
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="updatePIDParams" Id="{a86a5654-f01a-4864-8024-06336c99bfd3}">
+      <Declaration><![CDATA[METHOD updatePIDParams : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[stPIDNutrientParameters.tCtrlCycleTime := tPIDNutrientCtrlCycleTime;
+stPIDNutrientParameters.tTaskCycleTime := tPIDNutrientTaskCycleTime;
+stPIDNutrientParameters.fKp := nPIDNutrientKp;
+stPIDNutrientParameters.tTn := tPIDNutrientTn;
+stPIDNutrientParameters.tTv := tPIDNutrientTv;
+stPIDNutrientParameters.tTd := tPIDNutrientTd;
+stPIDNutrientParameters.fOutMaxLimit := nPIDNutrientOutMaxLimit;
+stPIDNutrientParameters.fOutMinLimit := nPIDNutrientOutMinLimit;
+stPIDNutrientParameters.bPInTheFeedbackPath := bPIDNutrientPInTheFeedbackPath;
+stPIDNutrientParameters.bDInTheFeedbackPath := bPIDNutrientDInTheFeedbackPath;
+stPIDNutrientParameters.bARWOnIPartOnly := bPIDNutrientARWOnIPartOnly;
+
+stPIDPHParameters.tCtrlCycleTime := tPIDPHCtrlCycleTime;
+stPIDPHParameters.tTaskCycleTime := tPIDPHTaskCycleTime;
+stPIDPHParameters.fKp := nPIDPHKp;
+stPIDPHParameters.tTn := tPIDPHTn;
+stPIDPHParameters.tTv := tPIDPHTv;
+stPIDPHParameters.tTd := tPIDPHTd;
+stPIDPHParameters.fOutMaxLimit := nPIDPHOutMaxLimit;
+stPIDPHParameters.fOutMinLimit := nPIDPHOutMinLimit;
+stPIDPHParameters.bPInTheFeedbackPath := bPIDPHPInTheFeedbackPath;
+stPIDPHParameters.bDInTheFeedbackPath := bPIDPHDInTheFeedbackPath;
+stPIDPHParameters.bARWOnIPartOnly := bPIDPHARWOnIPartOnly;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ControlLoop_Dosing">
+      <LineId Id="4151" Count="29" />
+      <LineId Id="4350" Count="2" />
+      <LineId Id="4181" Count="41" />
+      <LineId Id="4346" Count="0" />
+      <LineId Id="4223" Count="6" />
+      <LineId Id="4349" Count="0" />
+      <LineId Id="4230" Count="4" />
+      <LineId Id="4347" Count="0" />
+      <LineId Id="4235" Count="0" />
+      <LineId Id="4348" Count="0" />
+      <LineId Id="4236" Count="23" />
+      <LineId Id="4353" Count="0" />
+      <LineId Id="4370" Count="1" />
+      <LineId Id="4365" Count="0" />
+      <LineId Id="4354" Count="1" />
+      <LineId Id="4357" Count="1" />
+      <LineId Id="4356" Count="0" />
+      <LineId Id="4261" Count="18" />
+      <LineId Id="4338" Count="3" />
+      <LineId Id="4335" Count="1" />
+      <LineId Id="4286" Count="0" />
+      <LineId Id="4342" Count="0" />
+      <LineId Id="4287" Count="5" />
+      <LineId Id="4664" Count="1" />
+      <LineId Id="4293" Count="27" />
+      <LineId Id="4359" Count="0" />
+      <LineId Id="4366" Count="3" />
+      <LineId Id="4360" Count="0" />
+      <LineId Id="4321" Count="0" />
+      <LineId Id="4343" Count="0" />
+      <LineId Id="4322" Count="4" />
+      <LineId Id="4344" Count="1" />
+      <LineId Id="4328" Count="4" />
+      <LineId Id="4516" Count="1" />
+      <LineId Id="4333" Count="1" />
+      <LineId Id="4518" Count="1" />
+      <LineId Id="46" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlLoop_Dosing.calcError">
+      <LineId Id="5" Count="0" />
+      <LineId Id="13" Count="1" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlLoop_Dosing.calcInput">
+      <LineId Id="25" Count="7" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="24" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlLoop_Dosing.FB_init">
+      <LineId Id="17" Count="4" />
+      <LineId Id="60" Count="4" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="83" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlLoop_Dosing.setParams">
+      <LineId Id="250" Count="32" />
+      <LineId Id="304" Count="0" />
+      <LineId Id="283" Count="10" />
+      <LineId Id="305" Count="0" />
+      <LineId Id="294" Count="4" />
+      <LineId Id="306" Count="0" />
+      <LineId Id="299" Count="0" />
+      <LineId Id="88" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlLoop_Dosing.updatePIDParams">
+      <LineId Id="6" Count="21" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

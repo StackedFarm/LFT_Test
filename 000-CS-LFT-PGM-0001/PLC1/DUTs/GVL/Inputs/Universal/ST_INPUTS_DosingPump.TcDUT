@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_DosingPump" Id="{8a962656-30c9-49fe-9057-31ca2d5e8c51}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_DosingPump :
+STRUCT
+	
+	Mode:     E_DeviceMode;
+	Command:     E_DeviceState;
+	DoseQty_mls:     UINT;
+	DoseRate_mlph:     UINT;
+	ModbusSlaveID:     UINT;
+	ResetPumpStatistics:     BOOL;
+	Dose_OneShot: 		BOOL;
+	
+	InitialDose: BOOL; // this is a placeholder for when we bring in the new dosing pump fb for initial dose
+	
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

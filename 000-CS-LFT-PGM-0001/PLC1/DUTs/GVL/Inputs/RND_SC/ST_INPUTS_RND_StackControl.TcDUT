@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_RND_StackControl" Id="{1059f5b0-d6e1-4302-8ad9-a69477f8f054}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_RND_StackControl :
+STRUCT
+	
+
+	HumidityControl: 					ST_INPUTS_ControlLoop_BangBang;
+	CO2Control: 						ST_INPUTS_ControlLoop_BangBang;
+	TemperatureControl:					ST_INPUTS_ControlLoop_BangBangAnalog;
+	
+	FanControl_Exhaust:					ST_INPUTS_ControlLoop_BangBang;
+	FanControl_Circulation:				ST_INPUTS_ControlLoop_BangBang;
+	
+	LevelWaterControls:	ARRAY[0..1] OF  ST_INPUTS_RND_LevelWaterControl;
+	
+	bParamsInitialised: BOOL := FALSE;
+	
+	bWaterQualityGood: BOOL := FALSE; // The dosing machine writes to this to inhibit irrigator action in the Stack Controller
+	
+	//bIrrigatorValve_NC_1_NO_0: BOOL := FALSE;
+	
+	// bIrrigValve_NC_1_NO_0: BOOL := FALSE;
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

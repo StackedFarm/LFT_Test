@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_TrayExchangeHandshake" Id="{27564005-177e-44e6-b871-83cafb1236a1}">
+    <Declaration><![CDATA[TYPE ST_TrayExchangeHandshake :
+STRUCT
+	eState: E_TrayExchangeState;
+	
+	bDoneReceiver: 	BOOL := FALSE;
+	bDoneSender: 	BOOL := FALSE;
+	stTrayIncoming: ST_Tray;
+	stTrayOutgoing: ST_Tray;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

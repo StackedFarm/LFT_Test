@@ -1,0 +1,753 @@
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <FileVersion>1.0.0.0</FileVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{16f4062f-400d-4606-8e91-53c3f25817f5}</ProjectGuid>
+    <SubObjectsSortedByName>True</SubObjectsSortedByName>
+    <DownloadApplicationInfo>true</DownloadApplicationInfo>
+    <WriteProductVersion>true</WriteProductVersion>
+    <GenerateTpy>false</GenerateTpy>
+    <Name>PLC1</Name>
+    <ProgramVersion>3.1.4024.0</ProgramVersion>
+    <Application>{c37c621d-e889-4eee-b247-e47f412c79e4}</Application>
+    <TypeSystem>{812c3410-1358-4300-813d-7cc1bdfa5c76}</TypeSystem>
+    <Implicit_Task_Info>{b46a7ae9-416b-4d8e-be44-e57e6d9098db}</Implicit_Task_Info>
+    <Implicit_KindOfTask>{e023704d-7aee-4fcd-b31e-17ce62ae580c}</Implicit_KindOfTask>
+    <Implicit_Jitter_Distribution>{6415fe30-a483-4fa5-810e-fad81565bfb6}</Implicit_Jitter_Distribution>
+    <LibraryReferences>{56593094-0ce3-47b4-b15c-8c130b5b5247}</LibraryReferences>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="DUTs\Dosing Pumps\E_AccessType.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Dosing Pumps\E_DosingPump.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Dosing Pumps\E_ModbusDataType.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Dosing Pumps\ST_EmcoPumpModbusData.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Dosing Pumps\ST_ModbusRegister.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\E_ConveyorMoveType.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\E_DeviceState.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\E_LinActuatorMoveType.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\E_MoveState.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\E_TrayExchangeState.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Dosing Machine\Children\ST_INPUTS_DosingMachine_Sump.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Dosing Machine\Children\ST_INPUTS_DosingMachine_Water.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Dosing Machine\ST_INPUTS_DosingMachine.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\RND_DM\Children\ST_INPUTS_RND_DosingMachine_Sump.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\RND_DM\Children\ST_INPUTS_RND_DosingMachine_Water.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\RND_DM\ST_INPUTS_RND_DosingMachine.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\RND_SC\ST_INPUTS_RND_LevelWaterControl.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\RND_SC\ST_INPUTS_RND_StackControl.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\RND_WTR\ST_INPUTS_WaterTreatment_RND.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Universal\ST_INPUTS_BagFilters.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Universal\ST_INPUTS_Calibration.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Universal\ST_INPUTS_ControlLoop_BangBang.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Universal\ST_INPUTS_ControlLoop_BangBangAnalog.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Universal\ST_INPUTS_DosingPump.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Universal\ST_INPUTS_Dosing_ControlLoop.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Universal\ST_INPUTS_DrumFilter.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Universal\ST_INPUTS_PumpDOL.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Universal\ST_INPUTS_PumpVSD.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Universal\ST_INPUTS_RND_HVAC_Indoor_Unit.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Universal\ST_INPUTS_SequenceManager_DM.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Universal\ST_INPUTS_SequenceManager_RND_DM.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Universal\ST_INPUTS_Strainer.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Universal\ST_INPUTS_Unit_OxyInjector.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Universal\ST_INPUTS_Unit_OzoneGenerator.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Universal\ST_INPUTS_Unit_RO_EDI.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Universal\ST_INPUTS_Unit_UltraSonCleaner.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Universal\ST_INPUTS_Unit_UVFilter.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Universal\ST_INPUTS_ValveOnOFF.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Water Treatment\ST_INPUTS_WaterTreatment.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\GVL\Inputs\Water Treatment\ST_INPUTS_WaterTreatment_Water.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Machines\E_MachineState.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Machines\ST_DMComponents.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Machines\ST_POPComponents.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Machines\ST_RNDDMComponents.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Machines\ST_RNDWTRComponents.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Machines\ST_WTRComponents.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_INPUTS_LinAct.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_INPUTS_POP.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_INPUTS_SequenceManager_POP.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_INPUTS_StaticConv.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_INPUTS_TrayCentre.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\E_AlarmPriority.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\E_DeviceMode.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\E_InterlockType.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\E_Job_Status.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\E_POP_Type.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\E_SensorType.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\E_SequenceList_DM.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\E_SequenceList_POP.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\E_SequenceList_RND_DM.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\E_SequenceList_WTR.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\E_SequenceState.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\ST_Alarm.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\ST_Crop.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\ST_CropJob.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\ST_HandShake_TrayMovement.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\ST_HVAC.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\ST_Interlock.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\ST_Modbus_ReadRequest.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\ST_Modbus_WriteRequest.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\ST_OEE.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\ST_PlantConfig.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\ST_SequenceStep.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\ST_Tray.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\ST_TrayExchangeHandshake.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\ST_Tray_1.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\Universal\ST_Tray_2.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="GVLs\GVL.TcGVL">
+      <SubType>Code</SubType>
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="GVLs\Inputs.TcGVL">
+      <SubType>Code</SubType>
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="GVLs\IO_MAPPING.TcGVL">
+      <SubType>Code</SubType>
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="MAIN.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="PlcTask.TcTTO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\00 Interfaces\FB_BaseDevice.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\00 Interfaces\FB_BaseMachine.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\00 Interfaces\FB_BaseMachine_1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\00 Interfaces\FB_BaseSensor.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\00 Interfaces\FB_HandShake_TrayMovement.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\00 Interfaces\I_Device.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\00 Interfaces\I_Machine.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\00 Interfaces\I_PumpDosing.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\00 Interfaces\I_PumpVSD.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\00 Interfaces\I_Sensor.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\00 Interfaces\I_Sequence.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\00 Interfaces\I_ValveActuated.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_AutoClean_Filter_Bollfilter.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_DosingPumpAgrowtek_R2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_DosingPumpAgrowtek_R2_1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_DosingPumpAgrowtek_R2_Batch.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_DosingPumpPRISMA.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_DrumFilter_Faivre120.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_DrumFilter_Faivre60.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_GasMonitoringPanel_CDA4022.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_GasMonitoringPanel_CDA4022_R2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_HVAC_RND_Indoor_Unit.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_HVAC_RND_ModbusApadtor.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_LevelWaterControl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_OxygenInjector.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_OxygenInjector_1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_OzoneGenerator.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_PumpDOL_Onga413.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_PumpDOL_Onga413_RND.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_PumpVSD_DanfossFC202.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_PumpVSD_GrundfosCUE.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_UltraSonicCleaner.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_Unit_RO_PW30_1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_Unit_RO_RND.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_UVFilter_Pentair_EU40.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\Dosing Machine\FB_UVFilter_UltraAqua_MR4_220PP.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\FB_Valve_ONOFF_woMonitoring.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\FB_Valve_ONOFF_woMonitoring_1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\01 Actuators\supersceded\FB_DosingPumpAgrowtek.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\02 Sensors\Dosing Machine\FB_Sensor_AtlasDO.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\02 Sensors\Dosing Machine\FB_Sensor_AtlasEC.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\02 Sensors\Dosing Machine\FB_Sensor_AtlasORP.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\02 Sensors\Dosing Machine\FB_Sensor_AtlasPH.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\02 Sensors\Dosing Machine\FB_Sensor_AtlasTEMP.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\02 Sensors\Dosing Machine\FB_Sensor_GrowMedium_EC.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\02 Sensors\Dosing Machine\FB_Sensor_GrowMedium_MOISTURE.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\02 Sensors\Dosing Machine\FB_Sensor_GrowMedium_PH.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\02 Sensors\Dosing Machine\FB_Sensor_IFM_PG2453.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\02 Sensors\Dosing Machine\FB_Sensor_OceanControlsPressureTx_BVS006NA.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\02 Sensors\Dosing Machine\FB_Sensor_SICKLevelSwitch_GRF18S.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\02 Sensors\FB_DualRedundantSensor.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\02 Sensors\FB_Sensor_4_20mA_Generic.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\02 Sensors\FB_Sensor_VaisalaGMW90.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\02 Sensors\FB_Sensor_VaisalaGMW90_R2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\02 Sensors\FB_Sensor_VaisalaGMW90_R2_1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\03 Physical Entities\FB_BagFilter.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\03 Physical Entities\FB_Tank.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\04 Control Loops\Dosing Machine\FB_BangBangControl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\04 Control Loops\Dosing Machine\FB_BangBangControl_Analog.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\04 Control Loops\Dosing Machine\FB_BatchController_Dosing.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\04 Control Loops\Dosing Machine\FB_ControlLoop_DissOx.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\04 Control Loops\Dosing Machine\FB_ControlLoop_Dosing.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\04 Control Loops\Dosing Machine\FB_ControlLoop_HVAC.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\04 Control Loops\Dosing Machine\FB_ControlLoop_HVAC_1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\04 Control Loops\Dosing Machine\FB_ControlLoop_MainPumpPressure.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\04 Control Loops\Dosing Machine\FB_ControlLoop_pH.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\04 Control Loops\Dosing Machine\FB_ControlLoop_PID.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\04 Control Loops\Dosing Machine\FB_ControlLoop_PID_HVAC.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\04 Control Loops\Dosing Machine\FB_ControlLoop_TankLevel.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\04 Control Loops\_ss\FB_ControlLoop_Dosing_1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\Dosing Machine\FB_SequenceDM_Calibrate.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\Dosing Machine\FB_SequenceDM_Drain.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\Dosing Machine\FB_SequenceDM_Fill.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\Dosing Machine\FB_SequenceDM_Main.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\FB_SequenceBase.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\FB_SequenceManager.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\FB_SequenceManager_1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\FB_SequenceManager_ss.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\POP\FB_SequenceCONVEY_EXTEND.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\POP\FB_SequenceCONVEY_RETRACT.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\POP\FB_SequenceEXTEND_CONVEY.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\POP\FB_SequenceGET_READY_EXTEND.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\POP\FB_SequenceGET_READY_RETRACT.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\POP\FB_SequenceRETRACT_CONVEY.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\RnD Machines\FB_SequenceRNDWTR_Main.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\RnD Machines\FB_SequenceRND_Calibrate.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\RnD Machines\FB_SequenceRND_Drain.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\RnD Machines\FB_SequenceRND_Fill.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\RnD Machines\FB_SequenceRND_FirstDose.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\RnD Machines\FB_SequenceRND_Flush.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\RnD Machines\FB_SequenceRND_Main.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\Water Treatment\FB_SequenceWTR_Calibrate.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\05 Sequences\Water Treatment\FB_SequenceWTR_Main.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\06 Machines\FB_Machine_POP.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\06 Machines\Others\FB_Machine_DosingMachine.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\06 Machines\Others\FB_Machine_RND_DosingMachine_R2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\06 Machines\Others\FB_Machine_RND_DosingMachine_R2_1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\06 Machines\Others\FB_Machine_WaterTreatment.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\06 Machines\Others\FB_Machine_WaterTreatment_RND.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\06 Machines\Others\FB_Stack_Controller.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\06 Machines\Others\FB_Stack_Controller_RND.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\06 Machines\_ss\FB_Machine_DosingMachine_TEST2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\06 Machines\_ss\FB_Machine_RND_DosingMachine.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\07 Systems\RND\FB_System_RND_GasMonitoring.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\07 Systems\RND\FB_System_RND_GasMonitoring_R2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\07 Systems\RND\FB_System_RND_HVAC.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\97 Signal Conditioning\FB_SigCond_MovingAverage.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\99 Utilities\FB_HealthMonitoring.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\99 Utilities\FB_InterlockManager.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\99 Utilities\FB_ModbusManager.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\99 Utilities\FB_ModbusMaster_R2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\99 Utilities\FB_RS485_CardRead.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\99 Utilities\FB_RS485_CardWrite.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\99 Utilities\FB_SensorVirtual_Vaisala.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\99 Utilities\FB_TimeStampProvider.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\99 Utilities\_ss\FB_ModbusManager_1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\99 Utilities\_ss\FB_ModbusMaster.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\99 Utilities\_ss\FB_ModbusMaster_R2_1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\LFT\E_AxisNumberCoE.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\LFT\E_CoEService.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\LFT\E_ConfigurationStateCoE.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\LFT\E_MovidriveB_OpMode.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\LFT\FB_ParameterCoE_ReadWrite_GenC.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\LFT\FB_SEW_MovidriveB.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\POP\FB_ActuatorLinear.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\POP\FB_AutoSwitch.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\POP\FB_BaseMotor.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\POP\FB_LinearActuator_Elec.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\POP\FB_LinearActuator_Pneumatic.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\POP\FB_Sensor_OMRON_E3AS.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\POP\FB_StaticConveyor.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="DUTs" />
+    <Folder Include="DUTs\Dosing Pumps" />
+    <Folder Include="DUTs\GVL" />
+    <Folder Include="DUTs\GVL\Inputs" />
+    <Folder Include="DUTs\GVL\Inputs\Dosing Machine" />
+    <Folder Include="DUTs\GVL\Inputs\Dosing Machine\Children" />
+    <Folder Include="DUTs\GVL\Inputs\RND_DM" />
+    <Folder Include="DUTs\GVL\Inputs\RND_DM\Children" />
+    <Folder Include="DUTs\GVL\Inputs\RND_SC" />
+    <Folder Include="DUTs\GVL\Inputs\RND_WTR" />
+    <Folder Include="DUTs\GVL\Inputs\Universal" />
+    <Folder Include="DUTs\GVL\Inputs\Water Treatment" />
+    <Folder Include="DUTs\GVL\Inputs\Water Treatment\Children" />
+    <Folder Include="DUTs\Machines" />
+    <Folder Include="DUTs\Universal" />
+    <Folder Include="GVLs" />
+    <Folder Include="POUs" />
+    <Folder Include="POUs\00 Interfaces" />
+    <Folder Include="POUs\01 Actuators" />
+    <Folder Include="POUs\01 Actuators\Dosing Machine" />
+    <Folder Include="POUs\01 Actuators\supersceded" />
+    <Folder Include="POUs\02 Sensors" />
+    <Folder Include="POUs\02 Sensors\Dosing Machine" />
+    <Folder Include="POUs\03 Physical Entities" />
+    <Folder Include="POUs\04 Control Loops" />
+    <Folder Include="POUs\04 Control Loops\Dosing Machine" />
+    <Folder Include="POUs\04 Control Loops\POP" />
+    <Folder Include="POUs\04 Control Loops\_ss" />
+    <Folder Include="POUs\05 Sequences" />
+    <Folder Include="POUs\05 Sequences\Dosing Machine" />
+    <Folder Include="POUs\05 Sequences\POP" />
+    <Folder Include="POUs\05 Sequences\RnD Machines" />
+    <Folder Include="POUs\05 Sequences\Water Treatment" />
+    <Folder Include="POUs\06 Machines" />
+    <Folder Include="POUs\06 Machines\Others" />
+    <Folder Include="POUs\06 Machines\_ss" />
+    <Folder Include="POUs\07 Systems" />
+    <Folder Include="POUs\07 Systems\RND" />
+    <Folder Include="POUs\97 Signal Conditioning" />
+    <Folder Include="POUs\99 Utilities" />
+    <Folder Include="POUs\99 Utilities\_ss" />
+    <Folder Include="POUs\LFT" />
+    <Folder Include="POUs\POP" />
+    <Folder Include="VISUs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PlaceholderReference Include="Tc2_EtherCAT">
+      <DefaultResolution>Tc2_EtherCAT, * (Beckhoff Automation GmbH)</DefaultResolution>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_MC2">
+      <DefaultResolution>Tc2_MC2, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_MC2</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_Standard">
+      <DefaultResolution>Tc2_Standard, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_Standard</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_System">
+      <DefaultResolution>Tc2_System, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_System</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc3_Module">
+      <DefaultResolution>Tc3_Module, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc3_Module</Namespace>
+    </PlaceholderReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="PLC1.tmc">
+      <SubType>Content</SubType>
+    </None>
+  </ItemGroup>
+  <ProjectExtensions>
+    <PlcProjectOptions>
+      <XmlArchive>
+  <Data>
+    <o xml:space="preserve" t="OptionKey">
+      <v n="Name">"&lt;ProjectRoot&gt;"</v>
+      <d n="SubKeys" t="Hashtable" />
+      <d n="Values" t="Hashtable" />
+    </o>
+  </Data>
+  <TypeList>
+    <Type n="Hashtable">System.Collections.Hashtable</Type>
+    <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
+    <Type n="String">System.String</Type>
+  </TypeList>
+</XmlArchive>
+    </PlcProjectOptions>
+  </ProjectExtensions>
+</Project>

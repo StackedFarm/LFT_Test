@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_ControlLoop_BangBangAnalog" Id="{2d128114-d276-4ea7-b836-0f4060391d69}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_ControlLoop_BangBangAnalog :
+STRUCT
+
+	rAlarmHigh : REAL;
+	rAlarmLow : REAL;
+	rLimitHigh : REAL; // the upper limit of the desirable range (when the downward adjustment is activated)
+	rLimitLow : REAL; // lower limit of the desirable range (when the upward adjustment is activated)
+	nAdjustDelay : INT; // min time in seconds between adjustments
+	nAdjustDownIncrement : REAL; // amount to adjust control value if the actual value is above setpoint 
+	nAdjustUpIncrement : REAL; // amount to adjust control value if the actual value is below setpoint
+	bEnabled : BOOL; 
+	Mode:   E_CTRL_MODE;	
+	
+	rDegPerHr: REAL;
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

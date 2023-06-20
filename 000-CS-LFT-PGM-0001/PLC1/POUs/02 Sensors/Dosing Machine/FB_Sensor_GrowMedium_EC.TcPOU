@@ -1,0 +1,201 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Sensor_GrowMedium_EC" Id="{6d977c64-a1ae-4886-9cdc-a9064bbc6a2b}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_Sensor_GrowMedium_EC EXTENDS FB_BaseSensor IMPLEMENTS I_Device, I_Sensor
+
+VAR
+	
+	bCAL: BOOL := FALSE;
+	
+	eSMState: (WAIT, CAL_LOW, CAL_HIGH, CALC_CORRECTION) := WAIT;
+
+END_VAR
+	
+VAR PERSISTENT ;
+	nECLOW_val: REAL;
+	nECHIGH_val: REAL;
+	
+	nCurveGradient: REAL := 0.625; // 
+	nCurveOffset: REAL := -2.5; // Defaults
+END_VAR
+	
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[calculate();
+filter();
+
+// Detect if any buttons in ignition have been pressed for Calibration
+IF bCAL THEN 
+	bCAL := FALSE;
+	CASE eSMState OF
+		WAIT:
+			eSMState := CAL_LOW;
+		CAL_LOW:
+			eSMState := CAL_HIGH;
+		CAL_HIGH:
+			eSMState := CALC_CORRECTION;
+	END_CASE
+END_IF
+
+
+CASE eSMState OF 
+	WAIT:
+		// wait here for a calibration command to be received
+		eState := E_DeviceState.RUNNING;
+
+
+	CAL_LOW:
+		nECLOW_val := nMeasuredCurrent;
+		eState := E_DeviceState.CAL_STEP1;
+
+	CAL_HIGH:
+		nECHIGH_val := nMeasuredCurrent;
+		eState := E_DeviceState.CAL_STEP2;
+	
+	CALC_CORRECTION:
+		nCurveGradient := ((1413.0-84.0)/1000.0) / (nECHIGH_val - nECLOW_val);
+		nCurveOffset := (84.0/1000.0) - (nCurveGradient * nECLOW_val);
+		eSMState := WAIT;
+		eState := E_DeviceState.CAL_STEP3;
+		
+		
+END_CASE
+]]></ST>
+    </Implementation>
+    <Method Name="calculate" Id="{831cb252-8f34-4832-9284-fd14917d1241}">
+      <Declaration><![CDATA[METHOD PRIVATE calculate : BOOL
+VAR_INPUT
+	
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nMeasuredCurrent := (INT_TO_REAL(nRawInput)/GVL.nMaxADCOutput)*16.0 + 4.0; // in mA
+
+// nCurrentValue := (nCurveGradient * nMeasuredCurrent) + nCurveOffset;
+
+nCurrentValue := (nCurveGradient * nFilteredCurrent) + nCurveOffset; // delete this eventually 
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="calibrate" Id="{da174f71-6a65-4e3f-a82a-f9c01cd8c680}">
+      <Declaration><![CDATA[METHOD calibrate : BOOL
+VAR_INPUT
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bCAL := TRUE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="disable" Id="{e19b1335-0c0d-44b7-82c4-9f39250b3a0f}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{9d885b96-fa1d-4ee5-88b6-e2fa10e951d1}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bEnable := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{ce2b81a2-af48-4dcd-887a-bd3d45f44de9}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD FB_init : BOOL
+VAR_INPUT
+	(* if TRUE, the retain variables are initialized (warm start / cold start)*)
+	bInitRetains	: BOOL;
+	(* if TRUE, the instance afterwards gets moved into the copy code (online change)*)
+	bInCopyCode	: BOOL;
+	
+	SensorID	: STRING(80);
+	SensorDescr	: STRING(255);
+	SensorType	: E_SensorType;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := SensorID;
+sDescr := SensorDescr;
+eSensorType := SensorType;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getType" Id="{7c514f1e-01ea-42e9-8a22-dbeea87bb549}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getType : E_SensorType
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getType := eSensorType;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getValue" Id="{eae2c1bb-0fb4-4e04-bffd-69a30bc80951}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getValue : REAL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getValue := nCurrentValue;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="write" Id="{117a4a12-0f5f-4db0-b368-397afe6bbd7f}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD write : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// use this method to initiated a hardware read from assigned IO if required
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Sensor_GrowMedium_EC">
+      <LineId Id="474" Count="0" />
+      <LineId Id="542" Count="0" />
+      <LineId Id="476" Count="17" />
+      <LineId Id="538" Count="0" />
+      <LineId Id="494" Count="3" />
+      <LineId Id="539" Count="0" />
+      <LineId Id="499" Count="2" />
+      <LineId Id="540" Count="0" />
+      <LineId Id="502" Count="4" />
+      <LineId Id="541" Count="0" />
+      <LineId Id="507" Count="2" />
+      <LineId Id="56" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_GrowMedium_EC.calculate">
+      <LineId Id="47" Count="0" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="41" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_GrowMedium_EC.calibrate">
+      <LineId Id="8" Count="0" />
+      <LineId Id="14" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_GrowMedium_EC.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_GrowMedium_EC.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_GrowMedium_EC.FB_init">
+      <LineId Id="13" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_GrowMedium_EC.getType">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_GrowMedium_EC.getValue">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Sensor_GrowMedium_EC.write">
+      <LineId Id="4" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

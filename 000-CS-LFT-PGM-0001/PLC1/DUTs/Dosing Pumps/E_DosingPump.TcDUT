@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_DosingPump" Id="{fc82b36b-0436-4aa5-af5a-b6a2ee9c561f}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_DosingPump :
+(
+	PH_UP := 0,
+	PH_DOWN := 1,
+	NUTRIENT_A := 2,
+	NUTRIENT_B := 3,
+	NUTRIENT_C := 4
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

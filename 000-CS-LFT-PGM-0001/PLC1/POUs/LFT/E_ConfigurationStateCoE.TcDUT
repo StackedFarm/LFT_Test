@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_ConfigurationStateCoE" Id="{11a6da10-abbf-4e74-95af-93c5b42b3899}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_ConfigurationStateCoE :
+(
+	ConfigurationComplete := 0,
+	Missing_amsEtherCATMaster_NetID := 1,
+	Missing_nEtherCATSlave_Address := 2,
+	WrongByteSize				:= 3
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

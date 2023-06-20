@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_TimeStampProvider" Id="{b326270b-f822-43ed-b606-fccee73dfad9}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TimeStampProvider
+
+VAR
+	fbLocalSystemTime: FB_LocalSystemTime;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbLocalSystemTime();]]></ST>
+    </Implementation>
+    <Method Name="FB_init" Id="{4b772e49-46e9-4419-93bb-8252a31f1972}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbLocalSystemTime.bEnable := TRUE;		// A rising edge at this input triggers immediate synchronization of the internal time with the local Windows system time
+fbLocalSystemTime.sNetID := '';  		// A string containing the network address of the TwinCAT computer whose time is to be used for the synchronization can be given here (type: T_AmsNetID). If it is to be run on the local computer, an empty string can be entered.
+fbLocalSystemTime.dwCycle := 5; 				// Cycle time (in seconds) during which the function block resynchronizes its own time. Cyclic synchronization is activated after the first rising edge at the bEnable input. Default: Synchronization every 5 seconds.
+fbLocalSystemTime.dwOpt := 1;							// Additional option parameters. The following parameters are currently available: Bit 0: If this is set, the Windows system time is additionally synchronized cyclically with the hardware clock (RTC) (corresponds to the function NT_SetTimeToRTCTime). Default: Activated.
+fbLocalSystemTime.tTimeout := DEFAULT_ADS_TIMEOUT;		// This option is irrelevant for a Windows CE system.]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getTime" Id="{d9974156-91f4-4f26-936a-d5246068e196}">
+      <Declaration><![CDATA[METHOD getTime : TIMESTRUCT
+
+VAR_OUTPUT
+	SystemTime : TIMESTRUCT;
+END_VAR
+
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getTime := fbLocalSystemTime.systemTime;
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_TimeStampProvider">
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_TimeStampProvider.FB_init">
+      <LineId Id="7" Count="4" />
+    </LineIds>
+    <LineIds Name="FB_TimeStampProvider.getTime">
+      <LineId Id="5" Count="0" />
+      <LineId Id="14" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

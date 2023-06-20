@@ -1,0 +1,352 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ModbusMaster_R2_1" Id="{274acf8d-fede-4557-ac20-5498778c8735}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ModbusMaster_R2_1
+
+VAR
+	MB: ModbusRtuMaster_KL6x22B;
+	
+	nReadRegsVals: POINTER TO ARRAY[1..10] OF WORD;
+	nWriteRegVals: ARRAY[1..10] OF WORD;
+	
+	
+	bRequestFinshed : POINTER TO BOOL;
+		
+	nSlaveAddress : BYTE;
+	nQtyWordsToRead : WORD;
+	nQtyWordsToWrite : WORD;
+	nAdrFirstSlaveRegisterRead : WORD;
+	nAdrFirstSlaveRegisterWrite : WORD;
+	nTimeout : TIME := T#5S;
+	
+	
+	// State Machine
+	eState: (IDLE, BUSY, ERROR) := IDLE;
+	eSMState: (WAIT, READ_TRIG, READ, WRITE_TRIG, WRITE, ERROR) := WAIT;
+	eSMState_prev:  (WAIT, READ_TRIG, READ, WRITE_TRIG, WRITE, ERROR) := WAIT;
+	bBusy: BOOL;
+	
+	//eOperationType: (READ_OP, WRITE_OP, READWRITE_OP);
+	eOperationType: E_AccessType;
+	fbTrigger : R_TRIG;
+	
+	bOperationFirstRun: BOOL := TRUE;
+	nNumRetries: INT := 0; 
+	nRetryThreshold: INT := 10;
+
+END_VAR
+
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbTrigger();
+
+CASE eSMState OF
+	WAIT :
+		eState := IDLE;
+		MB.ReadRegs(Execute := FALSE);
+        MB.WriteRegs(Execute := FALSE);
+		bBusy := FALSE;
+		
+		IF fbTrigger.Q THEN
+			IF eOperationType = E_AccessType.WRITE THEN
+				eSMState := WRITE_TRIG;
+			ELSIF eOperationType = E_AccessType.READ THEN
+				eSMState := READ_TRIG;
+			END_IF
+		END_IF
+		
+		
+		
+	READ_TRIG : 
+		eState := BUSY;
+		IF bOperationFirstRun THEN
+			nNumRetries := 0;
+			bOperationFirstRun := FALSE;
+		END_IF
+	
+		IF eOperationType = E_AccessType.READ THEN
+			
+			 MB.ReadRegs(
+				UnitID:= nSlaveAddress, 
+				Quantity:= nQtyWordsToRead, 
+				MBAddr:= nAdrFirstSlaveRegisterRead, 
+				cbLength:= nQtyWordsToRead * 2,//SIZEOF(nReadRegsVals), 
+				pMemoryAddr:= ADR(nReadRegsVals), 
+				Execute:= TRUE, 
+				Timeout:= nTimeout );
+			
+			
+			IF NOT MB.BUSY THEN 
+				MB.ReadRegs(Execute := FALSE );
+				bBusy := TRUE;
+				IF MB.Error THEN 
+					eSMState_prev := eSMState;
+					eSMState := ERROR;           // handle errors 
+				ELSE 
+					eSMState := READ; // [...]               // keep going 
+				END_IF
+			END_IF
+		END_IF
+		
+		IF nNumRetries > nRetryThreshold THEN
+			eSMState := WAIT;
+		END_IF
+		
+		
+	READ :
+	
+		IF NOT MB.BUSY THEN
+			eSMState := WAIT;
+			bRequestFinshed^ := TRUE;
+			bBusy := FALSE;
+			fbTrigger.CLK := FALSE;
+			bOperationFirstRun := TRUE;
+		ELSIF MB.Error THEN
+			eSMState_prev := eSMState;
+			eSMState := ERROR;
+		END_IF
+	
+	
+	
+	WRITE_TRIG :
+
+		IF bOperationFirstRun THEN
+			nNumRetries := 0;
+			bOperationFirstRun := FALSE;
+		END_IF
+	(*
+		MB.WriteRegs(
+			UnitID:= nSlaveAddress, 
+			Quantity:= nQtyWordsToWrite, 
+			MBAddr:= nAdrFirstSlaveRegisterWrite, 
+			cbLength:= nQtyWordsToWrite * 2, 
+			pMemoryAddr:= ADR(nWriteRegVals), 
+			Execute:= TRUE, 
+			Timeout:= nTimeout); 
+		*)	
+		
+		MB.UnitID:= nSlaveAddress;
+		MB.Quantity:=1;
+		MB.MBAddr:= nAdrFirstSlaveRegisterWrite;
+		MB.cbLength:= nQtyWordsToWrite * 2;
+		MB.pMemoryAddr:= ADR(nWriteRegVals);
+		MB.Execute:= TRUE;
+		MB.Timeout:= nTimeout;
+		MB.WriteSingleRegister();
+		
+			
+		IF NOT MB.BUSY THEN 
+			//MB.WriteRegs(Execute := FALSE );
+			MB.Execute := FALSE;
+			bBusy := TRUE;
+			IF MB.Error THEN 
+				eSMState_prev := eSMState;
+				eSMState := ERROR;           				// handle errors 
+			ELSE 
+				eSMState := WRITE;			            // keep going 
+			END_IF
+		END_IF
+
+	
+		
+	WRITE:
+		IF NOT MB.BUSY THEN
+			eSMState := WAIT;
+			bRequestFinshed^ := TRUE;
+			bBusy := FALSE;
+			fbTrigger.CLK := FALSE;
+			bOperationFirstRun := TRUE;
+		ELSIF MB.Error THEN
+			eSMState_prev := eSMState;
+			eSMState := ERROR;
+		END_IF
+	
+		
+	ERROR:
+		nNumRetries := nNumRetries + 1;
+		IF nNumRetries > nRetryThreshold THEN
+			eState := ERROR;
+			eSMState := WAIT;
+		ELSE
+			eSMState := eSMState_prev;
+		END_IF
+		 
+			
+		
+
+END_CASE]]></ST>
+    </Implementation>
+    <Method Name="Error" Id="{1eadb79f-78d7-4034-89db-9615b407a66d}">
+      <Declaration><![CDATA[METHOD Error : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Error := MB.Error; ]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{835a9e94-279f-4028-8c99-938604685cb5}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isBusy" Id="{b4b8d3d3-f2a2-44ac-9007-5c1f2e8fa0fe}">
+      <Declaration><![CDATA[METHOD isBusy : BOOL
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isBusy := bBusy;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="readRegs" Id="{478c9744-91e8-489a-8f7a-0fd801627066}">
+      <Declaration><![CDATA[METHOD readRegs : BOOL
+VAR_INPUT
+	ReadRequest: POINTER TO ST_Modbus_ReadRequest;
+END_VAR
+
+VAR_OUTPUT
+	bRequestAccepted: BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eSMState = WAIT THEN
+	eOperationType := E_AccessType.READ;
+	nReadRegsVals := ADR(ReadRequest^.ReadRegsVals);
+	nSlaveAddress := UINT_TO_BYTE(ReadRequest^.SlaveAddress);
+	nQtyWordsToRead := UINT_TO_WORD(ReadRequest^.QtyWordsToRead);
+	nAdrFirstSlaveRegisterRead := UINT_TO_WORD(ReadRequest^.AdrFirstSlaveRegisterRead);
+	fbTrigger.CLK := TRUE;
+	bRequestAccepted := TRUE;
+	bBusy := TRUE;
+	bRequestFinshed := ADR(ReadRequest^.bRequestCompleted);
+	eSMState := READ_TRIG;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="writeReg" Id="{1cc83caf-ebf8-4d9f-9af8-ef6bd3d45ab3}">
+      <Declaration><![CDATA[METHOD writeReg : BOOL
+VAR_INPUT
+	WriteRegVal: WORD;
+	SlaveAddress : UINT;
+	AdrFirstSlaveRegisterWrite : UINT;
+	bRequestCompleted : POINTER TO BOOL;
+	
+	WriteRequest: ST_Modbus_WriteRequest;
+END_VAR
+
+VAR_OUTPUT
+	bRequestAccepted: BOOL := FALSE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(* IF eState = WAIT THEN
+	eOperationType := E_AccessType.WRITE;
+	//nWriteRegVals[0] := WriteRegVal;
+	nWriteRegVals[1] := WriteRegVal;
+	nWriteRegVals[1] := WriteRequest.
+	nSlaveAddress := UINT_TO_BYTE(SlaveAddress);
+	nQtyWordsToWrite := 1;
+	nAdrFirstSlaveRegisterWrite := UINT_TO_BYTE(AdrFirstSlaveRegisterWrite);
+	bRequestAccepted := TRUE;
+	bRequestFinshed := bRequestCompleted;
+	fbTrigger.CLK := TRUE;
+	eState := WRITE_TRIG;
+	
+END_IF
+*) 
+
+// This needs to be re written to suit ST requests]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="writeRegs" Id="{8ae8dd75-3efb-4a6c-9781-c57d967ac6c8}">
+      <Declaration><![CDATA[METHOD writeRegs : BOOL
+VAR_INPUT
+
+	
+	WriteRequest: POINTER TO ST_Modbus_WriteRequest;
+
+END_VAR
+
+VAR_OUTPUT
+	bRequestAccepted: BOOL := FALSE;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eSMState = WAIT THEN
+	eOperationType := E_AccessType.WRITE;
+	nWriteRegVals := WriteRequest^.WriteRegVals;
+	nSlaveAddress := UINT_TO_BYTE(WriteRequest^.SlaveAddress);
+	nQtyWordsToWrite := UINT_TO_WORD(WriteRequest^.QtyWordsToWrite);
+	nAdrFirstSlaveRegisterWrite := UINT_TO_WORD(WriteRequest^.AdrFirstSlaveRegisterWrite);
+	bRequestFinshed := ADR(WriteRequest^.bRequestCompleted);	
+	fbTrigger.CLK := TRUE;
+	bRequestAccepted := TRUE;
+	
+	eSMState := WRITE_TRIG;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ModbusMaster_R2_1">
+      <LineId Id="1036" Count="127" />
+      <LineId Id="1171" Count="0" />
+      <LineId Id="1164" Count="6" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModbusMaster_R2_1.Error">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModbusMaster_R2_1.FB_init">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModbusMaster_R2_1.isBusy">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModbusMaster_R2_1.readRegs">
+      <LineId Id="26" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="29" Count="3" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="33" Count="1" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="22" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModbusMaster_R2_1.writeReg">
+      <LineId Id="21" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="23" Count="2" />
+      <LineId Id="57" Count="1" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="82" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="123" Count="0" />
+      <LineId Id="122" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModbusMaster_R2_1.writeRegs">
+      <LineId Id="22" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="74" Count="2" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="24" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

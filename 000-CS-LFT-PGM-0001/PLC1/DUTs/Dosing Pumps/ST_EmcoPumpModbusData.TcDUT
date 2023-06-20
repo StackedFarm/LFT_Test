@@ -1,0 +1,83 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_EmcoPumpModbusData" Id="{2da97c46-c879-4dbf-a291-14bd2ea70777}">
+    <Declaration><![CDATA[TYPE ST_EmcoPumpModbusData :
+STRUCT
+	ALARM_Level_Alarm:  UINT;
+	ALARM_Pump_Status_When_Level_Alarm_Occurs:  UINT;
+	ALARM_Stand_By:  UINT;
+	ALARM_Overflow:  UINT;
+	ALARM_Temperature:  UINT;
+	ALARM_No_Input:  UINT;
+	ALARM_Overpressure:  UINT;
+	DOSAGE_Dosage_Schedule:  UDINT;
+	DOSAGE_Frequency:  UDINT;
+	SETTINGS_Level_Alarm:  UINT;
+	SETTINGS_Level_Alarm_Contact:  UINT;
+	SETTINGS_Reserve_Level_Alarm:  UDINT;
+	SETTINGS_Unit:  UINT;
+	MODE_Working_Mode:  UINT;
+	SETTINGS_Water_Meter_Input_Unit_Of_Measure:  UINT;
+	SETTINGS_Water_Meter_Input_Value:  UINT;
+	STATISTICS_Partial_Statistics_Dosato:  ULINT;
+	STATISTICS_Partial_Statistics_Counter:  ULINT;
+	STATISTICS_Partial_Statistics_Dosato_In_The_Last_24H:  ULINT;
+	STATISTICS_Partial_Statistics_Counter_In_The_Last_24H:  ULINT;
+	STATISTICS_Partial_Statistics_Reset_The_Last_Time_Hrs:  UINT;
+	STATISTICS_Partial_Statistics_Reset_The_Last_Time_Mins:  UINT;
+	STATISTICS_Partial_Statistics_Reset_The_Last_Time_Seconds:  UINT;
+	STATISTICS_Partial_Statistics_Date_Last_Reset_Day:  UINT;
+	STATISTICS_Partial_Statistics_Date_Last_Reset_Month:  UINT;
+	STATISTICS_Partial_Statistics_Date_Last_Reset_Year:  UINT;
+	STATISTICS_Statistics_Total_Total_Dosage:  ULINT;
+	STATISTICS_Statistics_Total_Counter:  ULINT;
+	MODE_ON_OFF:  UINT;
+	SETTINGS_Timeout_Val:  UINT;
+	SETTINGS_Overflow_Val:  UINT;
+	SETTINGS_Delay:  UINT;
+	MODE_Constant_Mode:  UDINT;
+	MODE_Mode_Ppm:  UDINT;
+	MODE_Mode_Ppm_Concentration:  UINT;
+	MODE_Mode_Perc:  UDINT;
+	MODE_Mode_Perc_Concentration:  UINT;
+	MODE_Mode_Mlq:  UDINT;
+	MODE_Mode_Mlq_Concentration:  UINT;
+	MODE_Method_Volt_Volt_High_Value:  UINT;
+	MODE_Method_Volt_Volt_Low_Value:  UINT;
+	MODE_Method_Volt_High_Dose:  UDINT;
+	MODE_Mode_Volt_Low_Dose:  UDINT;
+	MODE_Method_Ma_Ma_High_Value:  UINT;
+	MODE_Method_Ma_Ma_Low_Value:  UINT;
+	MODE_Method_Ma_High_Dosage:  UDINT;
+	MODE_Method_Ma_Low_Dosage:  UDINT;
+	MODE_Pulse_Mode_Pulse_High_Value:  UINT;
+	MODE_Pulse_Mode_Pulse_Low_Value:  UINT;
+	MODE_Pulse_Mode_High_Dose:  UDINT;
+	MODE_Pulse_Low_Dose:  UDINT;
+	MODE_Method_Pause_Minutes_Work_Work:  UINT;
+	MODE_Method_Pause_Minutes_Of_Work_Pause:  UINT;
+	MODE_Method_Pause_Quantity_Work_To_Dose:  UDINT;
+	SETTINGS_Flow:  UDINT;
+	SETTINGS_Slow_Mode:  UINT;
+	SETTINGS_Alarm_Output:  UINT;
+	SETTINGS_Alarm_Output_Contact_0_No_1_Nc:  UINT;
+	SETTINGS_Alarm_Output_Alert_Level:  UINT;
+	SETTINGS_Alarm_Out_Standby:  UINT;
+	SETTINGS_Alarm_Output_Alarm_Overflow:  UINT;
+	SETTINGS_Exit_Alarm_Temperature_Alarm:  UINT;
+	SETTINGS_Alarm_Output_No_Alarm_Input:  UINT;
+	SETTINGS_Alarm_Output_For_Overpressure:  UINT;
+	SETTINGS_Standby:  UINT;
+	SETTINGS_Standby_Contact_No_0_1_Nc:  UINT;
+	SETTINGS_Constant_Dosage_With_External_Input_Enable:  UINT;
+	SETTINGS_Constant_Dosage_With_External_Input_No_0_1_Nc:  UINT;
+	SETTINGS_Constant_Dosage_With_External_Input_Dosing_Speed:  UDINT;
+	MODE_Cc_Pulse_Mode:  UDINT;
+	MODE_Batch_Mode_External_Quantity:  UDINT;
+	MODE_Batch_Mode_External_Contact_1_Nc_0_No:  UINT;
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

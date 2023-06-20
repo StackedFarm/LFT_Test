@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <GVL Name="IO_MAPPING" Id="{49aa7159-b604-440c-b529-67c3ff5ede03}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL
+	
+	mcAxis: AXIS_REF;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

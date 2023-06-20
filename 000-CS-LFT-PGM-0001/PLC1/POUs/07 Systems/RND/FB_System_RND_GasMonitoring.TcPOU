@@ -1,0 +1,211 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_System_RND_GasMonitoring" Id="{45c740c6-7694-4f21-a157-52057f6ba0d1}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_System_RND_GasMonitoring
+VAR_IN_OUT
+	// Hold a reference to MBMaster - may need to share this with other dosing machines if only 1 x RS485 card is used for both
+	{attribute 'OPC.UA.DA' := '0'}
+	fbModbusMaster_1: 	FB_ModbusMaster;
+	fbModbusMaster_2: 	FB_ModbusMaster;    
+END_VAR
+
+VAR
+	bFirstRun: BOOL := TRUE;
+	
+	eSMState: (O2_CONC, O2_AL1, O2_AL2, O2_AL3, CO2_CONC, CO2_AL1, CO2_AL2, CO2_AL3);
+	
+	nIterator: UINT := 1;
+	
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND1_GAS: FB_GasMonitoringPanel_CDA4022(ModbusID:= GVL.RND1_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND2_GAS: FB_GasMonitoringPanel_CDA4022(ModbusID:= GVL.RND2_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND3_GAS: FB_GasMonitoringPanel_CDA4022(ModbusID:= GVL.RND3_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND4_GAS: FB_GasMonitoringPanel_CDA4022(ModbusID:= GVL.RND4_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND5_GAS: FB_GasMonitoringPanel_CDA4022(ModbusID:= GVL.RND5_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND6_GAS: FB_GasMonitoringPanel_CDA4022(ModbusID:= GVL.RND6_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND7_GAS: FB_GasMonitoringPanel_CDA4022(ModbusID:= GVL.RND7_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND8_GAS: FB_GasMonitoringPanel_CDA4022(ModbusID:= GVL.RND8_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND9_GAS: FB_GasMonitoringPanel_CDA4022(ModbusID:= GVL.RND9_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND10_GAS: FB_GasMonitoringPanel_CDA4022(ModbusID:= GVL.RND10_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND11_GAS: FB_GasMonitoringPanel_CDA4022(ModbusID:= GVL.RND11_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND12_GAS: FB_GasMonitoringPanel_CDA4022(ModbusID:= GVL.RND12_GasMon_ModID);
+	
+	aGasPanels: ARRAY[1..12] OF POINTER TO FB_GasMonitoringPanel_CDA4022;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF bFirstRun THEN
+	devices_init();
+	bFirstRun := FALSE;
+END_IF
+
+devices_update();
+
+CASE eSMState OF
+	
+	O2_CONC:
+		IF aGasPanels[nIterator]^.read_Concentration_O2() THEN
+			eSMState := O2_AL1;
+		END_IF
+		
+	O2_AL1:
+		IF aGasPanels[nIterator]^.read_Alarm_O2_Lvl1() THEN
+			eSMState := O2_AL2;
+		END_IF
+		
+	O2_AL2:
+		IF aGasPanels[nIterator]^.read_Alarm_O2_Lvl2() THEN
+			eSMState := O2_AL3;
+		END_IF
+		
+	O2_AL3:
+		IF aGasPanels[nIterator]^.read_Alarm_O2_Lvl3() THEN
+			eSMState := CO2_CONC;
+		END_IF
+		
+	CO2_CONC:
+		IF aGasPanels[nIterator]^.read_Concentration_CO2() THEN
+			eSMState := CO2_AL1;
+		END_IF
+		
+	CO2_AL1:
+		IF aGasPanels[nIterator]^.read_Alarm_CO2_Lvl1() THEN
+			eSMState := CO2_AL2;
+		END_IF
+		
+	CO2_AL2:
+		IF aGasPanels[nIterator]^.read_Alarm_CO2_Lvl2() THEN
+			eSMState := CO2_AL3;
+		END_IF
+		
+	CO2_AL3:
+		IF aGasPanels[nIterator]^.read_Alarm_CO2_Lvl3() THEN
+			eSMState := O2_CONC;
+			nIterator := nIterator + 1;
+			IF nIterator > 12 THEN
+				nIterator := 1;
+			END_IF
+		END_IF
+	
+END_CASE
+
+
+
+
+]]></ST>
+    </Implementation>
+    <Method Name="devices_init" Id="{4e504a18-0e8d-4d56-a5a7-8df7dec3f516}">
+      <Declaration><![CDATA[METHOD devices_init : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+aGasPanels[1] := ADR(fbRND1_GAS);
+aGasPanels[2] := ADR(fbRND2_GAS);
+aGasPanels[3] := ADR(fbRND3_GAS);
+aGasPanels[4] := ADR(fbRND4_GAS);
+aGasPanels[5] := ADR(fbRND5_GAS);
+aGasPanels[6] := ADR(fbRND6_GAS);
+aGasPanels[7] := ADR(fbRND7_GAS);
+aGasPanels[8] := ADR(fbRND8_GAS);
+aGasPanels[9] := ADR(fbRND9_GAS);
+aGasPanels[10] := ADR(fbRND10_GAS);
+aGasPanels[11] := ADR(fbRND11_GAS);
+aGasPanels[12] := ADR(fbRND12_GAS);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="devices_update" Id="{c8a57add-94b6-40be-b398-a7a879b7c829}">
+      <Declaration><![CDATA[METHOD devices_update : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbRND1_GAS(fbModbusMaster := fbModbusMaster_1);
+fbRND2_GAS(fbModbusMaster := fbModbusMaster_1);
+fbRND3_GAS(fbModbusMaster := fbModbusMaster_1);
+fbRND4_GAS(fbModbusMaster := fbModbusMaster_1);
+fbRND5_GAS(fbModbusMaster := fbModbusMaster_1);
+fbRND6_GAS(fbModbusMaster := fbModbusMaster_1);
+
+fbRND7_GAS(fbModbusMaster := fbModbusMaster_2);
+fbRND8_GAS(fbModbusMaster := fbModbusMaster_2);
+fbRND9_GAS(fbModbusMaster := fbModbusMaster_2);
+fbRND10_GAS(fbModbusMaster := fbModbusMaster_2);
+fbRND11_GAS(fbModbusMaster := fbModbusMaster_2);
+fbRND12_GAS(fbModbusMaster := fbModbusMaster_2);]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_System_RND_GasMonitoring">
+      <LineId Id="34" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="39" Count="1" />
+      <LineId Id="45" Count="1" />
+      <LineId Id="120" Count="0" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="52" Count="2" />
+      <LineId Id="95" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="59" Count="1" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="62" Count="2" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="93" Count="0" />
+      <LineId Id="66" Count="2" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="92" Count="0" />
+      <LineId Id="70" Count="2" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="91" Count="0" />
+      <LineId Id="74" Count="3" />
+      <LineId Id="90" Count="0" />
+      <LineId Id="78" Count="3" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="82" Count="6" />
+      <LineId Id="73" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="31" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_System_RND_GasMonitoring.devices_init">
+      <LineId Id="6" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="10" />
+    </LineIds>
+    <LineIds Name="FB_System_RND_GasMonitoring.devices_update">
+      <LineId Id="5" Count="5" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="11" Count="5" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

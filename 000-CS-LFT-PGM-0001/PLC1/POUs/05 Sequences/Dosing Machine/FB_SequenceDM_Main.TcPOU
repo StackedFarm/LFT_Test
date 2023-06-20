@@ -1,0 +1,227 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SequenceDM_Main" Id="{aed1e471-e726-4c71-83bc-d1f68b730bb4}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_SequenceDM_Main EXTENDS FB_SequenceBase
+
+VAR
+	bUseMainPump_A: BOOL := TRUE;  // this boolean is used to keep track of which of the two redudant pumps we should use
+END_VAR
+
+VAR_IN_OUT
+	devices: ST_DMComponents;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="FB_init" Id="{9a2546af-0dcc-4735-a9a7-d527ee4b3223}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+		Here we set the order of things to command, what the commands should be, and also how much time to allow during and between steps
+		Every component listed below becomes 'Enabled' at each step
+*)
+sSequenceName:= 'DM Main Sequence';
+sSequenceDescription := 'Main sequence for dosing machine with pH and Nutrient dosing active';
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="populateSteps" Id="{0eb7d9e1-dbc4-4999-87ff-458c6b37d822}">
+      <Declaration><![CDATA[METHOD populateSteps : ST_SequenceStep
+VAR_INPUT
+	
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+		Here we set the order of things to command, what the commands should be, and also how much time to allow during and between steps
+		Every component listed below becomes 'Enabled' at each step
+*)
+
+Step1.Device := devices.fbStrainer;
+Step1.Command := E_DeviceState.RUNNING;
+Step1.StepMinDuration := T#5S; 
+Step1.DelayUntilNextStep := T#5S;
+Step1.WaitForAction := FALSE;
+aSequenceSteps[1] := Step1;
+
+Step2.Device := devices.fbStrainer;
+Step2.Command := E_DeviceState.RUNNING;
+Step2.StepMinDuration := T#5S; 
+Step2.DelayUntilNextStep := T#5S;
+Step2.WaitForAction := FALSE;
+aSequenceSteps[2] := Step2;
+
+Step3.Device := devices.fbUnit_UltraSonCleaner;
+Step3.Command := E_DeviceState.RUNNING;
+Step3.StepMinDuration := T#5S; 
+Step3.DelayUntilNextStep := T#5S;
+Step3.WaitForAction := FALSE;
+aSequenceSteps[3] := Step3;
+
+Step4.Device := devices.fbUVFilter1;
+Step4.Command := E_DeviceState.RUNNING;
+Step4.StepMinDuration := T#5S; 
+Step4.DelayUntilNextStep := T#5S;				// Steps 1 - 3 can happen in parallel
+Step4.WaitForAction := TRUE;
+aSequenceSteps[4] := Step4;
+
+Step5.Device := devices.fbValve_DosingSupply;
+Step5.Command := E_DeviceState.OPEN;
+Step5.StepMinDuration := T#5S; 
+Step5.DelayUntilNextStep := T#5S;
+Step5.WaitForAction := TRUE;
+aSequenceSteps[5] := Step5;
+
+Step6.Device := devices.fbPump_MainPumpA;   // start with Pump A - this will need to be changed to pump b every 24hrs
+Step6.Command := E_DeviceState.RUNNING;
+Step6.StepMinDuration := T#5S; 
+Step6.DelayUntilNextStep := T#5S;
+Step6.WaitForAction := TRUE;
+aSequenceSteps[6] := Step6;
+
+Step7.Device := devices.fbUnit_OxyInjector;
+Step7.Command := E_DeviceState.RUNNING;
+Step7.StepMinDuration := T#5S; 
+Step7.DelayUntilNextStep := T#5S;
+Step7.WaitForAction := FALSE;
+aSequenceSteps[7] := Step7;
+
+Step8.Device := devices.fbDosingPump_phUp;
+Step8.Command := E_DeviceState.IDLE;
+Step8.StepMinDuration := T#5S; 
+Step8.DelayUntilNextStep := T#5S;
+Step8.WaitForAction := FALSE;
+aSequenceSteps[8] := Step8;
+
+Step9.Device := devices.fbDosingPump_phDown;
+Step9.Command := E_DeviceState.IDLE;
+Step9.StepMinDuration := T#5S; 
+Step9.DelayUntilNextStep := T#5S;
+Step9.WaitForAction := FALSE;
+aSequenceSteps[9] := Step9;
+
+Step10.Device := devices.fbDosingPump_NutrientA;
+Step10.Command := E_DeviceState.IDLE;
+Step10.StepMinDuration := T#0S; 
+Step10.DelayUntilNextStep := T#0S;
+Step10.WaitForAction := FALSE;
+aSequenceSteps[10] := Step10;
+
+Step11.Device := devices.fbDosingPump_NutrientB;
+Step11.Command := E_DeviceState.IDLE;
+Step11.StepMinDuration := T#0S; 
+Step11.DelayUntilNextStep := T#0S;
+Step11.WaitForAction := FALSE;
+aSequenceSteps[11] := Step11;
+
+Step12.Device := devices.fbDosingPump_NutrientC;
+Step12.Command := E_DeviceState.IDLE;
+Step12.StepMinDuration := T#0S; 
+Step12.DelayUntilNextStep := T#0S;
+Step12.WaitForAction := FALSE;
+aSequenceSteps[12] := Step12;
+
+
+Step13.Device := devices.fbDosingPump_phDown;
+Step13.Command := E_DeviceState.IDLE;
+Step13.StepMinDuration := T#0S; 
+Step13.DelayUntilNextStep := T#0S;
+Step13.WaitForAction := FALSE;
+aSequenceSteps[13] := Step13;
+
+
+Step14.Device := devices.fbValve_IrrigatorSupply;
+Step14.Command := E_DeviceState.CLOSED;					// This valve may already be closed, sending this command will enable the valve, permitting supervisory control
+Step14.StepMinDuration := T#10S; 
+Step14.DelayUntilNextStep := T#0S;
+Step14.WaitForAction := FALSE;
+aSequenceSteps[14] := Step14;
+
+nNumberSequenceSteps := 14;  // use this number to limit the number of operations 
+updateVarIDs();
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_SequenceDM_Main">
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceDM_Main.FB_init">
+      <LineId Id="10" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="111" Count="0" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="97" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SequenceDM_Main.populateSteps">
+      <LineId Id="9" Count="3" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="67" Count="3" />
+      <LineId Id="178" Count="0" />
+      <LineId Id="154" Count="0" />
+      <LineId Id="227" Count="0" />
+      <LineId Id="226" Count="0" />
+      <LineId Id="229" Count="3" />
+      <LineId Id="228" Count="0" />
+      <LineId Id="71" Count="4" />
+      <LineId Id="179" Count="0" />
+      <LineId Id="157" Count="0" />
+      <LineId Id="76" Count="4" />
+      <LineId Id="180" Count="0" />
+      <LineId Id="158" Count="0" />
+      <LineId Id="81" Count="4" />
+      <LineId Id="181" Count="0" />
+      <LineId Id="86" Count="5" />
+      <LineId Id="182" Count="0" />
+      <LineId Id="159" Count="0" />
+      <LineId Id="92" Count="4" />
+      <LineId Id="183" Count="0" />
+      <LineId Id="160" Count="0" />
+      <LineId Id="102" Count="4" />
+      <LineId Id="184" Count="0" />
+      <LineId Id="161" Count="0" />
+      <LineId Id="107" Count="4" />
+      <LineId Id="185" Count="0" />
+      <LineId Id="162" Count="0" />
+      <LineId Id="112" Count="4" />
+      <LineId Id="186" Count="0" />
+      <LineId Id="163" Count="0" />
+      <LineId Id="117" Count="4" />
+      <LineId Id="187" Count="0" />
+      <LineId Id="164" Count="0" />
+      <LineId Id="122" Count="4" />
+      <LineId Id="188" Count="0" />
+      <LineId Id="165" Count="0" />
+      <LineId Id="168" Count="0" />
+      <LineId Id="220" Count="0" />
+      <LineId Id="173" Count="0" />
+      <LineId Id="191" Count="0" />
+      <LineId Id="130" Count="1" />
+      <LineId Id="189" Count="0" />
+      <LineId Id="167" Count="0" />
+      <LineId Id="132" Count="0" />
+      <LineId Id="147" Count="0" />
+      <LineId Id="133" Count="3" />
+      <LineId Id="190" Count="0" />
+      <LineId Id="166" Count="0" />
+      <LineId Id="137" Count="1" />
+      <LineId Id="221" Count="0" />
+      <LineId Id="139" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

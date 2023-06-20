@@ -1,0 +1,210 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_PumpVSD_DanfossFC202" Id="{8f10562c-b8d5-4ee6-8d2e-920462ba01bc}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_PumpVSD_DanfossFC202 EXTENDS FB_BaseDevice IMPLEMENTS I_Device, I_PumpVSD
+
+VAR
+	{attribute 'OPC.UA.DA' := '0'} 
+	bInContactor AT %I*: BOOL := FALSE;
+	{attribute 'OPC.UA.DA' := '0'} 
+	bOutContactor AT %Q*: BOOL := FALSE;
+
+	//MB:  REFERENCE TO FB_ModbusMaster;
+	{attribute 'OPC.UA.DA' := '1'} 
+	nFrequencySetPoint: REAL := 0;
+	{attribute 'OPC.UA.DA' := '1'}
+	nFrequencyActual: REAL := 0;
+	
+	{attribute 'OPC.UA.DA' := '0'} 
+	eSMState: (WAIT, STARTING, RUNNING, STOPPING, STOPPED);
+	
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbTONstartTime();
+fbTONstopTime();
+
+IF GVL.bAutoUpdateDeviceState THEN
+	eState := eStateTarget;	
+END_IF
+
+
+
+IF bEnable THEN
+	IF eStateTarget = E_DeviceState.ON AND eState <> E_DeviceState.ON THEN
+		eSMState := STARTING;
+	END_IF
+END_IF
+
+IF eStateTarget = E_DeviceState.OFF AND eState <> E_DeviceState.OFF THEN
+		eSMState := STOPPING;
+END_IF
+
+
+CASE eSMState OF
+	
+	WAIT:
+		//Wait for method call to change ESMState
+		
+	STARTING: 
+		eState := E_DeviceState.STARTING;
+
+		bOutContactor := TRUE;
+	
+		IF fbTONstartTime.Q THEN
+			eSMState := WAIT;
+			raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Failed to Start', Enabled := TRUE, DeviceAlarmID := 1);
+		END_IF
+		
+		IF bInContactor THEN
+			eSMState := RUNNING;
+			eState := E_DeviceState.ON;
+		END_IF
+		
+	RUNNING:
+		IF bInContactor <> TRUE THEN
+			raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Power Lost', Enabled := TRUE, DeviceAlarmID := 2);
+			eState := E_DeviceState.OFF;
+			eSMState := WAIT;
+		END_IF
+		
+		// Add pump / motor control here - look at built in Twincat libraries 
+		// Add relevant VSD signals to check
+		
+
+	STOPPING:
+		eState := E_DeviceState.STOPPING;
+		bOutContactor := FALSE;
+				
+		IF fbTONstopTime.Q THEN
+			eSMState := WAIT;
+			raiseAlarm(Priority := E_AlarmPriority.High, Label := 'Failed to Stop', Enabled := TRUE, DeviceAlarmID := 3);
+		END_IF 
+		
+		IF bInContactor = FALSE AND nFrequencyActual = 0 THEN
+			eSMState := STOPPED;	
+		END_IF
+		
+
+	STOPPED:
+		eState := E_DeviceState.IDLE;
+		eSMState := WAIT;
+		
+		
+END_CASE]]></ST>
+    </Implementation>
+    <Method Name="disable" Id="{804270c9-423d-4188-8d0a-c788f08e6086}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD disable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enable" Id="{1a2f03e6-8760-474e-805b-081a6d5e0032}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD enable : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{f1d0f4ef-ec41-42bc-ac02-a64cd7aaf9de}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD FB_init : BOOL
+VAR_INPUT
+	(* if TRUE, the retain variables are initialized (warm start / cold start)*)
+	bInitRetains	: BOOL;
+	(* if TRUE, the instance afterwards gets moved into the copy code (online change)*)
+	bInCopyCode	: BOOL;
+	PumpID	: STRING(80);
+	PumpDescr	: STRING(255);
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sID := PumpID;
+sDescr := PumpDescr;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getFrequency" Id="{c1b20bda-78b9-44f4-b719-f4bf0402a412}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD getFrequency : REAL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setModbusMaster" Id="{4e6b73b3-1af0-4c01-8e8c-1e18f5c141a7}">
+      <Declaration><![CDATA[METHOD setModbusMaster : BOOL
+METHOD setModbusMaster : BOOL
+VAR_INPUT
+	//ModbusMaster: REFERENCE TO FB_ModbusMaster;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//MB := ModbusMaster;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOff" Id="{ad4787ef-89aa-4408-a532-e1185dcc4a66}">
+      <Declaration><![CDATA[METHOD setOff : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setOn" Id="{5f9e8b15-1bc7-4687-93ad-13e325ce96bc}">
+      <Declaration><![CDATA[METHOD setOn : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setReference" Id="{bf1fbfd6-b358-426a-aa5b-ea6d0c95de90}">
+      <Declaration><![CDATA[{warning 'add method implementation '}
+METHOD setReference : BOOL
+VAR_INPUT
+	RefSetPoint	: REAL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_PumpVSD_DanfossFC202">
+      <LineId Id="75" Count="1" />
+      <LineId Id="158" Count="3" />
+      <LineId Id="156" Count="1" />
+      <LineId Id="77" Count="61" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PumpVSD_DanfossFC202.disable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PumpVSD_DanfossFC202.enable">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PumpVSD_DanfossFC202.FB_init">
+      <LineId Id="23" Count="0" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PumpVSD_DanfossFC202.getFrequency">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PumpVSD_DanfossFC202.setModbusMaster">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PumpVSD_DanfossFC202.setOff">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PumpVSD_DanfossFC202.setOn">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PumpVSD_DanfossFC202.setReference">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

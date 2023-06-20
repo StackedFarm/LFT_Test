@@ -1,0 +1,139 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SensorVirtual_Vaisala" Id="{4979944c-e5d8-4ca3-8c66-b396c6e15bd3}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Manages a number of Vaisala sensor and reports the average values.
+*)
+{attribute 'OPC.UA.DA.StructuredType' := '1'}
+FUNCTION_BLOCK FB_SensorVirtual_Vaisala EXTENDS FB_BaseDevice
+VAR_INPUT
+	nModbusUnitIDs: ARRAY[0..10] OF UINT;
+	{attribute 'OPC.UA.DA' := '1'}
+	rMaxDiscrepency : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	sZoneName : STRING;
+END_VAR
+
+VAR_OUTPUT
+	{attribute 'OPC.UA.DA' := '1'}
+	rCO2 : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	rTemperature : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	rHumidity : REAL;
+	{attribute 'OPC.UA.DA' := '1'}
+	sError : STRING;
+END_VAR
+
+VAR
+	fbSensors : ARRAY[0..10] OF FB_Sensor_VaisalaGMW90_R2_1; // FB_Sensor_VaisalaGMW90_R2;
+	i : INT;
+	rCO2_sum : REAL;
+	rHum_sum : REAL;
+	rTemp_sum : REAL;
+	rCO2_min : REAL;
+	rHum_min : REAL;
+	rTemp_min : REAL;
+	rCO2_max : REAL;
+	rHum_max : REAL;
+	rTemp_max : REAL;
+	nSensorCount : INT;
+	rRand : DRAND;
+END_VAR
+
+VAR_IN_OUT
+	fbModbusManager : FB_ModbusManager;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[rCO2_sum := 0;
+rHum_sum := 0;
+rTemp_sum := 0;
+rCO2_min := 10000;
+rHum_min := 10000;
+rTemp_min := 10000;
+rCO2_max := 0;
+rHum_max := 0;
+rTemp_max := 0;
+nSensorCount := 0;
+
+FOR i := 0 TO 10 DO
+	
+	IF nModbusUnitIDs[i] <> 0 THEN
+		
+		nSensorCount := nSensorCount + 1;
+		
+		fbSensors[i](nModbusUnitID := nModbusUnitIDs[i], fbModbusManager := fbModbusManager);		
+		
+		rCO2_sum := rCO2_sum + fbSensors[i].rCO2;
+		rHum_sum := rHum_sum + fbSensors[i].rHumidity;
+		rTemp_sum := rTemp_sum + fbSensors[i].rTemperature;
+		
+		rCO2_min := MIN(rCO2_min, fbSensors[i].rCO2);
+		rHum_min := MIN(rHum_min, fbSensors[i].rHumidity);
+		rTemp_min := MIN(rTemp_min, fbSensors[i].rTemperature);
+		
+		rCO2_max := MAX(rCO2_max, fbSensors[i].rCO2);
+		rHum_max := MAX(rHum_max, fbSensors[i].rHumidity);
+		rTemp_max := MAX(rTemp_max, fbSensors[i].rTemperature);
+	
+	END_IF
+
+END_FOR
+
+// calculate averages
+IF nSensorCount <> 0 AND NOT GVL.bSimulateSensors THEN
+	rCO2 := rCO2_sum / nSensorCount;
+	rHumidity := rHum_sum / nSensorCount;
+	rTemperature := rTemp_sum / nSensorCount;
+END_IF
+
+IF GVL.bSimulateSensors THEN
+	rRand(Seed := 1);
+	IF rCO2 < 10 THEN
+		rCO2 := 250;
+	END_IF
+	IF rRand.Num > 0.999 THEN
+		rCO2 := rCO2 * 1.01;
+	ELSIF rRand.Num < 0.001 THEN
+		rCO2 := rCO2 * 0.99;
+	END_IF
+	IF rHumidity < 10 THEN
+		rHumidity := 60;
+	END_IF
+	IF rRand.Num > 0.999 THEN
+		rHumidity := rHumidity * 1.01;
+	ELSIF rRand.Num < 0.001 THEN
+		rHumidity := rHumidity * 0.99;
+	END_IF
+	IF rTemperature < 5 THEN
+		rTemperature := 18;
+	END_IF
+	IF rRand.Num > 0.999 THEN
+		rTemperature := rTemperature * 1.01;
+	ELSIF rRand.Num < 0.001 THEN
+		rTemperature := rTemperature * 0.99;
+	END_IF
+END_IF
+
+// Check sensor discrepencies
+IF rCO2_min > 0 AND rHum_min > 0 AND rTemp_min > 0 THEN
+	IF (ABS(rCO2_max - rCO2_min) / rCO2_min > rMaxDiscrepency) THEN
+		sError := 'CO2 sensor discrepency';
+	ELSIF (ABS(rHum_max - rHum_min) / rHum_min > rMaxDiscrepency) THEN
+		sError := 'Humidity sensor discrepency';
+	ELSIF (ABS(rTemp_max - rTemp_min) / rTemp_min > rMaxDiscrepency) THEN
+		sError := 'Temperature sensor discrepency';
+	ELSE
+		sError := '';
+	END_IF
+ELSE
+	sError := '';
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FB_SensorVirtual_Vaisala">
+      <LineId Id="4" Count="82" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

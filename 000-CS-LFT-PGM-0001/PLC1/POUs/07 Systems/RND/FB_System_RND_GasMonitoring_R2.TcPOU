@@ -1,0 +1,141 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_System_RND_GasMonitoring_R2" Id="{af20aea2-d344-4b07-9ae3-dcddd75f0a48}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_System_RND_GasMonitoring_R2
+VAR_IN_OUT
+	// Hold a reference to MBMaster - may need to share this with other dosing machines if only 1 x RS485 card is used for both
+	{attribute 'OPC.UA.DA' := '0'}
+	fbModbusManager_1: 	FB_ModbusManager;
+	fbModbusManager_2: 	FB_ModbusManager;    
+END_VAR
+
+VAR
+	bFirstRun: BOOL := TRUE;
+	
+	eSMState: (O2_CONC, O2_AL1, O2_AL2, O2_AL3, CO2_CONC, CO2_AL1, CO2_AL2, CO2_AL3);
+	
+	nIterator: UINT := 1;
+	
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND1_GAS: FB_GasMonitoringPanel_CDA4022_R2(ModbusID:= GVL.RND1_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND2_GAS: FB_GasMonitoringPanel_CDA4022_R2(ModbusID:= GVL.RND2_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND3_GAS: FB_GasMonitoringPanel_CDA4022_R2(ModbusID:= GVL.RND3_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND4_GAS: FB_GasMonitoringPanel_CDA4022_R2(ModbusID:= GVL.RND4_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND5_GAS: FB_GasMonitoringPanel_CDA4022_R2(ModbusID:= GVL.RND5_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND6_GAS: FB_GasMonitoringPanel_CDA4022_R2(ModbusID:= GVL.RND6_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND7_GAS: FB_GasMonitoringPanel_CDA4022_R2(ModbusID:= GVL.RND7_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND8_GAS: FB_GasMonitoringPanel_CDA4022_R2(ModbusID:= GVL.RND8_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND9_GAS: FB_GasMonitoringPanel_CDA4022_R2(ModbusID:= GVL.RND9_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND10_GAS: FB_GasMonitoringPanel_CDA4022_R2(ModbusID:= GVL.RND10_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND11_GAS: FB_GasMonitoringPanel_CDA4022_R2(ModbusID:= GVL.RND11_GasMon_ModID);
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbRND12_GAS: FB_GasMonitoringPanel_CDA4022_R2(ModbusID:= GVL.RND12_GasMon_ModID);
+	
+	aGasPanels: ARRAY[1..12] OF POINTER TO FB_GasMonitoringPanel_CDA4022_R2;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF bFirstRun THEN
+	devices_init();
+	bFirstRun := FALSE;
+END_IF
+
+devices_update();
+
+
+
+
+
+
+]]></ST>
+    </Implementation>
+    <Method Name="devices_init" Id="{77d5352b-d1f0-477b-be09-8e48c70a1edf}">
+      <Declaration><![CDATA[METHOD devices_init : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+aGasPanels[1] := ADR(fbRND1_GAS);
+aGasPanels[2] := ADR(fbRND2_GAS);
+aGasPanels[3] := ADR(fbRND3_GAS);
+aGasPanels[4] := ADR(fbRND4_GAS);
+aGasPanels[5] := ADR(fbRND5_GAS);
+aGasPanels[6] := ADR(fbRND6_GAS);
+aGasPanels[7] := ADR(fbRND7_GAS);
+aGasPanels[8] := ADR(fbRND8_GAS);
+aGasPanels[9] := ADR(fbRND9_GAS);
+aGasPanels[10] := ADR(fbRND10_GAS);
+aGasPanels[11] := ADR(fbRND11_GAS);
+aGasPanels[12] := ADR(fbRND12_GAS);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="devices_update" Id="{676964e6-562c-45d5-9d5f-e5ec08389f18}">
+      <Declaration><![CDATA[METHOD devices_update : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbRND1_GAS(fbModbusManager := fbModbusManager_1);
+fbRND2_GAS(fbModbusManager := fbModbusManager_1);
+fbRND3_GAS(fbModbusManager := fbModbusManager_1);
+fbRND4_GAS(fbModbusManager := fbModbusManager_1);
+fbRND5_GAS(fbModbusManager := fbModbusManager_1);
+fbRND6_GAS(fbModbusManager := fbModbusManager_1);
+
+fbRND7_GAS(fbModbusManager := fbModbusManager_2);
+fbRND8_GAS(fbModbusManager := fbModbusManager_2);
+fbRND9_GAS(fbModbusManager := fbModbusManager_2);
+fbRND10_GAS(fbModbusManager := fbModbusManager_2);
+fbRND11_GAS(fbModbusManager := fbModbusManager_2);
+fbRND12_GAS(fbModbusManager := fbModbusManager_2);]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_System_RND_GasMonitoring_R2">
+      <LineId Id="34" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="39" Count="1" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="31" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_System_RND_GasMonitoring_R2.devices_init">
+      <LineId Id="6" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="10" />
+    </LineIds>
+    <LineIds Name="FB_System_RND_GasMonitoring_R2.devices_update">
+      <LineId Id="5" Count="5" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="11" Count="5" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

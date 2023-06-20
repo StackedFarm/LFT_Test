@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_INPUTS_StaticConv" Id="{2d4527d7-6b6b-4787-805a-1027439f47b6}">
+    <Declaration><![CDATA[TYPE ST_INPUTS_StaticConv:
+STRUCT
+	
+	Mode:     	E_DeviceMode;
+	Command:    E_DeviceState;
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

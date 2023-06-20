@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_AxisNumberCoE" Id="{a235f99f-c28d-4a4a-8259-fb45f473bd77}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_AxisNumberCoE :
+(
+	SingleAxis_LeftDoubleAxis := 1,
+	RightDoubleAxis := 2
+)WORD;
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

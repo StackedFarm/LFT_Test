@@ -1,0 +1,136 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_RS485_CardRead" Id="{80cfe664-6dbb-4ee9-8e96-867da77f628d}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_RS485_CardRead
+
+VAR
+	fbSDORead: FB_EcCoeSdoRead;
+	
+	// Inputs
+	sNetID: 		T_AmsNetId := '192.168.1.31.2.1'; 	// This is a string that contains the AMS network identifier of the EtherCAT master device.
+	nSlaveAddr: 	UINT := 1005; 						// Fixed address of the EtherCAT slave to which the SDO upload command should be sent.
+	nSubIndex:		BYTE; 								// Sub-index of the object that is to be read.
+	nIndex:			WORD := 16#8000;								// Index of the object that is to be read.
+	//pDstBuf:		DWORD; 								// The address (pointer) of the receive buffer
+	rxBuffer:		ARRAY[1..16] OF BYTE;
+	cbBufLen: 		UDINT; 								// The maximum available buffer size for the data to be read, in bytes.
+	bExecute: 		BOOL; 								// The block is activated by a rising edge at this input.
+	tTimeout:		TIME:=DEFAULT_ADS_TIMEOUT;
+	
+	// Outputs
+	bBusy: 			BOOL; // This output is set when the function block is activated and remains set until an acknowledgement is received.
+	bError:			BOOL; // This output is set up after the bBusy output has been reset if there has been an error in transmission of the command.
+	nErrId:			UDINT; // Supplies the ADS error code associated with the most recently executed command if the bError output is set.
+	
+	
+
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbSdoRead();
+
+]]></ST>
+    </Implementation>
+    <Method Name="readBaudrate" Id="{6324b89c-c816-4d20-b91f-dcc766f2a608}">
+      <Declaration><![CDATA[METHOD readBaudrate : BOOL
+VAR_OUTPUT
+	Baudrate: POINTER TO DINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nSubIndex 	:= 16#11;
+nIndex 		:= 16#8000;
+
+fbSdoRead(sNetId:=sNetId, nSlaveAddr:=nSlaveAddr, nIndex:=nIndex, nSubIndex:=nSubIndex, pDstBuf:=Baudrate, cbBufLen:=SIZEOF(Baudrate^), bExecute:=bExecute);
+bError:=fbSdoRead.bError;
+nErrId:=fbSdoRead.nErrId;
+bExecute := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="readDataFrame" Id="{2cf7f27e-ef8b-4bb9-a14f-fa20af8d115d}">
+      <Declaration><![CDATA[METHOD readDataFrame : BOOL
+VAR_INPUT
+	Dataframe: POINTER TO INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nSubIndex 	:= 16#11;
+nIndex 		:= 16#8000;
+
+fbSdoRead(sNetId:=sNetId, nSlaveAddr:=nSlaveAddr, nIndex:=nIndex, nSubIndex:=nSubIndex, pDstBuf:=Dataframe, cbBufLen:=SIZEOF(Dataframe^), bExecute:=bExecute);
+bError:=fbSdoRead.bError;
+nErrId:=fbSdoRead.nErrId;
+bExecute := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="readInitAccepted" Id="{15ae7882-e7b3-4300-9eb8-9b9859c8df05}">
+      <Declaration><![CDATA[METHOD readInitAccepted : BOOL
+VAR_INPUT
+	Accepted: POINTER TO BOOL;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nSubIndex 	:= 16#3;
+nIndex 		:= 16#6010;
+
+fbSdoRead(sNetId:=sNetId, nSlaveAddr:=nSlaveAddr, nIndex:=nIndex, nSubIndex:=nSubIndex, pDstBuf:=Accepted, cbBufLen:=SIZEOF(Accepted^), bExecute:=bExecute);
+bError:=fbSdoRead.bError;
+nErrId:=fbSdoRead.nErrId;
+bExecute := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="readTxAccepted" Id="{df8f42bd-29d3-4d58-9e55-71c0ad3b5c13}">
+      <Declaration><![CDATA[METHOD readTxAccepted : BOOL
+VAR_INPUT
+	Accepted: POINTER TO BOOL;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nSubIndex 	:= 16#1;
+nIndex 		:= 16#6010;
+
+fbSdoRead(sNetId:=sNetId, nSlaveAddr:=nSlaveAddr, nIndex:=nIndex, nSubIndex:=nSubIndex, pDstBuf:=Accepted, cbBufLen:=SIZEOF(Accepted^), bExecute:=bExecute);
+bError:=fbSdoRead.bError;
+nErrId:=fbSdoRead.nErrId;
+bExecute := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SDO_Read" Id="{4b96d344-34d0-4f5d-9da3-a2ad6ffcf3ce}">
+      <Declaration><![CDATA[METHOD SDO_Read : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_RS485_CardRead">
+      <LineId Id="51" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="52" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RS485_CardRead.readBaudrate">
+      <LineId Id="10" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="16" Count="3" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RS485_CardRead.readDataFrame">
+      <LineId Id="7" Count="5" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RS485_CardRead.readInitAccepted">
+      <LineId Id="6" Count="5" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RS485_CardRead.readTxAccepted">
+      <LineId Id="6" Count="5" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RS485_CardRead.SDO_Read">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

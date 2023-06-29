@@ -70,7 +70,6 @@ VAR
 	PI5_ProcessInput_5 AT %I* : WORD;
 	PI6_ProcessInput_6 AT %I* : WORD;
 	
-	
 	// Additional Variables
 	eOperatingMode: E_MovidriveB_OpMode := E_MovidriveB_OpMode.JOG_MODE;
 	
@@ -82,9 +81,7 @@ END_VAR
 
 VAR PERSISTENT
 	bAbove_1_or_Below_0_HomePos: BOOL;
-	
-	eSMState: (INIT, ENABLE, EXTEND, EXTEND_SLOW, RETRACT, RETRACT_SLOW, JOG_FWD, JOG_REV, STOP, ERROR, RESET) := INIT;
-	
+	eSMState: (INIT, ENABLE, MOVE_TRIG, MOVING, MOVED, STOP, ERROR, RESET) := INIT;
 	nGearRation: REAL; 
 	nInertia: REAL;
 END_VAR
@@ -93,19 +90,91 @@ END_VAR
       <ST><![CDATA[updateInputs();
 updateOutputs();
 
-CASE eOperatingMode OF 
-	E_MovidriveB_OpMode.JOG_MODE:
-		bModeLow 	:= TRUE;
-		bModeHigh 	:= FALSE;
-	E_MovidriveB_OpMode.REFERENCING_MODE:
-		bModeLow 	:= FALSE;
-		bModeHigh 	:= TRUE;
-	E_MovidriveB_OpMode.AUTOMATIC_MODE:
-		bModeLow 	:= TRUE;
-		bModeHigh 	:= TRUE;
+
+IF nActualPosition > 0 THEN
+	bAbove_1_or_Below_0_HomePos := TRUE;
+ELSE
+	bAbove_1_or_Below_0_HomePos := FALSE;
+END_IF
+
+IF eStateTarget = E_DeviceState.EXTENDED THEN
+	eSMState := MOVE_TRIG;
+END_IF
+
+
+CASE eSMState OF
+	INIT:
+		bController_Inhibit := TRUE;
+		bHold_Ctrl := TRUE;
+		
+	ENABLE:
+		bController_Inhibit := FALSE;
+		bHold_Ctrl := FALSE;
+		eState := E_DeviceState.IDLE;
+	
+	MOVE_TRIG:
+		IF bInverterReady AND ( NOT bFault ) THEN
+			bModeLow 	:= TRUE;
+			bModeHigh 	:= TRUE;
+			eSMState := MOVING;
+			
+			IF nActualPosition < nTargetPosition THEN
+				bExtending_1_or_Retracting_0 := TRUE;
+			ELSE
+				bExtending_1_or_Retracting_0 := FALSE;
+			END_IF
+			
+		ELSE
+			eSMState := ERROR;
+		END_IF
+		
+	MOVING:
+		eState := E_DeviceState.EXTENDING;
+		
+		IF bTargetPosReached THEN
+			eSMState := MOVED;
+		END_IF
+		
+	MOVED:
+		eState := E_DeviceState.EXTENDED;
+		eSMState := ENABLE;
+		
+	STOP:
+		bEnable_Stop := TRUE;
+			
+	
+	ERROR:
+		IF bFault THEN
+			CASE FaultCode OF
+				07:
+					// Under-voltage
+				08:
+					// N-monitoring
+				10:
+					// IPOS-ILLOP
+				14:
+					// Encoder
+				25:
+					// EEPROM
+				28:
+					// Field-bus timeout
+				29:
+					// Limit switch reached
+				31: 
+					// TF Sensor
+				36:
+					// Immediate switch-off
+				42: 
+					// Lag fault
+				94: 
+					// EEPROM checksum
+			END_CASE
+		END_IF
+		//
+	RESET:
+		bFaultReset := TRUE;
+		//
 END_CASE
-
-
 
 ]]></ST>
     </Implementation>
@@ -168,19 +237,53 @@ PO6_ProcessOutput_6 := DINT_TO_WORD(TIME_TO_DINT(tRamp_Decel)/1000);
     <LineIds Name="FB_SEW_MovidriveB">
       <LineId Id="9" Count="0" />
       <LineId Id="81" Count="0" />
-      <LineId Id="170" Count="0" />
-      <LineId Id="169" Count="0" />
-      <LineId Id="171" Count="0" />
-      <LineId Id="173" Count="0" />
-      <LineId Id="202" Count="0" />
-      <LineId Id="174" Count="0" />
-      <LineId Id="203" Count="0" />
-      <LineId Id="175" Count="1" />
-      <LineId Id="204" Count="0" />
-      <LineId Id="177" Count="0" />
-      <LineId Id="172" Count="0" />
+      <LineId Id="330" Count="0" />
+      <LineId Id="323" Count="1" />
+      <LineId Id="326" Count="3" />
+      <LineId Id="310" Count="1" />
+      <LineId Id="313" Count="1" />
+      <LineId Id="331" Count="0" />
       <LineId Id="208" Count="0" />
       <LineId Id="207" Count="0" />
+      <LineId Id="218" Count="0" />
+      <LineId Id="242" Count="0" />
+      <LineId Id="244" Count="1" />
+      <LineId Id="221" Count="0" />
+      <LineId Id="241" Count="0" />
+      <LineId Id="246" Count="0" />
+      <LineId Id="309" Count="0" />
+      <LineId Id="243" Count="0" />
+      <LineId Id="266" Count="0" />
+      <LineId Id="269" Count="0" />
+      <LineId Id="272" Count="2" />
+      <LineId Id="321" Count="0" />
+      <LineId Id="315" Count="0" />
+      <LineId Id="317" Count="3" />
+      <LineId Id="316" Count="0" />
+      <LineId Id="268" Count="0" />
+      <LineId Id="276" Count="1" />
+      <LineId Id="267" Count="0" />
+      <LineId Id="223" Count="0" />
+      <LineId Id="259" Count="0" />
+      <LineId Id="278" Count="0" />
+      <LineId Id="260" Count="2" />
+      <LineId Id="254" Count="0" />
+      <LineId Id="225" Count="1" />
+      <LineId Id="279" Count="0" />
+      <LineId Id="234" Count="1" />
+      <LineId Id="281" Count="0" />
+      <LineId Id="236" Count="0" />
+      <LineId Id="280" Count="0" />
+      <LineId Id="237" Count="0" />
+      <LineId Id="283" Count="1" />
+      <LineId Id="286" Count="0" />
+      <LineId Id="288" Count="20" />
+      <LineId Id="287" Count="0" />
+      <LineId Id="285" Count="0" />
+      <LineId Id="238" Count="1" />
+      <LineId Id="247" Count="0" />
+      <LineId Id="240" Count="0" />
+      <LineId Id="219" Count="0" />
       <LineId Id="206" Count="0" />
       <LineId Id="205" Count="0" />
     </LineIds>

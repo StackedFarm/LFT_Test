@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Lift" Id="{20d4ee3a-b9db-4f8a-8627-ecd4d53597db}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Lift EXTENDS FB_BaseDevice
+
+VAR
+	fbServo: FB_SEW_MovidriveB;
+END_VAR
+
+VAR PERSISTENT
+	bAbove_1_or_Below_0_HomePos: BOOL;
+	bExtending_1_or_Retracting_0: BOOL;
+	eSMState: (INIT, ENABLE, MOVE_TRIG, MOVING, MOVED, STOP, ERROR, RESET) := INIT;
+	nGearRation: REAL; 
+	nInertia: REAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <LineIds Name="FB_Lift">
+      <LineId Id="9" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

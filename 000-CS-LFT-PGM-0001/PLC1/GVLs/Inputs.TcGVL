@@ -7,7 +7,7 @@ VAR_GLOBAL
 		
 	{attribute 'OPC.UA.DA' := '1'}
   	{attribute 'OPC.UA.DA.StructuredType' := '1'}
-	DTTPOP:	ST_INPUTS_POP;
+	SLFT:	ST_INPUTS_LFT;
 	
 	
 	

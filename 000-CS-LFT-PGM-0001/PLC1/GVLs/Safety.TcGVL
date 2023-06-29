@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <GVL Name="Safety" Id="{1be5bb51-8f1b-41e4-9e25-63581b9ca926}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL
+	{attribute 'OPC.UA.DA' := '1'}
+	bSafetyErrorAcknowledge AT %Q*: BOOL; 	
+	{attribute 'OPC.UA.DA' := '1'}
+	bSafety_Run_Stop AT %Q*: BOOL;
+	{attribute 'OPC.UA.DA' := '1'}
+	bSafety_EStopStatus AT %I*: BOOL;
+	{attribute 'OPC.UA.DA' := '1'}
+	bSafety_Reset AT %Q*: BOOL;
+	
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

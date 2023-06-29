@@ -146,6 +146,9 @@
     <Compile Include="DUTs\Machines\ST_POPComponents.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="DUTs\Machines\ST_LFTComponents.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="DUTs\Machines\ST_RNDDMComponents.TcDUT">
       <SubType>Code</SubType>
     </Compile>
@@ -159,6 +162,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="DUTs\ST_INPUTS_POP.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_INPUTS_LFT.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="DUTs\ST_INPUTS_SequenceManager_POP.TcDUT">
@@ -257,6 +263,10 @@
       <LinkAlways>true</LinkAlways>
     </Compile>
     <Compile Include="GVLs\IO_MAPPING.TcGVL">
+      <SubType>Code</SubType>
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="GVLs\Safety.TcGVL">
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
     </Compile>
@@ -518,6 +528,9 @@
     <Compile Include="POUs\05 Sequences\POP\FB_SequenceRETRACT_CONVEY.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="POUs\05 Sequences\LFT\FB_SequenceMOVE.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="POUs\05 Sequences\RnD Machines\FB_SequenceRNDWTR_Main.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -545,7 +558,7 @@
     <Compile Include="POUs\05 Sequences\Water Treatment\FB_SequenceWTR_Main.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POUs\06 Machines\FB_Machine_POP.TcPOU">
+    <Compile Include="POUs\06 Machines\FB_Machine_LFT.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\06 Machines\Others\FB_Machine_DosingMachine.TcPOU">
@@ -632,10 +645,22 @@
     <Compile Include="POUs\LFT\E_MovidriveB_OpMode.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="POUs\LFT\FB_AutoGreaser.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\LFT\FB_Lift.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\LFT\FB_LiftArm.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="POUs\LFT\FB_ParameterCoE_ReadWrite_GenC.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\LFT\FB_SEW_MovidriveB.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\LFT\ST_StackDestination.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\POP\FB_ActuatorLinear.TcPOU">
@@ -692,6 +717,7 @@
     <Folder Include="POUs\05 Sequences" />
     <Folder Include="POUs\05 Sequences\Dosing Machine" />
     <Folder Include="POUs\05 Sequences\POP" />
+    <Folder Include="POUs\05 Sequences\LFT" />
     <Folder Include="POUs\05 Sequences\RnD Machines" />
     <Folder Include="POUs\05 Sequences\Water Treatment" />
     <Folder Include="POUs\06 Machines" />

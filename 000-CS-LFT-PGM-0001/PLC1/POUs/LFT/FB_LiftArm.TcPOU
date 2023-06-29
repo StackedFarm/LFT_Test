@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_LiftArm" Id="{14a9fb1c-10db-4a86-a90f-bcbd0a124a98}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LiftArm EXTENDS FB_BaseDevice
+
+VAR
+	fbServo: FB_SEW_MovidriveB;
+END_VAR
+(*
+VAR_IN_OUT
+	fbSensor_PressSwitch: FB_AutoSwitch;
+END_VAR
+*)
+VAR PERSISTENT
+	bAbove_1_or_Below_0_HomePos: BOOL;
+	bExtending_1_or_Retracting_0: BOOL;
+	eSMState: (INIT, ENABLE, MOVE_TRIG, MOVING, MOVED, STOP, ERROR, RESET) := INIT;
+	nGearRation: REAL; 
+	nInertia: REAL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <LineIds Name="FB_LiftArm">
+      <LineId Id="9" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

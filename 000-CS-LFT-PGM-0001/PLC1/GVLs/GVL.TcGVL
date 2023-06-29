@@ -26,6 +26,7 @@ VAR_GLOBAL
 	TrayCentrePOP_TimeRetract: TIME			:= T#5S;
 	
 	bEnableInterlocks: BOOL 				:= TRUE;
+	bAutoUpdateDeviceState: BOOL			:= FALSE;
 	
 END_VAR]]></Declaration>
   </GVL>

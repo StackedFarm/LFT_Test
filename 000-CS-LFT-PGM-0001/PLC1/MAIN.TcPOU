@@ -5,28 +5,79 @@
 VAR
 	fbLiftServo: 	FB_SEW_MovidriveB;
 	fbLiftArmServo:	FB_SEW_MovidriveB;
+
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbMachine_Lift:	FB_Machine_LFT(ID:= 'SLFT' , Description:= 'Seeder Lift');
+	
+	
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbHandshake1:			FB_HandShake_TrayMovement();
+	
+		
+	{attribute 'OPC.UA.DA' := '1'}
+  	{attribute 'OPC.UA.DA.StructuredType' := '1'}
+	fbHandshake2:			FB_HandShake_TrayMovement();
+	
+	
+	tgGreaser: R_TRIG;
+	fbTON_Greaser: TON;
+	tGreaser: TIME := T#2S;
+	bGreaser AT %Q*: BOOL;
+	bGreaser2 AT %Q*: BOOL;
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[devicesUpdate();
-]]></ST>
-    </Implementation>
-    <Method Name="devicesUpdate" Id="{3ccdbb5b-b4c7-426e-bb3f-41280683a070}">
-      <Declaration><![CDATA[METHOD devicesUpdate : BOOL
-VAR_INPUT
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[fbLiftServo();
+      <ST><![CDATA[
+
+fbTON_Greaser(PT := tGreaser);
+tgGreaser();
+
+IF tgGreaser.Q THEN
+	fbTON_Greaser.IN := TRUE;
+	bGreaser := TRUE;
+	bGreaser2 := TRUE;
+	tgGreaser.CLK := FALSE;
+END_IF
+
+IF fbTON_Greaser.Q THEN
+	bGreaser := FALSE;
+	bGreaser2 := FALSE;
+	fbTON_Greaser.IN := FALSE;
+END_IF
+
+
+
+fbMachine_Lift(stInputs := Inputs.SLFT, fbHandshakeUpstream := fbHandshake1, fbHandshakeDownstream := fbHandshake2);
+fbHandshake1(stTrayExchangeInput := Inputs.SLFT.stHandshakeUpstream);
+fbHandshake2(stTrayExchangeInput := Inputs.SLFT.stHandshakeDownstream);
+fbLiftServo();
 fbLiftArmServo();]]></ST>
-      </Implementation>
-    </Method>
+    </Implementation>
     <LineIds Name="MAIN">
+      <LineId Id="41" Count="1" />
       <LineId Id="2" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="29" Count="2" />
+      <LineId Id="33" Count="0" />
       <LineId Id="13" Count="0" />
-    </LineIds>
-    <LineIds Name="MAIN.devicesUpdate">
-      <LineId Id="5" Count="1" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="34" Count="0" />
     </LineIds>
   </POU>
 </TcPlcObject>

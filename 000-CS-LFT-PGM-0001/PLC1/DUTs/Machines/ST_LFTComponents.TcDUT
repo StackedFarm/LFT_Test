@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_LFTComponents" Id="{5aecfbf9-d89e-492c-a23a-8fd5b018cac8}">
+    <Declaration><![CDATA[(*
+		This structure is used enable efficient passing device FBs by reference to sub-FBs of the 
+		machine FB, while maintaining an instance of each plant component at the 
+		highest heirarchy level within the machine FB 
+*)
+
+TYPE ST_LFTComponents :
+STRUCT
+
+	fbServo_Lift: 				POINTER TO FB_Lift;
+	fbServo_LiftArm: 			POINTER TO FB_LiftArm;
+	fbSensor_PressSwitch: 		POINTER TO FB_AutoSwitch();
+	fbSensor_Lift_Home: 		POINTER TO FB_AutoSwitch();
+	fbSensor_Lift_Top: 			POINTER TO 	FB_AutoSwitch();
+	fbSensor_Lift_Bottom: 		POINTER TO FB_AutoSwitch();
+	fbSensor_LiftArm_Home: 		POINTER TO 	FB_AutoSwitch();
+	fbSensor_LiftArm_Extended: 	POINTER TO 	FB_AutoSwitch();
+	fbSensor_LiftArmVacuum:		POINTER TO FB_AutoSwitch();
+	fbSensor_LiftBrake_Left: 	POINTER TO FB_AutoSwitch();
+	fbSensor_LiftBrake_Right:	POINTER TO FB_AutoSwitch();
+	fbAutoGreaser: 				POINTER TO FB_AutoGreaser();
+	fbValve_Brake:	 			POINTER TO 	FB_Valve_ONOFF_woMonitoring;
+	fbValve_Vacuum: 			POINTER TO 	FB_Valve_ONOFF_woMonitoring;
+		
+	
+	
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

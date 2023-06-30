@@ -94,6 +94,10 @@ VAR
 	fbValve_Vacuum:						FB_Valve_ONOFF_woMonitoring(ValveID:= 'VPV', ValveDescr:= 'Vacuum Solenoid Valve' , Normal_State_NC_1_NO_0:= TRUE);
 		
 	
+		
+	bEnableMonitoringBrakes: BOOL := FALSE;
+	nLeftBrake_Counter: INT := 0;
+	nRightBrake_Counter: INT := 0;
 	
 	(**
 	**		TESTING / SIMULATION VARIABLES
@@ -135,7 +139,23 @@ END_VAR
 
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[IF bIsFirstRun THEN
+      <ST><![CDATA[
+
+IF bEnableMonitoringBrakes THEN
+	IF fbSensor_LiftBrake_Left.getState() = E_DeviceState.ON THEN
+		nLeftBrake_Counter := nLeftBrake_Counter + 1;
+	END_IF
+	
+	IF fbSensor_LiftBrake_Right.getState() = E_DeviceState.ON THEN
+		nRightBrake_Counter := nRightBrake_Counter + 1;
+	END_IF
+	
+END_IF
+
+
+
+
+IF bIsFirstRun THEN
 	devices_init();
 	devices_update();
 	//sequence_init();
@@ -823,6 +843,13 @@ aSeqs[5] := fbSeqRND_DMFlush;
       </Implementation>
     </Method>
     <LineIds Name="FB_Machine_LFT">
+      <LineId Id="12369" Count="1" />
+      <LineId Id="12375" Count="1" />
+      <LineId Id="12382" Count="2" />
+      <LineId Id="12387" Count="1" />
+      <LineId Id="12385" Count="1" />
+      <LineId Id="12377" Count="0" />
+      <LineId Id="12371" Count="3" />
       <LineId Id="11643" Count="1" />
       <LineId Id="11962" Count="0" />
       <LineId Id="11645" Count="2" />

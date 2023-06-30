@@ -81,7 +81,7 @@ END_VAR
 
 VAR PERSISTENT
 	bAbove_1_or_Below_0_HomePos: BOOL;
-	eSMState: (INIT, ENABLE, MOVE_TRIG, MOVING, MOVED, STOP, ERROR, RESET) := INIT;
+	eSMState: (INIT, ENABLE, REFEREN, MOVE_TRIG, MOVING, MOVED, STOP, ERROR, RESET) := INIT;
 	nGearRation: REAL; 
 	nInertia: REAL;
 END_VAR
@@ -111,6 +111,14 @@ CASE eSMState OF
 		bController_Inhibit := FALSE;
 		bHold_Ctrl := FALSE;
 		eState := E_DeviceState.IDLE;
+		bStart := FALSE;
+		bEnable_Stop := TRUE;
+		bEnable_RapidStop := TRUE;
+		
+	REFEREN:
+			bModeLow 	:= FALSE;
+			bModeHigh 	:= TRUE;
+			bStart := TRUE;
 	
 	MOVE_TRIG:
 		IF bInverterReady AND ( NOT bFault ) THEN
@@ -130,7 +138,7 @@ CASE eSMState OF
 		
 	MOVING:
 		eState := E_DeviceState.EXTENDING;
-		
+		bStart := TRUE;
 		IF bTargetPosReached THEN
 			eSMState := MOVED;
 		END_IF
@@ -138,6 +146,7 @@ CASE eSMState OF
 	MOVED:
 		eState := E_DeviceState.EXTENDED;
 		eSMState := ENABLE;
+		bStart := FALSE;
 		
 	STOP:
 		bEnable_Stop := TRUE;
@@ -193,7 +202,7 @@ bTargetPosReached 	:= PI1_ProcessInput_1.3;
 bIPOSReference 		:= PI1_ProcessInput_1.2;
 bInverterReady 		:= PI1_ProcessInput_1.1;
 bMotorTurning 		:= PI1_ProcessInput_1.0;
-nActualPosition 	:= SHL(PI2_ProcessInput_2, 8) AND PI3_ProcessInput_3;
+nActualPosition 	:= SHL(WORD_TO_DWORD(PI2_ProcessInput_2), 16) OR WORD_TO_DWORD(PI3_ProcessInput_3);
 nActualSpeed 		:= WORD_TO_INT(PI4_ProcessInput_4);
 nActiveCurrent 		:= WORD_TO_INT(PI5_ProcessInput_5);
 nUnitUtilisation 	:= WORD_TO_INT(PI6_ProcessInput_6);
@@ -221,13 +230,13 @@ PO1_ProcessOutput_1.2 := bEnable_Stop;
 PO1_ProcessOutput_1.1 := bEnable_RapidStop;
 PO1_ProcessOutput_1.0 := bController_Inhibit;
 
-PO2_ProcessOutput_2 := UDINT_TO_WORD(SHR(nTargetPosition AND 16#F0, 8));
-PO3_ProcessOutput_3 := UDINT_TO_WORD(nTargetPosition AND 16#0F);
+PO2_ProcessOutput_2 := DINT_TO_WORD(SHR(nTargetPosition AND 2#11111111111111110000000000000000, 16));
+PO3_ProcessOutput_3 := UDINT_TO_WORD(nTargetPosition AND 2#1111111111111111);
 
 PO4_ProcessOutput_4 := INT_TO_WORD(nSetpointSpeed);
 
-PO5_ProcessOutput_5 := DINT_TO_WORD(TIME_TO_DINT(tRamp_Accel)/1000);
-PO6_ProcessOutput_6 := DINT_TO_WORD(TIME_TO_DINT(tRamp_Decel)/1000);
+PO5_ProcessOutput_5 := DINT_TO_WORD(TIME_TO_DINT(tRamp_Accel));
+PO6_ProcessOutput_6 := DINT_TO_WORD(TIME_TO_DINT(tRamp_Decel));
 
 
 
@@ -252,6 +261,9 @@ PO6_ProcessOutput_6 := DINT_TO_WORD(TIME_TO_DINT(tRamp_Decel)/1000);
       <LineId Id="241" Count="0" />
       <LineId Id="246" Count="0" />
       <LineId Id="309" Count="0" />
+      <LineId Id="338" Count="0" />
+      <LineId Id="340" Count="1" />
+      <LineId Id="333" Count="4" />
       <LineId Id="243" Count="0" />
       <LineId Id="266" Count="0" />
       <LineId Id="269" Count="0" />
@@ -270,6 +282,7 @@ PO6_ProcessOutput_6 := DINT_TO_WORD(TIME_TO_DINT(tRamp_Decel)/1000);
       <LineId Id="254" Count="0" />
       <LineId Id="225" Count="1" />
       <LineId Id="279" Count="0" />
+      <LineId Id="332" Count="0" />
       <LineId Id="234" Count="1" />
       <LineId Id="281" Count="0" />
       <LineId Id="236" Count="0" />
